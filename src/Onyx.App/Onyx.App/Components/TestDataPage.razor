@@ -1,0 +1,33 @@
+﻿@page "/test"
+@using Onyx.App.AndroidData
+
+@inject UsageStatsService UsageStatsService
+
+<button @onclick="RequestPermission">Request Access</button>
+
+@if (Usage != null)
+{
+    @foreach (var usage in Usage)
+    {
+        <div>@usage</div>
+    }
+}
+else
+{
+    <div>OIDA!!!!</div>
+}
+
+@code {
+
+    public List<string>? Usage { get; set; }
+    
+    protected override void OnInitialized()
+    {
+        Usage = UsageStatsHelper.GetUsageStats(Android.App.Application.Context);
+    }
+    
+    private void RequestPermission()
+    {
+        UsageStatsService.OpenUsageAccessSettings();
+    }
+}
