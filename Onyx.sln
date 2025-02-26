@@ -39,6 +39,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Onyx.Data.SqlServer", "src\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Onyx.Data.ApiSchema", "src\Onyx.Data\Onyx.Data.ApiSchema\Onyx.Data.ApiSchema.csproj", "{83F470B9-B877-4156-8D50-EE5E50F6CFE9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests", "tests\UnitTests\UnitTests.csproj", "{9C7C8F58-ED1A-4E48-8925-AC97904F20B5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -73,6 +75,10 @@ Global
 		{83F470B9-B877-4156-8D50-EE5E50F6CFE9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{83F470B9-B877-4156-8D50-EE5E50F6CFE9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{83F470B9-B877-4156-8D50-EE5E50F6CFE9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C7C8F58-ED1A-4E48-8925-AC97904F20B5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C7C8F58-ED1A-4E48-8925-AC97904F20B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C7C8F58-ED1A-4E48-8925-AC97904F20B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C7C8F58-ED1A-4E48-8925-AC97904F20B5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -86,5 +92,6 @@ Global
 		{4AF94DAE-8A4A-4FB1-87BE-CF204C168B74} = {C73DBEBA-4F4D-436E-A3A6-37485BCBD651}
 		{6010F2C1-D43D-4DCC-A999-F78E5ED59764} = {C73DBEBA-4F4D-436E-A3A6-37485BCBD651}
 		{83F470B9-B877-4156-8D50-EE5E50F6CFE9} = {C73DBEBA-4F4D-436E-A3A6-37485BCBD651}
+		{9C7C8F58-ED1A-4E48-8925-AC97904F20B5} = {D432AF8E-8CA3-45D5-8764-FCA42FABDBC7}
 	EndGlobalSection
 EndGlobal

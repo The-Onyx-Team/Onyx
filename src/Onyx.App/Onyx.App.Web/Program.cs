@@ -1,18 +1,34 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.IO.Abstractions;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Onyx.App.Web.Components;
+using Onyx.App.Web.Services.Auth;
 using Onyx.Data.DataBaseSchema;
+using Onyx.Data.DataBaseSchema.Identity;
 using static Provider;
 
-var builder = WebApplication.CreateBuilder(args);
-var config = builder.Configuration;
+// Load Key
+
+await KeyManager.CreateKeyIfNotExists("key.rsa");
+var rsa = await KeyManager.LoadKey("key.rsa");
+var key = new RsaSecurityKey(rsa);
 
 // Base
+var builder = WebApplication.CreateBuilder(args);
+var config = builder.Configuration;
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddSingleton<IFileSystem, FileSystem>();
+builder.Services.AddOpenApi();
+builder.Services.AddSignalR();
+builder.Services.AddHttpClient();
+
 // Database
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
 {
     var provider = config.GetValue("provider", SQLite.Name);
     if (provider == SqlServer.Name)
@@ -31,6 +47,49 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     }
 });
 
+// Auth
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+}).AddCookie(options =>
+{
+    options.Cookie.Name = "AuthCookie";
+}).AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = false,
+        ValidateAudience = false,
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero,
+        IssuerSigningKey = key
+    };
+
+    options.MapInboundClaims = true;
+});
+
+builder.Services.AddAuthorization(options =>
+{
+    options.DefaultPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
+
+builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
+{
+    options.Lockout.AllowedForNewUsers = false;
+    options.SignIn.RequireConfirmedAccount = true;
+    options.User.RequireUniqueEmail = true;
+    options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    options.Password.RequiredLength = 8;
+    options.Password.RequireDigit = false;
+    options.Password.RequireLowercase = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredUniqueChars = 0;
+}).AddEntityFrameworkStores<ApplicationDbContext>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -43,6 +102,11 @@ app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 app.UseAntiforgery();
+
+app.UseRouting();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
