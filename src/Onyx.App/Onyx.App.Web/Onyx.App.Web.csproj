@@ -4,7 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <OutputPath>$(SolutionDir)/build/web</OutputPath>
+    <OutputPath>../../../build/web</OutputPath>
   </PropertyGroup>
 
   <ItemGroup>
