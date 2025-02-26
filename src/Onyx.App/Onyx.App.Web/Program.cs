@@ -1,18 +1,31 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.IO.Abstractions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Onyx.App.Web.Components;
+using Onyx.App.Web.Services.Auth;
 using Onyx.Data.DataBaseSchema;
 using static Provider;
 
-var builder = WebApplication.CreateBuilder(args);
-var config = builder.Configuration;
+// Load Key
+
+await KeyManager.CreateKeyIfNotExists("key.rsa");
+var rsa = await KeyManager.LoadKey("key.rsa");
+var key = new RsaSecurityKey(rsa);
 
 // Base
+var builder = WebApplication.CreateBuilder(args);
+var config = builder.Configuration;
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddSingleton<IFileSystem, FileSystem>();
+builder.Services.AddOpenApi();
+builder.Services.AddSignalR();
+builder.Services.AddHttpClient();
+
 // Database
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
 {
     var provider = config.GetValue("provider", SQLite.Name);
     if (provider == SqlServer.Name)
