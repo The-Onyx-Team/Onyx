@@ -1,6 +1,5 @@
 ﻿using System.IO.Abstractions;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MudBlazor.Services;
 using Onyx.App.Shared.Services;
+using Onyx.App.Web.Api;
 using Onyx.App.Web.Components;
 using Onyx.App.Web.Services.Auth;
 using Onyx.App.Web.Services.Database;
@@ -63,10 +63,10 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<DbInitializer>());
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultScheme = IdentityConstants.ApplicationScheme;
-}).AddCookie(options =>
+}).AddCookie("CookieSchema", options =>
 {
     options.Cookie.Name = "AuthCookie";
-}).AddJwtBearer(options =>
+}).AddJwtBearer("JwtSchema", options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -126,42 +126,9 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(typeof(Onyx.App.Shared._Imports).Assembly);
 
-app.MapPost("/account/login", async (
-    [FromForm] Model model, 
-    [FromServices] SignInManager<ApplicationUser> signInManager,
-    [FromServices] IUserClaimsPrincipalFactory<ApplicationUser> claimsFactory,
-    HttpContext context) =>
-{
-    var user = await signInManager.UserManager.FindByEmailAsync(model.Email);
-    
-    if (user == null)
-    {
-        return Results.Unauthorized();
-    }
-    
-    var result = await signInManager.PasswordSignInAsync(user, model.Password, true, false);
-
-    if (!result.Succeeded)
-    {
-        return Results.Unauthorized();
-    }
-    
-    var principal = await claimsFactory.CreateAsync(user);
-    await context.SignInAsync(IdentityConstants.ApplicationScheme, principal);
-
-    return Results.Redirect(model.Redirect);
-});
-
+app.MapAuthEndpoints();
 
 app.Run();
-
-
-class Model
-{
-    public string Redirect { get; set; }    
-    public string Email { get; set; }    
-    public string Password { get; set; }    
-}
 
 public record Provider(string Name, string Assembly)
 {

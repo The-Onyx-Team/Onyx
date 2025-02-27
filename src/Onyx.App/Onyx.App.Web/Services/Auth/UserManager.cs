@@ -1,6 +1,4 @@
-using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Antiforgery;
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.JSInterop;
 using Onyx.App.Shared.Services;
