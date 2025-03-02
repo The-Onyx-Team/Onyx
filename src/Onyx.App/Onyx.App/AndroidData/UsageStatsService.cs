@@ -1,7 +1,4 @@
-﻿using Android.App;
-using Android.Content;
-using Android.Content.PM;
-using Android.OS;
+﻿using Android.Content;
 using Android.Provider;
 
 namespace Onyx.App.AndroidData;
