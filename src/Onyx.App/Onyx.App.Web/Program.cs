@@ -1,10 +1,16 @@
 ﻿using System.IO.Abstractions;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MudBlazor.Services;
+using Onyx.App.Shared.Services;
 using Onyx.App.Web.Components;
 using Onyx.App.Web.Services.Auth;
+using Onyx.App.Web.Services.Database;
 using Onyx.Data.DataBaseSchema;
 using Onyx.Data.DataBaseSchema.Identity;
 using static Provider;
@@ -25,6 +31,8 @@ builder.Services.AddSingleton<IFileSystem, FileSystem>();
 builder.Services.AddOpenApi();
 builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
+
+builder.Services.AddMudServices();
 
 // Database
 
@@ -47,11 +55,14 @@ builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
     }
 });
 
+builder.Services.AddSingleton<DbInitializer>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<DbInitializer>());
+
 // Auth
 
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultScheme = IdentityConstants.ApplicationScheme;
 }).AddCookie(options =>
 {
     options.Cookie.Name = "AuthCookie";
@@ -79,7 +90,8 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 {
     options.Lockout.AllowedForNewUsers = false;
-    options.SignIn.RequireConfirmedAccount = true;
+    options.SignIn.RequireConfirmedAccount = false;
+    options.SignIn.RequireConfirmedEmail = false;
     options.User.RequireUniqueEmail = true;
     options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     options.Password.RequiredLength = 8;
@@ -89,6 +101,8 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequiredUniqueChars = 0;
 }).AddEntityFrameworkStores<ApplicationDbContext>();
+
+builder.Services.AddScoped<IUserManager, UserManager>();
 
 var app = builder.Build();
 
@@ -101,9 +115,9 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseStaticFiles();
-app.UseAntiforgery();
 
 app.UseRouting();
+app.UseAntiforgery();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -112,7 +126,42 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(typeof(Onyx.App.Shared._Imports).Assembly);
 
+app.MapPost("/account/login", async (
+    [FromForm] Model model, 
+    [FromServices] SignInManager<ApplicationUser> signInManager,
+    [FromServices] IUserClaimsPrincipalFactory<ApplicationUser> claimsFactory,
+    HttpContext context) =>
+{
+    var user = await signInManager.UserManager.FindByEmailAsync(model.Email);
+    
+    if (user == null)
+    {
+        return Results.Unauthorized();
+    }
+    
+    var result = await signInManager.PasswordSignInAsync(user, model.Password, true, false);
+
+    if (!result.Succeeded)
+    {
+        return Results.Unauthorized();
+    }
+    
+    var principal = await claimsFactory.CreateAsync(user);
+    await context.SignInAsync(IdentityConstants.ApplicationScheme, principal);
+
+    return Results.Redirect(model.Redirect);
+});
+
+
 app.Run();
+
+
+class Model
+{
+    public string Redirect { get; set; }    
+    public string Email { get; set; }    
+    public string Password { get; set; }    
+}
 
 public record Provider(string Name, string Assembly)
 {
