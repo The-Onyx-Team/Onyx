@@ -1,4 +1,5 @@
 ﻿@page "/"
+@using System.Text
 @using Android.App.Usage
 @using Onyx.App.AndroidData
 
@@ -62,8 +63,12 @@
                     {
                         if (!notNames.Contains(name.ToLower()))
                         {
-                            cleanName += $"{name} ";
-                        } 
+                            StringBuilder sb = new StringBuilder();
+                            sb.Append(name);
+                            sb[0] = Convert.ToChar(sb[0].ToString().ToUpper());
+                            var temp = sb.ToString();
+                            cleanName += $"{temp} ";
+                        }
                     }
                 }
 
