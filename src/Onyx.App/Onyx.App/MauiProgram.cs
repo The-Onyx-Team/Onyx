@@ -17,6 +17,7 @@ namespace Onyx.App
 
             builder.Services.AddMauiBlazorWebView();
             builder.Services.AddSingleton<UsageStatsService>();
+            builder.Services.AddSingleton<UsageStatsHelper>();
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();

@@ -1,9 +1,5 @@
 ﻿@page "/"
-@using System.Text
-@using Android.App.Usage
-@using Onyx.App.AndroidData
-
-@inject UsageStatsService UsageStatsService
+@using Android.App
 
 <button @onclick="RequestPermission">Request Access</button>
 
@@ -20,8 +16,11 @@
     {
         <div>
             <div>Name: @usage.PackageName</div>
-            <div>Time in foreground: @usage.TotalTimeInForeground</div>
-            <div>Time visible: @usage.TotalTimeVisible</div>
+            <div>Time in foreground: @TimeSpan.FromMilliseconds(usage.TotalTimeInForeground)</div>
+            <div>Time visible: @TimeSpan.FromMilliseconds(usage.TotalTimeVisible)</div>
+            <div>Last time used: @DateTimeOffset.FromUnixTimeMilliseconds(usage.LastTimeUsed)</div>
+            <div>@usage.LastTimeForegroundServiceUsed</div>
+            <div>@usage.TotalTimeForegroundServiceUsed</div>
         </div>
     }
 }
@@ -44,7 +43,7 @@
     
     protected override void OnInitialized()
     {
-        UsageRaw = UsageStatsHelper.GetUsageStatsRaw(Android.App.Application.Context)
+        UsageRaw = UsageStatsHelper.GetUsageStatsLastMonth(Application.Context)
             .Where(u => u.TotalTimeVisible != 0 && u.TotalTimeInForeground != 0);
         try
         {
