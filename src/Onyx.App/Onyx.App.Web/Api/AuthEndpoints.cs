@@ -30,18 +30,18 @@ public static class AuthEndpoints
         authorized.MapPost("/email/change", RequestEmailChangeHandler);
         authorized.MapPost("/email/confirm", ConfirmEmailHandler);
         
-        authorized.MapPost("/2fa/enable", Enable2FAHandler);
-        authorized.MapPost("/2fa/disable", Disable2FAHandler);
+        authorized.MapPost("/2fa/enable", Enable2FaHandler);
+        authorized.MapPost("/2fa/disable", Disable2FaHandler);
         authorized.MapGet("/2fa/recovery-codes", GetRecoveryCodesHandler);
         authorized.MapPost("/2fa/recovery-codes/regenerate", RegenerateRecoveryCodesHandler);
     }
 
-    private static async Task<IResult> RefreshHandler(
+    public static async Task<IResult> RefreshHandler(
         [FromBody] RefreshTokenRequest request,
         [FromServices] UserManager<ApplicationUser> userManager,
         [FromServices] KeyAccessor keyAccessor)
     {
-        var (user, error) = await JwtTools.ValidateAndGetUserFromToken(request.Token, userManager);
+        var (user, _) = await JwtTools.ValidateAndGetUserFromToken(request.Token, userManager);
 
         if (user == null)
             return Results.Unauthorized();
@@ -52,7 +52,7 @@ public static class AuthEndpoints
         return Results.Ok(new { token = newToken });
     }
 
-    private static async Task<IResult> LoginHandler(
+    public static async Task<IResult> LoginHandler(
         [FromBody] LoginRequest request,
         [FromServices] UserManager<ApplicationUser> userManager,
         [FromServices] KeyAccessor keyAccessor)
@@ -68,7 +68,7 @@ public static class AuthEndpoints
         return Results.Ok(new { token });
     }
 
-    private static async Task<IResult> RefreshTokenHandler(
+    public static async Task<IResult> RefreshTokenHandler(
         [FromBody] LoginRequest request,
         [FromServices] UserManager<ApplicationUser> userManager,
         [FromServices] KeyAccessor keyAccessor)
@@ -82,10 +82,10 @@ public static class AuthEndpoints
         var token = JwtTools.GenerateRefreshToken(keyAccessor.ApplicationKey,
             user.Id, user.Email ?? user.Id);
         
-        return Results.Ok(new { token });
+        return Results.Ok(token);
     }
     
-    private static async Task<IResult> RegisterHandler(
+    public static async Task<IResult> RegisterHandler(
         [FromBody] RegisterRequest request,
         [FromServices] UserManager<ApplicationUser> userManager)
     {
@@ -103,7 +103,7 @@ public static class AuthEndpoints
         return Results.Ok();
     }
 
-    private static async Task<IResult> GetProfileHandler(
+    public static async Task<IResult> GetProfileHandler(
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
     {
@@ -121,7 +121,7 @@ public static class AuthEndpoints
         });
     }
 
-    private static async Task<IResult> UpdateProfileHandler(
+    public static async Task<IResult> UpdateProfileHandler(
         [FromBody] UpdateProfileRequest request,
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
@@ -136,7 +136,7 @@ public static class AuthEndpoints
         return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
     }
 
-    private static async Task<IResult> ChangePasswordHandler(
+    public static async Task<IResult> ChangePasswordHandler(
         [FromBody] ChangePasswordRequest request,
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
@@ -148,7 +148,7 @@ public static class AuthEndpoints
         return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
     }
 
-    private static async Task<IResult> DeleteAccountHandler(
+    public static async Task<IResult> DeleteAccountHandler(
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
     {
@@ -159,7 +159,7 @@ public static class AuthEndpoints
         return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
     }
     
-    private static async Task<IResult> RequestEmailChangeHandler(
+    public static async Task<IResult> RequestEmailChangeHandler(
         [FromBody] ChangeEmailRequest request,
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
@@ -167,14 +167,14 @@ public static class AuthEndpoints
         var user = await userManager.GetUserAsync(context.User);
         if (user == null) return Results.NotFound();
 
-        var token = await userManager.GenerateChangeEmailTokenAsync(user, request.NewEmail);
+        var _ = await userManager.GenerateChangeEmailTokenAsync(user, request.NewEmail);
 
         // TODO: Send email with confirmation token
         
         return Results.Ok();
     }
 
-    private static async Task<IResult> ConfirmEmailHandler(
+    public static async Task<IResult> ConfirmEmailHandler(
         [FromQuery] string userId,
         [FromQuery] string token,
         [FromServices] UserManager<ApplicationUser> userManager)
@@ -186,20 +186,20 @@ public static class AuthEndpoints
         return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
     }
 
-    private static async Task<IResult> Enable2FAHandler(
+    public static async Task<IResult> Enable2FaHandler(
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
     {
         var user = await userManager.GetUserAsync(context.User);
         if (user == null) return Results.NotFound();
 
-        var token = await userManager.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultPhoneProvider);
+        var _ = await userManager.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultPhoneProvider);
         // TODO Send token via SMS/email
         await userManager.SetTwoFactorEnabledAsync(user, true);
         return Results.Ok();
     }
 
-    private static async Task<IResult> Disable2FAHandler(
+    public static async Task<IResult> Disable2FaHandler(
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
     {
@@ -210,7 +210,7 @@ public static class AuthEndpoints
         return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
     }
 
-    private static async Task<IResult> GetRecoveryCodesHandler(
+    public static async Task<IResult> GetRecoveryCodesHandler(
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
     {
@@ -221,7 +221,7 @@ public static class AuthEndpoints
         return Results.Ok(recoveryCodes);
     }
 
-    private static async Task<IResult> RegenerateRecoveryCodesHandler(
+    public static async Task<IResult> RegenerateRecoveryCodesHandler(
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
     {
@@ -232,7 +232,7 @@ public static class AuthEndpoints
         return Results.Ok();
     }
 
-    private static Task WebLogOutHandler(HttpContext context)
+    public static Task WebLogOutHandler(HttpContext context)
     {
         context.SignOutAsync(IdentityConstants.ApplicationScheme);
         return Task.CompletedTask;
