@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Onyx.App.Shared.Layout;
 
 namespace Onyx.App
 {
@@ -15,6 +16,7 @@ namespace Onyx.App
                 });
 
             builder.Services.AddMauiBlazorWebView();
+            builder.Services.AddScoped<CustomMudThemeProvider>();
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();

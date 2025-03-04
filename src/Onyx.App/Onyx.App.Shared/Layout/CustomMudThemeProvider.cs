@@ -31,13 +31,12 @@ public class CustomMudThemeProvider : MudThemeProvider
             {
                 Black = "#E0E0E0",
                 Background = "3A3A3A",
-                Surface = "#838383", 
+                Surface = "#838383",
                 TextPrimary = "#A1A1A1",
-                Primary =  "#B34704",
-                Secondary = "#E85B09",
-                Tertiary =  "#FF8F32",
+                Primary =  "#E37A37",
+                Secondary = "#F5975E",
+                Tertiary =  "#FFC285",
                 White = "#F5F1EB"
-                
             }
         };
     }
@@ -49,14 +48,13 @@ public class CustomMudThemeProvider : MudThemeProvider
             PaletteLight = new PaletteLight
             {
                 Black = "#E0E0E0",
-                Background = "3A3A3A",
-                Surface = "#838383", 
+                Background = "F5F1EB",
+                Surface = "#838383",
                 TextPrimary = "#A1A1A1",
                 Primary =  "#B34704",
                 Secondary = "#E85B09",
                 Tertiary =  "#FF8F32",
                 White = "#F5F1EB"
-                
             }
         };
     }
