@@ -21,7 +21,7 @@ public class AuthEndpointsTest
     private readonly Mock<UserManager<ApplicationUser>> m_UserManager;
     private readonly Mock<IUserClaimsPrincipalFactory<ApplicationUser>> m_ClaimsFactory;
     private readonly Mock<HttpContext> m_HttpContext;
-    private readonly AuthEndpoints.LoginModel m_ValidLoginModel;
+    private readonly AuthEndpoints.WebLoginModel m_ValidWebLoginModel;
     private readonly ApplicationUser m_TestUser;
 
     public AuthEndpointsTest()
@@ -86,7 +86,7 @@ public class AuthEndpointsTest
             UserName = "testuser"
         };
 
-        m_ValidLoginModel = new AuthEndpoints.LoginModel
+        m_ValidWebLoginModel = new AuthEndpoints.WebLoginModel
         {
             Email = "test@example.com",
             Password = "password123",
@@ -98,37 +98,37 @@ public class AuthEndpointsTest
     public async Task LoginHandler_WithValidCredentials_ShouldRedirect()
     {
         // Arrange
-        m_UserManager.Setup(x => x.FindByEmailAsync(m_ValidLoginModel.Email))
+        m_UserManager.Setup(x => x.FindByEmailAsync(m_ValidWebLoginModel.Email))
             .ReturnsAsync(m_TestUser);
 
-        m_SignInManager.Setup(x => x.PasswordSignInAsync(m_TestUser, m_ValidLoginModel.Password, true, false))
+        m_SignInManager.Setup(x => x.PasswordSignInAsync(m_TestUser, m_ValidWebLoginModel.Password, true, false))
             .ReturnsAsync(SignInResult.Success);
 
         m_ClaimsFactory.Setup(x => x.CreateAsync(m_TestUser))
             .ReturnsAsync(new ClaimsPrincipal());
 
         // Act
-        var result = await AuthEndpoints.LoginHandler(
-            m_ValidLoginModel,
+        var result = await AuthEndpoints.WebLoginHandler(
+            m_ValidWebLoginModel,
             m_SignInManager.Object,
             m_ClaimsFactory.Object,
             m_HttpContext.Object);
 
         // Assert
         var redirectResult = result.ShouldBeOfType<RedirectHttpResult>();
-        redirectResult.Url.ShouldBe(m_ValidLoginModel.Redirect);
+        redirectResult.Url.ShouldBe(m_ValidWebLoginModel.Redirect);
     }
 
     [Fact]
     public async Task LoginHandler_WithNonExistentUser_ShouldReturnUnauthorized()
     {
         // Arrange
-        m_UserManager.Setup(x => x.FindByEmailAsync(m_ValidLoginModel.Email))
+        m_UserManager.Setup(x => x.FindByEmailAsync(m_ValidWebLoginModel.Email))
             .ReturnsAsync((ApplicationUser)null!);
 
         // Act
-        var result = await AuthEndpoints.LoginHandler(
-            m_ValidLoginModel,
+        var result = await AuthEndpoints.WebLoginHandler(
+            m_ValidWebLoginModel,
             m_SignInManager.Object,
             m_ClaimsFactory.Object,
             m_HttpContext.Object);
@@ -141,15 +141,15 @@ public class AuthEndpointsTest
     public async Task LoginHandler_WithInvalidPassword_ShouldReturnUnauthorized()
     {
         // Arrange
-        m_UserManager.Setup(x => x.FindByEmailAsync(m_ValidLoginModel.Email))
+        m_UserManager.Setup(x => x.FindByEmailAsync(m_ValidWebLoginModel.Email))
             .ReturnsAsync(m_TestUser);
 
-        m_SignInManager.Setup(x => x.PasswordSignInAsync(m_TestUser, m_ValidLoginModel.Password, true, false))
+        m_SignInManager.Setup(x => x.PasswordSignInAsync(m_TestUser, m_ValidWebLoginModel.Password, true, false))
             .ReturnsAsync(SignInResult.Failed);
 
         // Act
-        var result = await AuthEndpoints.LoginHandler(
-            m_ValidLoginModel,
+        var result = await AuthEndpoints.WebLoginHandler(
+            m_ValidWebLoginModel,
             m_SignInManager.Object,
             m_ClaimsFactory.Object,
             m_HttpContext.Object);
@@ -162,10 +162,10 @@ public class AuthEndpointsTest
     public async Task LoginHandler_WithValidCredentials_ShouldSignInUser()
     {
         // Arrange
-        m_UserManager.Setup(x => x.FindByEmailAsync(m_ValidLoginModel.Email))
+        m_UserManager.Setup(x => x.FindByEmailAsync(m_ValidWebLoginModel.Email))
             .ReturnsAsync(m_TestUser);
 
-        m_SignInManager.Setup(x => x.PasswordSignInAsync(m_TestUser, m_ValidLoginModel.Password, true, false))
+        m_SignInManager.Setup(x => x.PasswordSignInAsync(m_TestUser, m_ValidWebLoginModel.Password, true, false))
             .ReturnsAsync(SignInResult.Success);
 
         var principal = new ClaimsPrincipal();
@@ -178,8 +178,8 @@ public class AuthEndpointsTest
                     typeof(IAuthenticationService)) as IAuthenticationService);
 
         // Act
-        await AuthEndpoints.LoginHandler(
-            m_ValidLoginModel,
+        await AuthEndpoints.WebLoginHandler(
+            m_ValidWebLoginModel,
             m_SignInManager.Object,
             m_ClaimsFactory.Object,
             m_HttpContext.Object);
