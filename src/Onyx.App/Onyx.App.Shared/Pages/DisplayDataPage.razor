@@ -1,9 +1,92 @@
 ﻿@page "/data"
+@using Onyx.App.Shared.Services.Usage
 
 <PageTitle>Data Display</PageTitle>
 
+@inject IStatsHelper StatsHelper
+@inject IStatsService UsageStatsService
 
+<button @onclick="RequestPermission">Request Access</button>
+<!--
+@if (UsageRaw != null)
+{
+    @foreach (var usage in UsageRaw)
+    {
+        <div>
+            <div>Name: @usage.PackageName</div>
+            <div>Time in foreground: @TimeSpan.FromMilliseconds(usage.TotalTimeInForeground)</div>
+            <div>Time visible: @TimeSpan.FromMilliseconds(usage.TotalTimeVisible)</div>
+            <div>Last time used: @DateTimeOffset.FromUnixTimeMilliseconds(usage.LastTimeUsed)</div>
+            <div>@usage.LastTimeForegroundServiceUsed</div>
+            <div>@usage.TotalTimeForegroundServiceUsed</div>
+        </div>
+    }
+}
+-->
+@if (Usage != null)
+{
+    @foreach (var usage in Usage)
+    {
+        <div>
+            <div>Name: @usage.Name</div>
+            <div>Time in foreground: @usage.TimeInForeground</div>
+            <div>Time visible: @usage.TimeVisible</div>
+        </div>
+    }
+}
 
 @code {
-    
+    private List<Stats>? Usage { get; set; } = [];
+
+    protected override void OnInitialized()
+    {
+        Usage = StatsHelper.GetUsageStatsLastWeek();
+        /*try
+        {
+            foreach (var usage in UsageRaw)
+            {
+                // variables
+                string? package = usage.PackageName;
+                string cleanName = "";
+                string[] notNames = ["com", "android", "google", "apps"];
+
+                // clean name
+                if (package != null)
+                {
+                    string[] names = package.Split('.');
+                    foreach (var name in names)
+                    {
+                        if (!notNames.Contains(name.ToLower()))
+                        {
+                            StringBuilder sb = new StringBuilder();
+                            sb.Append(name);
+                            sb[0] = Convert.ToChar(sb[0].ToString().ToUpper());
+                            var temp = sb.ToString();
+                            cleanName += $"{temp} ";
+                        }
+                    }
+                }
+
+                // get time format
+                var timeInFg = TimeSpan.FromMilliseconds(usage.TotalTimeInForeground);
+
+                // append to list
+                if (UsageClean != null)
+                    UsageClean.Add(new()
+                    {
+                        Name = cleanName,
+                        TimeInForeground = timeInFg
+                    });
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }*/
+    }
+
+    private void RequestPermission()
+    {
+        UsageStatsService.OpenUsageAccessSettings();
+    }
 }
