@@ -1,4 +1,4 @@
-namespace Onyx.Data.ApiSchema.Auth;
+namespace Onyx.App.Shared.Services.Auth;
 
 public class LoginResult
 {

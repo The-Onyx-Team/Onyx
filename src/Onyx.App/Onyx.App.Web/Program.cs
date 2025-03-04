@@ -1,19 +1,17 @@
 ﻿using System.IO.Abstractions;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MudBlazor.Services;
-using Onyx.App.Shared.Services;
+using Onyx.App.Shared.Services.Auth;
 using Onyx.App.Web.Api;
 using Onyx.App.Web.Components;
 using Onyx.App.Web.Services.Auth;
 using Onyx.App.Web.Services.Database;
 using Onyx.Data.DataBaseSchema;
 using Onyx.Data.DataBaseSchema.Identity;
-using static Provider;
+using static Onyx.App.Web.Services.Database.DatabaseProvider;
 
 // Load Key
 
@@ -130,10 +128,3 @@ app.MapAuthEndpoints();
 
 app.Run();
 
-public record Provider(string Name, string Assembly)
-{
-    public static Provider SQLite = new(nameof(SQLite), typeof(Onyx.Data.SQLite.Marker).Assembly.GetName().Name!);
-
-    public static Provider SqlServer =
-        new(nameof(SqlServer), typeof(Onyx.Data.SqlServer.Marker).Assembly.GetName().Name!);
-}

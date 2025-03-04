@@ -10,6 +10,13 @@ public static class AuthEndpoints
     public static void MapAuthEndpoints(this IEndpointRouteBuilder routes)
     {
         routes.MapPost("/account/login", LoginHandler);
+        routes.MapPost("/account/logout", LogOutHandler);
+    }
+
+    private static Task LogOutHandler(HttpContext context)
+    {
+        context.SignOutAsync(IdentityConstants.ApplicationScheme);
+        return Task.CompletedTask;
     }
 
     public static async Task<IResult> LoginHandler(
