@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Onyx.Data.DataBaseSchema;

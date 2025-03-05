@@ -8,14 +8,14 @@ using Xunit;
 
 namespace UnitTests.Services.Auth;
 
-[TestSubject(typeof(JwtGenerator))]
-public class JwtGeneratorTest
+[TestSubject(typeof(JwtTools))]
+public class JwtToolsTest
 {
     private readonly RsaSecurityKey m_TestKey;
     private readonly string m_UserId = Guid.NewGuid().ToString();
     private readonly string m_UserName = "test-user";
 
-    public JwtGeneratorTest()
+    public JwtToolsTest()
     {
         var rsa = RSA.Create();
         m_TestKey = new RsaSecurityKey(rsa);
@@ -28,15 +28,15 @@ public class JwtGeneratorTest
         var expiration = TimeSpan.FromDays(20);
 
         // Act
-        var token = JwtGenerator.GenerateToken(m_TestKey, m_UserId, m_UserName, expiration);
+        var token = JwtTools.GenerateToken(m_TestKey, m_UserId, m_UserName, expiration);
 
         // Assert
         var handler = new JwtSecurityTokenHandler();
         var jwtToken = handler.ReadJwtToken(token);
 
         jwtToken.ShouldNotBeNull();
-        jwtToken.Claims.First(c => c.Type == JwtGenerator.NameIdentifierKey).Value.ShouldBe(m_UserId);
-        jwtToken.Claims.First(c => c.Type == JwtGenerator.NameKey).Value.ShouldBe(m_UserName);
+        jwtToken.Claims.First(c => c.Type == JwtTools.NameIdentifierKey).Value.ShouldBe(m_UserId);
+        jwtToken.Claims.First(c => c.Type == JwtTools.NameKey).Value.ShouldBe(m_UserName);
         jwtToken.ValidTo.Day.ShouldBe(DateTime.UtcNow.Add(expiration).Date.Day);
     }
 
@@ -44,15 +44,15 @@ public class JwtGeneratorTest
     public void GenerateRefreshToken_ShouldCreateValidRefreshToken()
     {
         // Act
-        var token = JwtGenerator.GenerateRefreshToken(m_TestKey, m_UserId, m_UserName);
+        var token = JwtTools.GenerateRefreshToken(m_TestKey, m_UserId, m_UserName);
 
         // Assert
         var handler = new JwtSecurityTokenHandler();
         var jwtToken = handler.ReadJwtToken(token);
 
         jwtToken.ShouldNotBeNull();
-        jwtToken.Claims.First(c => c.Type == JwtGenerator.NameIdentifierKey).Value.ShouldBe(m_UserId);
-        jwtToken.Claims.First(c => c.Type == JwtGenerator.NameKey).Value.ShouldBe(m_UserName);
+        jwtToken.Claims.First(c => c.Type == JwtTools.NameIdentifierKey).Value.ShouldBe(m_UserId);
+        jwtToken.Claims.First(c => c.Type == JwtTools.NameKey).Value.ShouldBe(m_UserName);
         jwtToken.ValidTo.Day.ShouldBe(DateTime.UtcNow.AddMonths(1).Date.Day);
     }
 }

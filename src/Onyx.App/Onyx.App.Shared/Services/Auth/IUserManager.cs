@@ -1,6 +1,4 @@
-using Onyx.Data.ApiSchema.Auth;
-
-namespace Onyx.App.Shared.Services;
+namespace Onyx.App.Shared.Services.Auth;
 
 public interface IUserManager
 {
