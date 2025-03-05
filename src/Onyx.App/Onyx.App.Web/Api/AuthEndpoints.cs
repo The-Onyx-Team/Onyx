@@ -13,45 +13,56 @@ public static class AuthEndpoints
     {
         routes.MapPost("/account/login", LoginHandler);
         routes.MapPost("/account/logout", WebLogOutHandler);
-        
+
         var api = routes.MapGroup("/api");
-        
+
         api.MapPost("/auth/login", LoginHandler);
         api.MapPost("/auth/refresh", RefreshHandler);
         api.MapPost("/auth/register", RegisterHandler);
-        api.MapPost("/auth/refresh-token", RefreshTokenHandler);
-        
+
         var authorized = api.MapGroup("/user").RequireAuthorization();
         authorized.MapGet("/profile", GetProfileHandler);
         authorized.MapPut("/profile", UpdateProfileHandler);
         authorized.MapPut("/password", ChangePasswordHandler);
         authorized.MapDelete("/account", DeleteAccountHandler);
-        
+
         authorized.MapPost("/email/change", RequestEmailChangeHandler);
         authorized.MapPost("/email/confirm", ConfirmEmailHandler);
-        
+
         authorized.MapPost("/2fa/enable", Enable2FaHandler);
         authorized.MapPost("/2fa/disable", Disable2FaHandler);
-        authorized.MapGet("/2fa/recovery-codes", GetRecoveryCodesHandler);
-        authorized.MapPost("/2fa/recovery-codes/regenerate", RegenerateRecoveryCodesHandler);
+        authorized.MapPost("/2fa/recovery-codes", RegenerateRecoveryCodesHandler);
     }
 
+    /// <summary>
+    /// Accepts and validates a refresh token, returning a new JWT token.
+    /// </summary>
     public static async Task<IResult> RefreshHandler(
         [FromBody] RefreshTokenRequest request,
         [FromServices] UserManager<ApplicationUser> userManager,
         [FromServices] KeyAccessor keyAccessor)
     {
-        var (user, _) = await JwtTools.ValidateAndGetUserFromToken(request.Token, userManager);
+        try
+        {
+            var (user, _) = await JwtTools.ValidateAndGetUserFromToken(request.Token, userManager);
 
-        if (user == null)
-            return Results.Unauthorized();
+            if (user == null)
+                return Results.Unauthorized();
 
-        var newToken = JwtTools.GenerateToken(keyAccessor.ApplicationKey,
-            user.Id, user.Email ?? user.Id, TimeSpan.FromDays(2));
+            var newToken = JwtTools.GenerateToken(keyAccessor.ApplicationKey,
+                user.Id, user.Email ?? user.Id, TimeSpan.FromDays(2));
 
-        return Results.Ok(new { token = newToken });
+            return Results.Ok(new { token = newToken });
+        }
+        catch (Exception e)
+        {
+            return Results.BadRequest(e.GetType().Name);
+        }
     }
 
+    /// <summary>
+    /// Accepts and validates a login request, returning a JWT token and refresh token.
+    /// </summary>
     public static async Task<IResult> LoginHandler(
         [FromBody] LoginRequest request,
         [FromServices] UserManager<ApplicationUser> userManager,
@@ -65,26 +76,16 @@ public static class AuthEndpoints
 
         var token = JwtTools.GenerateToken(keyAccessor.ApplicationKey,
             user.Id, user.Email ?? user.Id, TimeSpan.FromDays(2));
-        return Results.Ok(new { token });
-    }
 
-    public static async Task<IResult> RefreshTokenHandler(
-        [FromBody] LoginRequest request,
-        [FromServices] UserManager<ApplicationUser> userManager,
-        [FromServices] KeyAccessor keyAccessor)
-    {
-        var user = await userManager.FindByEmailAsync(request.Email);
-        if (user == null) return Results.Unauthorized();
-
-        if (!await userManager.CheckPasswordAsync(user, request.Password))
-            return Results.Unauthorized();
-
-        var token = JwtTools.GenerateRefreshToken(keyAccessor.ApplicationKey,
+        var refreshToken = JwtTools.GenerateRefreshToken(keyAccessor.ApplicationKey,
             user.Id, user.Email ?? user.Id);
-        
-        return Results.Ok(token);
+
+        return Results.Ok(new { token, refreshToken });
     }
-    
+
+    /// <summary>
+    /// Accepts and validates a registration request, creating a new user.
+    /// </summary>
     public static async Task<IResult> RegisterHandler(
         [FromBody] RegisterRequest request,
         [FromServices] UserManager<ApplicationUser> userManager)
@@ -96,13 +97,12 @@ public static class AuthEndpoints
         };
 
         var result = await userManager.CreateAsync(user, request.Password);
-        if (!result.Succeeded)
-            return Results.BadRequest(result.Errors);
-
-        await userManager.AddToRoleAsync(user, "User");
-        return Results.Ok();
+        return !result.Succeeded ? Results.BadRequest(result.Errors) : Results.Ok();
     }
 
+    /// <summary>
+    /// Accepts a request to get the current user's profile.
+    /// </summary>
     public static async Task<IResult> GetProfileHandler(
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
@@ -121,6 +121,9 @@ public static class AuthEndpoints
         });
     }
 
+    /// <summary>
+    /// Accepts a request to update the current user's profile.
+    /// </summary>
     public static async Task<IResult> UpdateProfileHandler(
         [FromBody] UpdateProfileRequest request,
         HttpContext context,
@@ -136,6 +139,9 @@ public static class AuthEndpoints
         return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
     }
 
+    /// <summary>
+    /// Accepts a request to change the current user's password.
+    /// </summary>
     public static async Task<IResult> ChangePasswordHandler(
         [FromBody] ChangePasswordRequest request,
         HttpContext context,
@@ -148,6 +154,9 @@ public static class AuthEndpoints
         return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
     }
 
+    /// <summary>
+    /// Accepts a request to delete the current user's account.
+    /// </summary>
     public static async Task<IResult> DeleteAccountHandler(
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
@@ -158,7 +167,11 @@ public static class AuthEndpoints
         var result = await userManager.DeleteAsync(user);
         return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
     }
-    
+
+    /// <summary>
+    /// Accepts a request to change the current user's email.
+    /// </summary>
+    ///  TODO TEST
     public static async Task<IResult> RequestEmailChangeHandler(
         [FromBody] ChangeEmailRequest request,
         HttpContext context,
@@ -170,10 +183,13 @@ public static class AuthEndpoints
         var _ = await userManager.GenerateChangeEmailTokenAsync(user, request.NewEmail);
 
         // TODO: Send email with confirmation token
-        
+
         return Results.Ok();
     }
 
+    /// <summary>
+    /// Accepts a request to confirm the current user's email change.
+    /// </summary>
     public static async Task<IResult> ConfirmEmailHandler(
         [FromQuery] string userId,
         [FromQuery] string token,
@@ -186,6 +202,10 @@ public static class AuthEndpoints
         return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
     }
 
+    /// <summary>
+    /// Accepts a request to enable two-factor authentication for the current user.
+    /// </summary>
+    /// TODO TEST
     public static async Task<IResult> Enable2FaHandler(
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
@@ -199,6 +219,9 @@ public static class AuthEndpoints
         return Results.Ok();
     }
 
+    /// <summary>
+    /// Accepts a request to disable two-factor authentication for the current user.
+    /// </summary>
     public static async Task<IResult> Disable2FaHandler(
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
@@ -210,17 +233,9 @@ public static class AuthEndpoints
         return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
     }
 
-    public static async Task<IResult> GetRecoveryCodesHandler(
-        HttpContext context,
-        [FromServices] UserManager<ApplicationUser> userManager)
-    {
-        var user = await userManager.GetUserAsync(context.User);
-        if (user == null) return Results.NotFound();
-
-        var recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
-        return Results.Ok(recoveryCodes);
-    }
-
+    /// <summary>
+    /// Generates and returns a list of recovery codes for the current user.
+    /// </summary>
     public static async Task<IResult> RegenerateRecoveryCodesHandler(
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
@@ -228,20 +243,26 @@ public static class AuthEndpoints
         var user = await userManager.GetUserAsync(context.User);
         if (user == null) return Results.NotFound();
 
-        await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
-        return Results.Ok();
+        var codes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
+        return Results.Ok(codes);
     }
 
-    public static Task WebLogOutHandler(HttpContext context)
+    /// <summary>
+    /// Logs out the current user and redirects to the home page.
+    /// </summary>
+    public static IResult WebLogOutHandler(HttpContext context)
     {
         context.SignOutAsync(IdentityConstants.ApplicationScheme);
-        return Task.CompletedTask;
+        return Results.Redirect("/");
     }
 
+    /// <summary>
+    /// Attempts to log in a user using a form submission. Automatic redirect on success.
+    /// </summary>
     public static async Task<IResult> WebLoginHandler(
         [FromForm] WebLoginModel webLoginModel,
         [FromServices] SignInManager<ApplicationUser> signInManager,
-        [FromServices] IUserClaimsPrincipalFactory<ApplicationUser> claimsFactory, 
+        [FromServices] IUserClaimsPrincipalFactory<ApplicationUser> claimsFactory,
         HttpContext context)
     {
         var user = await signInManager.UserManager.FindByEmailAsync(webLoginModel.Email);
