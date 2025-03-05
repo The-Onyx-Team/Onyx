@@ -2,6 +2,12 @@ window.postRedirect = (url, data) => {
     let form = document.createElement("form");
     form.method = "POST";
     form.action = url;
+    form.id = "dynamic-post-form-" + new Date().getTime();
+    form.setAttribute("name", "dynamicPostForm");
+
+    if (!data.FormName) {
+        data.FormName = form.id;
+    }
 
     for (let key in data) {
         if (data.hasOwnProperty(key)) {
@@ -15,4 +21,8 @@ window.postRedirect = (url, data) => {
 
     document.body.appendChild(form);
     form.submit();
+    
+    setTimeout(() => {
+        document.body.removeChild(form);
+    }, 0);
 };

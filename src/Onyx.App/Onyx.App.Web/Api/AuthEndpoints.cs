@@ -11,7 +11,7 @@ public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this IEndpointRouteBuilder routes)
     {
-        routes.MapPost("/account/login", LoginHandler);
+        routes.MapPost("/account/login", WebLoginHandler);
         routes.MapPost("/account/logout", WebLogOutHandler);
 
         var api = routes.MapGroup("/api");

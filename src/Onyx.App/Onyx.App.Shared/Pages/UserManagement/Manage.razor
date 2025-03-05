@@ -1,0 +1,24 @@
+﻿@page "/account/manage"
+@using Microsoft.AspNetCore.Authorization
+@using Onyx.App.Shared.Services.Auth
+@attribute [Authorize]
+@inject IUserProvider UserProvider
+
+@if (m_User is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <p>Welcome @m_User.Name</p>
+}
+
+@code {
+    private User m_User;
+
+    protected override async Task OnInitializedAsync()
+    {
+        m_User = await UserProvider.GetRequiredUserAsync();
+    }
+
+}

@@ -58,49 +58,51 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<DbInitializer>());
 
 // Auth
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultScheme = IdentityConstants.ApplicationScheme;
-}).AddCookie("CookieSchema", options =>
-{
-    options.Cookie.Name = "AuthCookie";
-}).AddJwtBearer("JwtSchema", options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
+builder.Services.AddAuthentication(options => { options.DefaultScheme = IdentityConstants.ApplicationScheme; })
+    .AddCookie("CookieSchema", options => { options.Cookie.Name = "AuthCookie"; }).AddJwtBearer("JwtSchema", options =>
     {
-        ValidateIssuer = false,
-        ValidateAudience = false,
-        ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero,
-        IssuerSigningKey = key
-    };
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero,
+            IssuerSigningKey = key
+        };
 
-    options.MapInboundClaims = true;
-});
+        options.MapInboundClaims = true;
+    });
 
 builder.Services.AddAuthorization(options =>
 {
     options.DefaultPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
+
+    options.AddPolicy("TwoFactorEnabled", x => x.RequireClaim("amr", "mfa"));
 });
 
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
-{
-    options.Lockout.AllowedForNewUsers = false;
-    options.SignIn.RequireConfirmedAccount = false;
-    options.SignIn.RequireConfirmedEmail = false;
-    options.User.RequireUniqueEmail = true;
-    options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    options.Password.RequiredLength = 8;
-    options.Password.RequireDigit = false;
-    options.Password.RequireLowercase = false;
-    options.Password.RequireUppercase = false;
-    options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequiredUniqueChars = 0;
-}).AddEntityFrameworkStores<ApplicationDbContext>();
+    {
+        options.Lockout.AllowedForNewUsers = false;
+        options.SignIn.RequireConfirmedAccount = false;
+        options.SignIn.RequireConfirmedEmail = false;
+        options.User.RequireUniqueEmail = true;
+        options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        options.Password.RequiredLength = 8;
+        options.Password.RequireDigit = false;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequiredUniqueChars = 0;
+    })
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, ApplicationUserClaimsPrincipalFactory>();
 
 builder.Services.AddScoped<IUserManager, UserManager>();
+builder.Services.AddScoped<IUserProvider, UserProvider>();
 
 var app = builder.Build();
 
@@ -127,4 +129,3 @@ app.MapRazorComponents<App>()
 app.MapAuthEndpoints();
 
 app.Run();
-
