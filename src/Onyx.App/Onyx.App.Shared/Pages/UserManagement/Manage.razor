@@ -1,8 +1,12 @@
 ﻿@page "/account/manage"
+@using System.Globalization
+@using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Authorization
 @using Onyx.App.Shared.Services.Auth
+@using Net.Codecrete.QrCodeGenerator
 @attribute [Authorize]
 @inject IUserProvider UserProvider
+@inject UrlEncoder UrlEncoder
 
 @if (m_User is null)
 {
@@ -11,14 +15,40 @@
 else
 {
     <p>Welcome @m_User.Name</p>
+    <div>
+        <svg xmlns="http://www.w3.org/2000/svg" height="500" width="500" stroke="none"
+             version="1.1" viewBox="0 0 50 50">
+            <rect width="300" height="300" fill="#ffffff"/>
+            <path d="@m_SvgGraphicsPath" fill="#000000"/>
+        </svg>
+    </div>
 }
 
 @code {
-    private User m_User;
+    private User? m_User;
+    private string? m_SvgGraphicsPath;
+
+    private const string AuthenticatorUriFormat = "otpauth://totp/{0}:{1}?secret={2}&issuer={0}&digits=6";
 
     protected override async Task OnInitializedAsync()
     {
         m_User = await UserProvider.GetRequiredUserAsync();
+
+        var token = await UserProvider.GetAuthenticatorKeyAsync();
+        var path = GenerateQrCodeUri(m_User.Email ?? m_User.Name ?? "user", token);
+
+        var qr = QrCode.EncodeText(path, QrCode.Ecc.Medium);
+        m_SvgGraphicsPath = qr.ToGraphicsPath();
+    }
+
+    private string GenerateQrCodeUri(string email, string unformattedKey)
+    {
+        return string.Format(
+            CultureInfo.InvariantCulture,
+            AuthenticatorUriFormat,
+            UrlEncoder.Encode("Onyx App"),
+            UrlEncoder.Encode(email),
+            unformattedKey);
     }
 
 }
