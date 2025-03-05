@@ -84,9 +84,7 @@ public class StatsHelper : IStatsHelper
         return usageStatsList
             .Select(u => new Stats()
             {
-                Name = string.Join(" ", u.PackageName?
-                    .Split('.')
-                    .Where(s => !_notInNames.Contains(s)) ?? throw new InvalidOperationException()),
+                Name = GetAppNameFromPackage(u.PackageName ?? string.Empty),
                 TimeInForeground = TimeSpan.FromMilliseconds(u.TotalTimeInForeground),
 #pragma warning disable CA1416
                 TimeVisible = TimeSpan.FromMilliseconds(u.TotalTimeVisible)
@@ -139,10 +137,7 @@ public class StatsHelper : IStatsHelper
         return usageStatsList
             .Select(u => new Stats()
             {
-                Name = u.PackageName?
-                    .Split('.')
-                    .Where(s => !_notInNames.Contains(s))
-                    .ToString() ?? string.Empty,
+                Name = GetAppNameFromPackage(u.PackageName),
                 TimeInForeground = TimeSpan.FromMilliseconds(u.TotalTimeInForeground),
 #pragma warning disable CA1416
                 TimeVisible = TimeSpan.FromMilliseconds(u.TotalTimeVisible)
@@ -152,4 +147,23 @@ public class StatsHelper : IStatsHelper
             .OrderByDescending(u => u.TimeInForeground)
             .ToList();
     }
+    
+    public string GetAppNameFromPackage(string packageName)
+    {
+        try
+        {
+            var packageManager = Android.App.Application.Context.PackageManager;
+            Console.WriteLine($"packageName: {packageName}");
+            var applicationInfo = packageManager?.GetApplicationInfo(packageName, 0);
+            return (applicationInfo != null
+                ? packageManager?.GetApplicationLabel(applicationInfo)
+                : packageName) ?? string.Empty; // Fallback: Package-Name zurückgeben
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Failed to get app name from package: {e.Message}");
+            return packageName; // Falls die App nicht gefunden wurde
+        }
+    }
+
 }
