@@ -1,6 +1,13 @@
+using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Http.Extensions;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
+using Onyx.App.Shared.Pages.UserManagement;
 using Onyx.App.Web.Services.Auth;
 using Onyx.Data.ApiSchema;
 using Onyx.Data.DataBaseSchema.Identity;
@@ -11,8 +18,14 @@ public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this IEndpointRouteBuilder routes)
     {
-        routes.MapPost("/account/login", WebLoginHandler);
-        routes.MapPost("/account/logout", WebLogOutHandler);
+        var accountGroup = routes.MapGroup("/account");
+        accountGroup.MapPost("/external-login", ExternalLoginHandler);
+        accountGroup.MapPost("/login", WebLoginHandler);
+        accountGroup.MapPost("/logout", WebLogOutHandler);
+
+        var manageGroup = accountGroup.MapGroup("/manage").RequireAuthorization();
+        manageGroup.MapPost("/link-external-login", LinkExternalLoginHandler);
+        manageGroup.MapPost("/download-personal-data", DownloadPersonalDataHandler);
 
         var api = routes.MapGroup("/api");
 
@@ -32,6 +45,63 @@ public static class AuthEndpoints
         authorized.MapPost("/2fa/enable", Enable2FaHandler);
         authorized.MapPost("/2fa/disable", Disable2FaHandler);
         authorized.MapPost("/2fa/recovery-codes", RegenerateRecoveryCodesHandler);
+    }
+
+    private static async Task<IResult> DownloadPersonalDataHandler(HttpContext context,
+        [FromServices] UserManager<ApplicationUser> userManager,
+        [FromServices] AuthenticationStateProvider authenticationStateProvider)
+    {
+        var user = await userManager.GetUserAsync(context.User);
+        if (user is null)
+        {
+            return Results.NotFound($"Unable to load user with ID '{userManager.GetUserId(context.User)}'.");
+        }
+
+        var userId = await userManager.GetUserIdAsync(user);
+
+        var personalDataProps = typeof(ApplicationUser).GetProperties()
+            .Where(prop => Attribute.IsDefined(prop, typeof(PersonalDataAttribute)));
+        var personalData = personalDataProps.ToDictionary(p => p.Name, p => p.GetValue(user)?.ToString() ?? "null");
+
+        var logins = await userManager.GetLoginsAsync(user);
+        foreach (var l in logins)
+        {
+            personalData.Add($"{l.LoginProvider} external login provider key", l.ProviderKey);
+        }
+
+        personalData.Add("Authenticator Key", (await userManager.GetAuthenticatorKeyAsync(user))!);
+        var fileBytes = JsonSerializer.SerializeToUtf8Bytes(personalData);
+
+        context.Response.Headers.TryAdd("Content-Disposition", "attachment; filename=PersonalData.json");
+        return TypedResults.File(fileBytes, contentType: "application/json", fileDownloadName: "PersonalData.json");
+    }
+
+    private static async Task<ChallengeHttpResult> LinkExternalLoginHandler(HttpContext context,
+        [FromServices] SignInManager<ApplicationUser> signInManager, [FromForm] string provider)
+    {
+        // Clear the existing external cookie to ensure a clean login process
+        await context.SignOutAsync(IdentityConstants.ExternalScheme);
+
+        var redirectUrl = UriHelper.BuildRelative(context.Request.PathBase, "/account/manage/external",
+            QueryString.Create("Action", ManageExternalLogin.LinkLoginCallbackAction));
+
+        var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl,
+            signInManager.UserManager.GetUserId(context.User));
+        return TypedResults.Challenge(properties, [provider]);
+    }
+
+    private static ChallengeHttpResult ExternalLoginHandler(HttpContext context,
+        [FromServices] SignInManager<ApplicationUser> signInManager, [FromForm] string provider,
+        [FromForm] string returnUrl)
+    {
+        IEnumerable<KeyValuePair<string, StringValues>> query =
+            [new("ReturnUrl", returnUrl), new("Action", ExternalLogin.LoginCallbackAction)];
+
+        var redirectUrl = UriHelper.BuildRelative(context.Request.PathBase, "/account/external-login",
+            QueryString.Create(query));
+
+        var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
+        return TypedResults.Challenge(properties, [provider]);
     }
 
     /// <summary>
