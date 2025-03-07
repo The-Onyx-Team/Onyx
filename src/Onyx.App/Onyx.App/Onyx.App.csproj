@@ -59,10 +59,4 @@
         <ProjectReference Include="..\Onyx.App.Shared\Onyx.App.Shared.csproj"/>
     </ItemGroup>
 
-    <ItemGroup>
-      <Reference Include="Mono.Android">
-        <HintPath>..\..\..\..\..\..\.dotnet\packs\Microsoft.Android.Ref.35\35.0.24\ref\net9.0\Mono.Android.dll</HintPath>
-      </Reference>
-    </ItemGroup>
-
 </Project>

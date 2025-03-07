@@ -1,4 +1,5 @@
 ﻿@page "/data"
+@using System.Text.Encodings.Web
 @using Onyx.App.Shared.Services.Usage
 
 <PageTitle>Data Display</PageTitle>
@@ -40,7 +41,7 @@
 
     protected override void OnInitialized()
     {
-        Usage = StatsHelper.GetUsageStatsLastWeek();
+        Usage = StatsHelper.GetUsageStatsTimeInterval(DateTime.Now.Ticks, DateTime.Now.Ticks  - (1000 * 60 * 60 * 24 * 7));
         /*try
         {
             foreach (var usage in UsageRaw)
