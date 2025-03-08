@@ -34,11 +34,11 @@ public class StatsHelper : IStatsHelper
     {
         try
         {
-            var packageManager = Android.App.Application.Context.PackageManager;
+            var packageManager = Application.Context.PackageManager;
             Console.WriteLine($"packageName: {packageName}");
             var applicationInfo = packageManager?.GetApplicationInfo(packageName, 0);
             return (applicationInfo != null
-                ? packageManager?.GetApplicationLabel(applicationInfo)
+                ? packageManager.GetApplicationLabel(applicationInfo)
                 : packageName) ?? string.Empty; // Fallback: Package-Name zurückgeben
         }
         catch (Exception e)

@@ -1,5 +1,4 @@
 ﻿@page "/data"
-@using System.Text.Encodings.Web
 @using Onyx.App.Shared.Services.Usage
 
 <PageTitle>Data Display</PageTitle>
@@ -8,22 +7,7 @@
 @inject IStatsService UsageStatsService
 
 <button @onclick="RequestPermission">Request Access</button>
-<!--
-@if (UsageRaw != null)
-{
-    @foreach (var usage in UsageRaw)
-    {
-        <div>
-            <div>Name: @usage.PackageName</div>
-            <div>Time in foreground: @TimeSpan.FromMilliseconds(usage.TotalTimeInForeground)</div>
-            <div>Time visible: @TimeSpan.FromMilliseconds(usage.TotalTimeVisible)</div>
-            <div>Last time used: @DateTimeOffset.FromUnixTimeMilliseconds(usage.LastTimeUsed)</div>
-            <div>@usage.LastTimeForegroundServiceUsed</div>
-            <div>@usage.TotalTimeForegroundServiceUsed</div>
-        </div>
-    }
-}
--->
+
 @if (Usage != null)
 {
     @foreach (var usage in Usage)
@@ -41,49 +25,10 @@
 
     protected override void OnInitialized()
     {
-        Usage = StatsHelper.GetUsageStatsTimeInterval(DateTime.Now.Ticks, DateTime.Now.Ticks  - (1000 * 60 * 60 * 24 * 7));
-        /*try
-        {
-            foreach (var usage in UsageRaw)
-            {
-                // variables
-                string? package = usage.PackageName;
-                string cleanName = "";
-                string[] notNames = ["com", "android", "google", "apps"];
-
-                // clean name
-                if (package != null)
-                {
-                    string[] names = package.Split('.');
-                    foreach (var name in names)
-                    {
-                        if (!notNames.Contains(name.ToLower()))
-                        {
-                            StringBuilder sb = new StringBuilder();
-                            sb.Append(name);
-                            sb[0] = Convert.ToChar(sb[0].ToString().ToUpper());
-                            var temp = sb.ToString();
-                            cleanName += $"{temp} ";
-                        }
-                    }
-                }
-
-                // get time format
-                var timeInFg = TimeSpan.FromMilliseconds(usage.TotalTimeInForeground);
-
-                // append to list
-                if (UsageClean != null)
-                    UsageClean.Add(new()
-                    {
-                        Name = cleanName,
-                        TimeInForeground = timeInFg
-                    });
-            }
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e.Message);
-        }*/
+        // gets usage stats for a month
+        long endTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        long startTime = endTime - (30L * 24 * 60 * 60 * 1000);
+        Usage = StatsHelper.GetUsageStatsTimeInterval(startTime, endTime);
     }
 
     private void RequestPermission()
