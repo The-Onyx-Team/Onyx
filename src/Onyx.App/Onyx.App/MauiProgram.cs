@@ -1,4 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
+using Onyx.App.Shared.Services.Usage;
+#if ANDROID
+using Onyx.App.UsageData;
+#endif
 
 namespace Onyx.App
 {
@@ -15,7 +19,10 @@ namespace Onyx.App
                 });
 
             builder.Services.AddMauiBlazorWebView();
-
+#if ANDROID
+            builder.Services.AddSingleton<IStatsService, UsageStatsService>();
+            builder.Services.AddSingleton<IStatsHelper, StatsHelper>();
+#endif
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
             builder.Logging.AddDebug();
