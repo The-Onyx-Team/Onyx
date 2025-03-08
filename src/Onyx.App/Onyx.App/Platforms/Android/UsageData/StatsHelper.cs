@@ -23,7 +23,8 @@ public class StatsHelper : IStatsHelper
             {
                 Name = GetAppNameFromPackage(u.PackageName),
                 TimeInForeground = TimeSpan.FromMilliseconds(u.TotalTimeInForeground),
-                TimeVisible = TimeSpan.FromMilliseconds(u.TotalTimeVisible)
+                TimeVisible = TimeSpan.FromMilliseconds(u.TotalTimeVisible),
+                Category = GetCategoryFromPackage(u.PackageName)
             })
             .Where(u => u.TimeInForeground != TimeSpan.Zero && u.TimeVisible != TimeSpan.Zero)
             .OrderByDescending(u => u.TimeInForeground)
@@ -35,16 +36,30 @@ public class StatsHelper : IStatsHelper
         try
         {
             var packageManager = Application.Context.PackageManager;
-            Console.WriteLine($"packageName: {packageName}");
             var applicationInfo = packageManager?.GetApplicationInfo(packageName, 0);
             return (applicationInfo != null
                 ? packageManager.GetApplicationLabel(applicationInfo)
-                : packageName) ?? string.Empty; // Fallback: Package-Name zurückgeben
+                : packageName) ?? string.Empty;
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Failed to get app name from package: {e.Message}");
-            return packageName; // Falls die App nicht gefunden wurde
+            return packageName;
+        }
+    }
+    
+    public string GetCategoryFromPackage(string packageName)
+    {
+        try
+        {
+            var packageManager = Application.Context.PackageManager;
+            var applicationInfo = packageManager?.GetApplicationInfo(packageName, 0);
+            return (applicationInfo != null
+                ? applicationInfo.Category.ToString()
+                : packageName) ?? string.Empty;
+        }
+        catch (Exception e)
+        {
+            return packageName;
         }
     }
 }
