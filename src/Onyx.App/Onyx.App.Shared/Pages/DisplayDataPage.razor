@@ -13,6 +13,8 @@
     @foreach (var usage in Usage)
     {
         <div>
+            <img src="@($"data:image/png;base64,{Convert.ToBase64String(usage.Icon)}")"
+                 alt="@usage.Name" width="50" height="50" />
             <div>Name: @usage.Name</div>
             <div>Time in foreground: @usage.TimeInForeground</div>
             <div>Time visible: @usage.TimeVisible</div>

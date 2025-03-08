@@ -1,8 +1,12 @@
-﻿using Android.App;
+﻿using Android;
+using Android.App;
 using Android.Content;
 using Android.Content.PM;
 using Android.OS;
 using Android.Provider;
+using AndroidX.Core.App;
+using AndroidX.Core.Content;
+using Permission = Android.Content.PM.Permission;
 
 namespace Onyx.App
 {

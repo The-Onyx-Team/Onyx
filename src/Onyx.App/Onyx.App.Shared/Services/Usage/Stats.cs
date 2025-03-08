@@ -6,4 +6,5 @@ public class Stats
     public required TimeSpan TimeInForeground { get; set; }
     public TimeSpan TimeVisible { get; set; }
     public string Category { get; set; }
+    public byte[] Icon { get; set; }
 }
