@@ -16,7 +16,6 @@ namespace Onyx.App
                 });
 
             builder.Services.AddMauiBlazorWebView();
-            builder.Services.AddScoped<CustomMudThemeProvider>();
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MudBlazor.Services;
+using Onyx.App.Shared.Layout;
 using Onyx.App.Shared.Services;
 using Onyx.App.Web.Components;
 using Onyx.App.Web.Services.Auth;
@@ -33,6 +34,7 @@ builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
 
 builder.Services.AddMudServices();
+
 
 // Database
 
