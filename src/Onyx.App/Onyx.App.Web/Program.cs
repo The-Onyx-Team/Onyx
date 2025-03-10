@@ -1,5 +1,6 @@
 ﻿using System.IO.Abstractions;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -33,6 +34,10 @@ builder.Services.AddHttpClient();
 
 builder.Services.AddMudServices();
 
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("./keys"))
+    .SetApplicationName("OnyxApp");
+
 // Database
 
 builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
@@ -59,8 +64,14 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<DbInitializer>());
 
 // Auth
 
-builder.Services.AddAuthentication(options => { options.DefaultScheme = IdentityConstants.ApplicationScheme; })
-    .AddCookie("CookieSchema", options => { options.Cookie.Name = "AuthCookie"; }).AddJwtBearer("JwtSchema", options =>
+builder.Services.AddAuthentication()
+    .AddCookie("CookieSchema", options =>
+    {
+        options.Cookie.Name = "AuthCookie";
+        options.Cookie.SameSite = SameSiteMode.None;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    })
+    .AddJwtBearer("JwtSchema", options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -72,6 +83,15 @@ builder.Services.AddAuthentication(options => { options.DefaultScheme = Identity
         };
 
         options.MapInboundClaims = true;
+    })
+    .AddGoogleOpenIdConnect(options =>
+    {
+        var googleAuthNSection = config.GetSection("Authentication:Google");
+        options.ClientId = googleAuthNSection["ClientId"];
+        options.ClientSecret = googleAuthNSection["ClientSecret"];
+        options.SaveTokens = true;
+        options.UsePkce = true;
+        options.NonceCookie.SecurePolicy = CookieSecurePolicy.Always;
     });
 
 builder.Services.AddAuthorization(options =>
@@ -119,10 +139,10 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-app.UseAntiforgery();
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()

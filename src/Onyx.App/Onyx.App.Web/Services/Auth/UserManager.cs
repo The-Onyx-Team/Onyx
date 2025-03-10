@@ -114,10 +114,13 @@ public class UserManager(
                 externalLoginInfo.Principal.Identity?.Name,
                 externalLoginInfo.LoginProvider);
             navigationManager.NavigateTo(returnUrl ?? "/");
+            return;
         }
-        else if (result.IsLockedOut)
+
+        if (result.IsLockedOut)
         {
             navigationManager.NavigateTo("Account/Lockout");
+            return;
         }
 
         if (externalLoginInfo.Principal.HasClaim(c => c.Type == ClaimTypes.Email))
@@ -126,9 +129,7 @@ public class UserManager(
         }
     }
 
-    public async Task HandleNewExternalLoginAsync(ExternalLoginData? externalLoginInfo, EmailInputModel input,
-        HttpContext httpContext,
-        string? returnUrl)
+    public async Task HandleNewExternalLoginAsync(ExternalLoginData? externalLoginInfo, EmailInputModel input, string? returnUrl)
     {
         if (externalLoginInfo is null)
         {
@@ -139,7 +140,9 @@ public class UserManager(
         var emailStore = GetEmailStore();
         var user = CreateUser();
 
-        await userManager.SetUserNameAsync(user, input.Email);
+        var userName = input.Email.Split('@')[0];
+        
+        await userManager.SetUserNameAsync(user, userName);
         await emailStore.SetEmailAsync(user, input.Email, CancellationToken.None);
 
         var result = await userManager.CreateAsync(user);

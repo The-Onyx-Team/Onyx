@@ -20,7 +20,7 @@ public static class AuthEndpoints
     public static void MapAuthEndpoints(this IEndpointRouteBuilder routes)
     {
         var accountGroup = routes.MapGroup("/account");
-        accountGroup.MapPost("/external-login", ExternalLoginHandler);
+        accountGroup.MapPost("/perform-external-login", ExternalLoginHandler);
         accountGroup.MapPost("/login", WebLoginHandler);
         accountGroup.MapPost("/logout", WebLogOutHandler);
 
@@ -98,7 +98,7 @@ public static class AuthEndpoints
         IEnumerable<KeyValuePair<string, StringValues>> query =
             [new("ReturnUrl", returnUrl), new("Action", ExternalLogin.LoginCallbackAction)];
 
-        var redirectUrl = UriHelper.BuildRelative(context.Request.PathBase, "/account/external-login",
+        var redirectUrl = UriHelper.BuildRelative(context.Request.PathBase, "/Account/ExternalLogin",
             QueryString.Create(query));
 
         var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);

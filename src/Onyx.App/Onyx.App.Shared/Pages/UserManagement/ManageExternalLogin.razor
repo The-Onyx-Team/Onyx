@@ -1,6 +1,5 @@
 ﻿@page "/account/manage/external"
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Http
 @using Onyx.App.Shared.Services.Auth
 @attribute [Authorize]
 @inject IUserProvider UserProvider
@@ -68,7 +67,6 @@ else
     private IList<AuthenticationScheme>? m_OtherLogins;
 
 
-    [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
     [SupplyParameterFromForm] private string? LoginProvider { get; set; }
     [SupplyParameterFromForm] private string? ProviderKey { get; set; }
     [SupplyParameterFromQuery] private string? Action { get; set; }
@@ -77,7 +75,7 @@ else
     {
         m_User = await UserProvider.GetRequiredUserAsync();
 
-        if (HttpMethods.IsGet(HttpContext.Request.Method) && Action == LinkLoginCallbackAction)
+        if (Action == LinkLoginCallbackAction)
         {
             await OnGetLinkLoginCallbackAsync();
         }

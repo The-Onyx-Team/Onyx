@@ -1,6 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using Microsoft.AspNetCore.Http;
-using Onyx.App.Shared.Pages.Auth;
 
 namespace Onyx.App.Shared.Services.Auth;
 
@@ -11,7 +9,7 @@ public interface IUserManager
     public Task<ExternalLoginData> GetExternalLoginDataAsync();
 
     public Task HandleExternalLoginAsync(ExternalLoginData externalLoginInfo, string? returnUrl, EmailInputModel input);
-    public Task HandleNewExternalLoginAsync(ExternalLoginData? externalLoginInfo, EmailInputModel input, HttpContext httpContext, string? returnUrl);
+    public Task HandleNewExternalLoginAsync(ExternalLoginData? externalLoginInfo, EmailInputModel input, string? returnUrl);
     public Task<IEnumerable<AuthenticationScheme>> GetExternalAuthenticationSchemas();
 }
 

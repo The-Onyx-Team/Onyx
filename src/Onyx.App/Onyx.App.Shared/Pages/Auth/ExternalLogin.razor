@@ -1,12 +1,5 @@
 ﻿@page "/Account/ExternalLogin"
-
-@using System.ComponentModel.DataAnnotations
-@using System.Security.Claims
-@using System.Text
-@using System.Text.Encodings.Web
 @using Microsoft.Extensions.Logging
-
-@using Microsoft.AspNetCore.Http
 @using Onyx.App.Shared.Services.Auth
 
 @inject ILogger<ExternalLogin> Logger
@@ -47,8 +40,6 @@
     private string? message;
     private ExternalLoginData? externalLoginInfo;
 
-    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
-
     [SupplyParameterFromForm] private EmailInputModel Input { get; set; } = new();
 
     [SupplyParameterFromQuery] private string? RemoteError { get; set; }
@@ -71,21 +62,20 @@
 
         externalLoginInfo = info;
 
-        if (HttpMethods.IsGet(HttpContext.Request.Method))
+        if (Action == LoginCallbackAction)
         {
-            if (Action == LoginCallbackAction)
-            {
-                await UserManager.HandleExternalLoginAsync(externalLoginInfo, ReturnUrl, Input);
-                return;
-            }
-
-            NavigationManager.NavigateTo("/account/login");
+            await UserManager.HandleExternalLoginAsync(externalLoginInfo, ReturnUrl, Input);
+            StateHasChanged();
+            return;
         }
+        
+        StateHasChanged();
+        NavigationManager.NavigateTo("/account/login");
     }
 
     private async Task OnValidSubmitAsync()
     {
-        await UserManager.HandleNewExternalLoginAsync(externalLoginInfo, Input, HttpContext, ReturnUrl);
+        await UserManager.HandleNewExternalLoginAsync(externalLoginInfo, Input, ReturnUrl);
     }
 
 }
