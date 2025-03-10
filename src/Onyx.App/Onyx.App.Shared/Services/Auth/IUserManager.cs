@@ -12,6 +12,7 @@ public interface IUserManager
 
     public Task HandleExternalLoginAsync(ExternalLoginData externalLoginInfo, string? returnUrl, EmailInputModel input);
     public Task HandleNewExternalLoginAsync(ExternalLoginData? externalLoginInfo, EmailInputModel input, HttpContext httpContext, string? returnUrl);
+    public Task<IEnumerable<AuthenticationScheme>> GetExternalAuthenticationSchemas();
 }
 
 public sealed class EmailInputModel

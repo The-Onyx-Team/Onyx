@@ -2,6 +2,7 @@
 @using Onyx.App.Shared.Services
 @using MudBlazor
 @using Onyx.App.Shared.Services.Auth
+@using Onyx.App.Shared.Components.Auth
 @inject IUserManager UserManager
 
 <h3>Register</h3>
@@ -17,6 +18,8 @@
                   InputType="InputType.Password"/>
     <MudButton ButtonType="ButtonType.Submit">Register</MudButton>
 </EditForm>
+
+<ExternalLoginPicker />
 
 @code {
     private readonly RegisterModel m_RegisterModel = new();

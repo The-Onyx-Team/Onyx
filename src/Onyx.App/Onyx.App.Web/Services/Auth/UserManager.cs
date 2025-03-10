@@ -178,6 +178,12 @@ public class UserManager(
         throw new Exception($"Error: {string.Join(",", result.Errors.Select(error => error.Description))}");
     }
 
+    public async Task<IEnumerable<AuthenticationScheme>> GetExternalAuthenticationSchemas()
+    {
+        return (await signInManager.GetExternalAuthenticationSchemesAsync()).Select(l =>
+            new AuthenticationScheme(l.Name, l.DisplayName!));
+    }
+
     private ApplicationUser CreateUser()
     {
         try
