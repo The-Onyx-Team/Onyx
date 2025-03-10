@@ -92,6 +92,11 @@ builder.Services.AddAuthentication()
         options.SaveTokens = true;
         options.UsePkce = true;
         options.NonceCookie.SecurePolicy = CookieSecurePolicy.Always;
+    })
+    .AddMicrosoftAccount(options =>
+    {
+        options.ClientId = config["Authentication:Microsoft:ClientId"]!;
+        options.ClientSecret = config["Authentication:Microsoft:ClientSecret"]!;
     });
 
 builder.Services.AddAuthorization(options =>
