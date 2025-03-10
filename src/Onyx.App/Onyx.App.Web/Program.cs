@@ -9,6 +9,7 @@ using Onyx.App.Web.Api;
 using Onyx.App.Web.Components;
 using Onyx.App.Web.Services.Auth;
 using Onyx.App.Web.Services.Database;
+using Onyx.App.Web.Services.Mail;
 using Onyx.Data.DataBaseSchema;
 using Onyx.Data.DataBaseSchema.Identity;
 using static Onyx.App.Web.Services.Database.DatabaseProvider;
@@ -103,6 +104,7 @@ builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, Applica
 
 builder.Services.AddScoped<IUserManager, UserManager>();
 builder.Services.AddScoped<IUserProvider, UserProvider>();
+builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 var app = builder.Build();
 

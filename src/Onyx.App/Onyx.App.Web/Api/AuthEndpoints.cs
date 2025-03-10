@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
+using Onyx.App.Shared.Pages.Auth;
 using Onyx.App.Shared.Pages.UserManagement;
 using Onyx.App.Web.Services.Auth;
 using Onyx.Data.ApiSchema;
