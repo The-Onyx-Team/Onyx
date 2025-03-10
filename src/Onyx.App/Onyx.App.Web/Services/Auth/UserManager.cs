@@ -146,9 +146,7 @@ public class UserManager(
         var emailStore = GetEmailStore();
         var user = CreateUser();
 
-        const string userName = "NewUser";
-
-        await userManager.SetUserNameAsync(user, userName);
+        await userManager.SetUserNameAsync(user, GetValidUsername(input.Email));
         await emailStore.SetEmailAsync(user, input.Email, CancellationToken.None);
 
         var result = await userManager.CreateAsync(user);
@@ -204,6 +202,13 @@ public class UserManager(
             throw new InvalidOperationException($"Can't create an instance of '{nameof(ApplicationUser)}'. " +
                                                 $"Ensure that '{nameof(ApplicationUser)}' is not an abstract class and has a parameterless constructor");
         }
+    }
+    
+    public static string GetValidUsername(string email)
+    {
+        var username = email.Split('@')[0];
+        var validUsername = new string(username.Where(char.IsLetterOrDigit).ToArray());
+        return validUsername;
     }
 
     private IUserEmailStore<ApplicationUser> GetEmailStore() => (IUserEmailStore<ApplicationUser>)userStore;
