@@ -125,11 +125,17 @@ public class UserManager(
 
         if (externalLoginInfo.Principal.HasClaim(c => c.Type == ClaimTypes.Email))
         {
-            input.Email = externalLoginInfo.Principal.FindFirstValue(ClaimTypes.Email) ?? "";
+            var email = externalLoginInfo.Principal.FindFirstValue(ClaimTypes.Email);
+
+            input.Email = email ?? "example@here.com";
+            
+            if (email is not null)
+                await HandleNewExternalLoginAsync(externalLoginInfo, input, returnUrl);
         }
     }
 
-    public async Task HandleNewExternalLoginAsync(ExternalLoginData? externalLoginInfo, EmailInputModel input, string? returnUrl)
+    public async Task HandleNewExternalLoginAsync(ExternalLoginData? externalLoginInfo, EmailInputModel input,
+        string? returnUrl)
     {
         if (externalLoginInfo is null)
         {
@@ -140,8 +146,8 @@ public class UserManager(
         var emailStore = GetEmailStore();
         var user = CreateUser();
 
-        var userName = input.Email.Split('@')[0];
-        
+        const string userName = "NewUser";
+
         await userManager.SetUserNameAsync(user, userName);
         await emailStore.SetEmailAsync(user, input.Email, CancellationToken.None);
 
