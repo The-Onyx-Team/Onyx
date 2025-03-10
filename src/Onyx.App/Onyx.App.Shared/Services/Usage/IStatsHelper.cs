@@ -2,5 +2,5 @@
 
 public interface IStatsHelper
 {
-    List<Stats>? GetUsageStatsTimeInterval(long startTime, long endTime);
+    List<Stats>? GetUsageStatsTimeIntervalMilliseconds(long startTime, long endTime);
 }

@@ -1,6 +1,5 @@
 ﻿using Android.App.Usage;
 using Android.Content;
-using Android.Content.PM;
 using Android.Graphics.Drawables;
 using Android.Graphics;
 using Onyx.App.Shared.Services.Usage;
@@ -10,7 +9,7 @@ namespace Onyx.App.UsageData;
 
 public class StatsHelper : IStatsHelper
 {
-    public List<Stats>? GetUsageStatsTimeInterval(long startTime, long endTime)
+    public List<Stats>? GetUsageStatsTimeIntervalMilliseconds(long startTime, long endTime)
     {
         var usageStatsManager = (UsageStatsManager)Application.Context.GetSystemService(Context.UsageStatsService)!;
         
@@ -21,13 +20,21 @@ public class StatsHelper : IStatsHelper
         }
         
         return usageStatsList
-            .Select(u => new Stats()
+            .Select(u =>
             {
-                Name = GetAppNameFromPackage(u.PackageName),
-                TimeInForeground = TimeSpan.FromMilliseconds(u.TotalTimeInForeground),
-                TimeVisible = TimeSpan.FromMilliseconds(u.TotalTimeVisible),
-                Category = GetCategoryFromPackage(u.PackageName),
-                Icon = GetIconFromPackage(u.PackageName)
+                if (u.PackageName != null)
+                    return new Stats()
+                    {
+                        Name = GetAppNameFromPackage(u.PackageName),
+                        TimeInForeground = TimeSpan.FromMilliseconds(u.TotalTimeInForeground),
+                        TimeVisible = TimeSpan.FromMilliseconds(u.TotalTimeVisible),
+                        IntervalStart = DateTimeOffset.FromUnixTimeMilliseconds(u.FirstTimeStamp).DateTime,
+                        IntervalEnd = DateTimeOffset.FromUnixTimeMilliseconds(u.LastTimeStamp).DateTime,
+                        LastTimeUsed =  DateTimeOffset.FromUnixTimeMilliseconds(u.LastTimeUsed).DateTime,
+                        Category = GetCategoryFromPackage(u.PackageName),
+                        Icon = GetIconFromPackage(u.PackageName)
+                    };
+                return new Stats() {Name = "", TimeInForeground = TimeSpan.FromMilliseconds(0), Category = "Undefined", Icon = []};
             })
             .Where(u => u.TimeInForeground != TimeSpan.Zero && u.TimeVisible != TimeSpan.Zero)
             .OrderByDescending(u => u.TimeInForeground)
