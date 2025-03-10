@@ -1,0 +1,28 @@
+﻿@using Onyx.App.Shared.Services.Auth
+@inject IUserManager UserManager
+
+<form class="form-horizontal" action="account/perform-external-login" method="post">
+    <div>
+        <AntiforgeryToken/>
+        <input type="hidden" name="ReturnUrl" value="@ReturnUrl"/>
+        <p>
+            @foreach (var provider in m_ExternalLogins)
+            {
+                <button type="submit" class="btn btn-primary" name="provider" value="@provider.Name"
+                        title="Log in using your @provider.DisplayName account">@provider.DisplayName</button>
+            }
+        </p>
+    </div>
+</form>
+
+@code {
+    private AuthenticationScheme[] m_ExternalLogins = [];
+
+    [SupplyParameterFromQuery] private string? ReturnUrl { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        m_ExternalLogins = (await UserManager.GetExternalAuthenticationSchemas()).ToArray();
+    }
+
+}
