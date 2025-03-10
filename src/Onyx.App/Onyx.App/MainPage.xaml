@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:local="clr-namespace:Onyx.App"
              xmlns:shared="clr-namespace:Onyx.App.Shared;assembly=Onyx.App.Shared"
+             xmlns:components="clr-namespace:Onyx.App.Components"
              x:Class="Onyx.App.MainPage"
              BackgroundColor="{DynamicResource PageBackgroundColor}">
 

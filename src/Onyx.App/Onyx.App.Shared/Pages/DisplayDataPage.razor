@@ -1,0 +1,44 @@
+﻿@page "/data"
+@using Onyx.App.Shared.Services.Usage
+
+<PageTitle>Data Display</PageTitle>
+
+@inject IStatsHelper StatsHelper
+@inject IStatsService UsageStatsService
+
+<button @onclick="RequestPermission">Request Access</button>
+
+@if (Usage != null)
+{
+    @foreach (var usage in Usage)
+    {
+        <div class="mb-3">
+            <img src="@($"data:image/png;base64,{Convert.ToBase64String(usage.Icon)}")"
+                 alt="@usage.Name" width="50" height="50" />
+            <div>Name: @usage.Name</div>
+            <div>Time in foreground: @usage.TimeInForeground</div>
+            <div>Interval End: @usage.IntervalEnd</div>
+            <div>Interval Start:@usage.IntervalStart</div>
+            <div>Last time used: @usage.LastTimeUsed</div>
+            <div>Time visible: @usage.TimeVisible</div>
+            <div>Category: @usage.Category</div>
+        </div>
+    }
+}
+
+@code {
+    private List<Stats>? Usage { get; set; } = [];
+
+    protected override void OnInitialized()
+    {
+        // gets usage stats for a month
+        long endTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        long startTime = endTime - (30L * 24 * 60 * 60 * 1000);
+        Usage = StatsHelper.GetUsageStatsTimeIntervalMilliseconds(startTime, endTime);
+    }
+
+    private void RequestPermission()
+    {
+        UsageStatsService.OpenUsageAccessSettings();
+    }
+}
