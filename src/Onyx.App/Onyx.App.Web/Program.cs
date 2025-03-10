@@ -97,6 +97,12 @@ builder.Services.AddAuthentication()
     {
         options.ClientId = config["Authentication:Microsoft:ClientId"]!;
         options.ClientSecret = config["Authentication:Microsoft:ClientSecret"]!;
+    })
+    .AddGitHub(options =>
+    {
+        options.ClientId = config["Authentication:GitHub:ClientId"]!;
+        options.ClientSecret = config["Authentication:GitHub:ClientSecret"]!;
+        options.CallbackPath = "/signin-oidc-github";
     });
 
 builder.Services.AddAuthorization(options =>
