@@ -1,10 +1,7 @@
-using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Antiforgery;
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.JSInterop;
-using Onyx.App.Shared.Services;
-using Onyx.Data.ApiSchema.Auth;
+using Onyx.App.Shared.Services.Auth;
 using Onyx.Data.DataBaseSchema.Identity;
 
 namespace Onyx.App.Web.Services.Auth;
@@ -17,8 +14,6 @@ public class UserManager(
 {
     public async Task<RegisterResult> RegisterAsync(string name, string email, string password, string redirectUri)
     {
-        // TODO: validate
-        
         var user = new ApplicationUser
         {
             UserName = name,
@@ -71,5 +66,4 @@ public class UserManager(
             Success = true
         };
     }
-
 }

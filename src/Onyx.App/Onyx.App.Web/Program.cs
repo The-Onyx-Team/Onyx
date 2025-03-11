@@ -1,20 +1,17 @@
 ﻿using System.IO.Abstractions;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MudBlazor.Services;
-using Onyx.App.Shared.Layout;
-using Onyx.App.Shared.Services;
+using Onyx.App.Shared.Services.Auth;
+using Onyx.App.Web.Api;
 using Onyx.App.Web.Components;
 using Onyx.App.Web.Services.Auth;
 using Onyx.App.Web.Services.Database;
 using Onyx.Data.DataBaseSchema;
 using Onyx.Data.DataBaseSchema.Identity;
-using static Provider;
+using static Onyx.App.Web.Services.Database.DatabaseProvider;
 
 // Load Key
 
@@ -34,7 +31,6 @@ builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
 
 builder.Services.AddMudServices();
-
 
 // Database
 
@@ -62,49 +58,51 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<DbInitializer>());
 
 // Auth
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultScheme = IdentityConstants.ApplicationScheme;
-}).AddCookie(options =>
-{
-    options.Cookie.Name = "AuthCookie";
-}).AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
+builder.Services.AddAuthentication(options => { options.DefaultScheme = IdentityConstants.ApplicationScheme; })
+    .AddCookie("CookieSchema", options => { options.Cookie.Name = "AuthCookie"; }).AddJwtBearer("JwtSchema", options =>
     {
-        ValidateIssuer = false,
-        ValidateAudience = false,
-        ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero,
-        IssuerSigningKey = key
-    };
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero,
+            IssuerSigningKey = key
+        };
 
-    options.MapInboundClaims = true;
-});
+        options.MapInboundClaims = true;
+    });
 
 builder.Services.AddAuthorization(options =>
 {
     options.DefaultPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
+
+    options.AddPolicy("TwoFactorEnabled", x => x.RequireClaim("amr", "mfa"));
 });
 
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
-{
-    options.Lockout.AllowedForNewUsers = false;
-    options.SignIn.RequireConfirmedAccount = false;
-    options.SignIn.RequireConfirmedEmail = false;
-    options.User.RequireUniqueEmail = true;
-    options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    options.Password.RequiredLength = 8;
-    options.Password.RequireDigit = false;
-    options.Password.RequireLowercase = false;
-    options.Password.RequireUppercase = false;
-    options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequiredUniqueChars = 0;
-}).AddEntityFrameworkStores<ApplicationDbContext>();
+    {
+        options.Lockout.AllowedForNewUsers = false;
+        options.SignIn.RequireConfirmedAccount = false;
+        options.SignIn.RequireConfirmedEmail = false;
+        options.User.RequireUniqueEmail = true;
+        options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        options.Password.RequiredLength = 8;
+        options.Password.RequireDigit = false;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequiredUniqueChars = 0;
+    })
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, ApplicationUserClaimsPrincipalFactory>();
 
 builder.Services.AddScoped<IUserManager, UserManager>();
+builder.Services.AddScoped<IUserProvider, UserProvider>();
 
 var app = builder.Build();
 
@@ -128,47 +126,6 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(typeof(Onyx.App.Shared._Imports).Assembly);
 
-app.MapPost("/account/login", async (
-    [FromForm] Model model, 
-    [FromServices] SignInManager<ApplicationUser> signInManager,
-    [FromServices] IUserClaimsPrincipalFactory<ApplicationUser> claimsFactory,
-    HttpContext context) =>
-{
-    var user = await signInManager.UserManager.FindByEmailAsync(model.Email);
-    
-    if (user == null)
-    {
-        return Results.Unauthorized();
-    }
-    
-    var result = await signInManager.PasswordSignInAsync(user, model.Password, true, false);
-
-    if (!result.Succeeded)
-    {
-        return Results.Unauthorized();
-    }
-    
-    var principal = await claimsFactory.CreateAsync(user);
-    await context.SignInAsync(IdentityConstants.ApplicationScheme, principal);
-
-    return Results.Redirect(model.Redirect);
-});
-
+app.MapAuthEndpoints();
 
 app.Run();
-
-
-class Model
-{
-    public string Redirect { get; set; }    
-    public string Email { get; set; }    
-    public string Password { get; set; }    
-}
-
-public record Provider(string Name, string Assembly)
-{
-    public static Provider SQLite = new(nameof(SQLite), typeof(Onyx.Data.SQLite.Marker).Assembly.GetName().Name!);
-
-    public static Provider SqlServer =
-        new(nameof(SqlServer), typeof(Onyx.Data.SqlServer.Marker).Assembly.GetName().Name!);
-}
