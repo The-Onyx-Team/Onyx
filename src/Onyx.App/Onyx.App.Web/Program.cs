@@ -1,5 +1,6 @@
 ﻿using System.IO.Abstractions;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -9,6 +10,7 @@ using Onyx.App.Web.Api;
 using Onyx.App.Web.Components;
 using Onyx.App.Web.Services.Auth;
 using Onyx.App.Web.Services.Database;
+using Onyx.App.Web.Services.Mail;
 using Onyx.Data.DataBaseSchema;
 using Onyx.Data.DataBaseSchema.Identity;
 using static Onyx.App.Web.Services.Database.DatabaseProvider;
@@ -31,6 +33,10 @@ builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
 
 builder.Services.AddMudServices();
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("./keys"))
+    .SetApplicationName("OnyxApp");
 
 // Database
 
@@ -58,8 +64,14 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<DbInitializer>());
 
 // Auth
 
-builder.Services.AddAuthentication(options => { options.DefaultScheme = IdentityConstants.ApplicationScheme; })
-    .AddCookie("CookieSchema", options => { options.Cookie.Name = "AuthCookie"; }).AddJwtBearer("JwtSchema", options =>
+builder.Services.AddAuthentication()
+    .AddCookie("CookieSchema", options =>
+    {
+        options.Cookie.Name = "AuthCookie";
+        options.Cookie.SameSite = SameSiteMode.None;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    })
+    .AddJwtBearer("JwtSchema", options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -71,6 +83,26 @@ builder.Services.AddAuthentication(options => { options.DefaultScheme = Identity
         };
 
         options.MapInboundClaims = true;
+    })
+    .AddGoogleOpenIdConnect(options =>
+    {
+        var googleAuthNSection = config.GetSection("Authentication:Google");
+        options.ClientId = googleAuthNSection["ClientId"];
+        options.ClientSecret = googleAuthNSection["ClientSecret"];
+        options.SaveTokens = true;
+        options.UsePkce = true;
+        options.NonceCookie.SecurePolicy = CookieSecurePolicy.Always;
+    })
+    .AddMicrosoftAccount(options =>
+    {
+        options.ClientId = config["Authentication:Microsoft:ClientId"]!;
+        options.ClientSecret = config["Authentication:Microsoft:ClientSecret"]!;
+    })
+    .AddGitHub(options =>
+    {
+        options.ClientId = config["Authentication:GitHub:ClientId"]!;
+        options.ClientSecret = config["Authentication:GitHub:ClientSecret"]!;
+        options.CallbackPath = "/signin-oidc-github";
     });
 
 builder.Services.AddAuthorization(options =>
@@ -103,6 +135,7 @@ builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, Applica
 
 builder.Services.AddScoped<IUserManager, UserManager>();
 builder.Services.AddScoped<IUserProvider, UserProvider>();
+builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 var app = builder.Build();
 
@@ -117,10 +150,10 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-app.UseAntiforgery();
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()

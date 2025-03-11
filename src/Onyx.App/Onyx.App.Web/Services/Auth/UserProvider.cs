@@ -43,11 +43,6 @@ public class UserProvider(IHttpContextAccessor contextAccessor, UserManager<Appl
     {
         await EnsureUserAsync();
         
-        if (!m_User!.Has2Fa)
-        {
-            throw new InvalidOperationException("User does not have 2FA enabled");
-        }
-        
         var key = await userManager.GetAuthenticatorKeyAsync(m_IdentityUser!);
 
         if (!string.IsNullOrEmpty(key)) return key;

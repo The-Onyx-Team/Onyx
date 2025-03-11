@@ -5,6 +5,7 @@ build/
 .idea/
 .vs/
 .vs-code/
+keys/
 *.user
 *.env
 key.rsa
