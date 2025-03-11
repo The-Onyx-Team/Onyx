@@ -1,0 +1,29 @@
+name: Build and Push Docker Image to GHCR
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch: 
+permissions:
+  contents: read
+  packages: write
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
+
+      - name: Build and Tag Docker Image
+        run: |
+          docker build \
+            -t ghcr.io/${{ github.repository_owner }}/onyx-app:latest \
+            -f src/Onyx.App/Onyx.App.Web/Dockerfile .
+
+      - name: Push Image to GHCR
+        run: docker push ghcr.io/${{ github.repository_owner }}/onyx-app:latest

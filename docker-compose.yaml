@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  app:
+    build: 
+      context: .
+      dockerfile: src/Onyx.App/Onyx.App.Web/Dockerfile
+    container_name: OnyxWeb
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    depends_on:
+      - sqlserver
+    environment:
+      - ConnectionStrings__SqlServer=Server=sqlserver;Database=OnyxDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True
+      - provider=SqlServer
+    networks:
+      - app_network
+    env_file:
+      - .env
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver
+    ports:
+      - "1433:1433"
+    environment:
+      SA_PASSWORD: "YourStrong!Passw0rd"
+      ACCEPT_EULA: "Y"
+    networks:
+      - app_network
+    volumes:
+      - onyx_sqlserver_data:/var/opt/mssql
+
+networks:
+  app_network:
+
+volumes:
+  onyx_sqlserver_data:
