@@ -1,4 +1,9 @@
 
+html, body {
+    height: 100dvh;
+    overflow: hidden;
+}
+
 #app-container, #app-box {
     height: 100dvh;
     overflow-y: scroll;

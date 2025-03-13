@@ -11,28 +11,13 @@
             var isSelected = item.Url is not null && NavigationManager.Uri.EndsWith(item.Url);
             <div class="nav-item @(isSelected ? "selected-nav-item" : "")"
                  style="@(item.ExtraStyle ?? "")"
-                 @onclick="@(() =>NavigationManager.NavigateTo(item.Url ?? NavigationManager.Uri))">
+                 @onclick="@(() => NavigationManager.NavigateTo(item.Url ?? NavigationManager.Uri))">
                 <MudTooltip Text="@item.DisplayName">
                     <MudIcon Icon="@item.Icon"/>
                 </MudTooltip>
             </div>
         }
     </div>
-    @if (SubNav is not null)
-    {
-        <div id="sub-nav">
-            @foreach (var item in SubNav)
-            {
-                <div class="nav-item"
-                     style="@(item.ExtraStyle ?? "")"
-                     @onclick="@(() =>NavigationManager.NavigateTo(item.Url ?? NavigationManager.Uri))">
-                    <MudTooltip Text="@item.DisplayName">
-                        <MudIcon Icon="@item.Icon"/>
-                    </MudTooltip>
-                </div>
-            }
-        </div>
-    }
     <div id="app-box">
         @Body
     </div>
@@ -49,95 +34,33 @@
         public string? ExtraStyle;
     }
 
-    public List<NavItem> NavItems;
-    public List<NavItem>? SubNav;
-    public List<NavItem> ProfileNavItems;
-    public List<NavItem> SettingsNavItems;
-
-
-    public AppLayout()
-    {
-        ProfileNavItems =
-        [
-            new()
-            {
-                Icon = Icons.Material.Filled.AccountCircle,
-                DisplayName = "Account Details",
-                Url = "/account/manage"
-            },
-            new()
-            {
-                Icon = Icons.Material.Filled.Home,
-                DisplayName = "Manage External Login",
-                Url = "/account/manage/external"
-            },
-            new()
-            {
-                Icon = Icons.Material.Filled.AccountCircle,
-                DisplayName = "Manage 2fa",
-                Url = "/account/manage/2fa"
-            },
-            new()
-            {
-                Icon = Icons.Material.Filled.AccountCircle,
-                DisplayName = "Download Personal Data",
-                Url = "/account/manage"
-            },
-        ];
-        SettingsNavItems =
-        [
-            new()
-            {
-                Icon = Icons.Material.Filled.Home,
-                DisplayName = "Settings1",
-                Url = "/settings/settings1"
-            },
-            new()
-            {
-                Icon = Icons.Material.Filled.AccountCircle,
-                DisplayName = "Settings2",
-                Url = "/settings/settings2"
-            },
-        ];
-
-        NavItems =
-        [
-            new()
-            {
-                Icon = Icons.Material.Filled.Home,
-                DisplayName = "Home",
-                Url = "/"
-            },
-            new()
-            {
-                Icon = Icons.Material.Filled.AccountCircle,
-                DisplayName = "Profile",
-                Url = "/account",
-                ExtraStyle = "margin-top: auto"
-            },
-            new()
-            {
-                Icon = Icons.Material.Filled.Settings,
-                DisplayName = "Settings",
-                Url = "/settings"
-            },
-        ];
-    }
-
-    protected override void OnParametersSet()
-    {
-        if (NavigationManager.Uri.EndsWith("/settings"))
+    public readonly List<NavItem> NavItems =
+    [
+        new()
         {
-            SubNav = SettingsNavItems;
-        }
-        else if (NavigationManager.Uri.EndsWith("/account"))
+            Icon = Icons.Material.Filled.Home,
+            DisplayName = "Home",
+            Url = "/home"
+        },
+        new()
         {
-            SubNav = ProfileNavItems;
-        }
-        else
+            Icon = Icons.Material.Filled.Dataset,
+            DisplayName = "Data",
+            Url = "/data"
+        },
+        new()
         {
-            SubNav = null;
-        }
-    }
+            Icon = Icons.Material.Filled.AccountCircle,
+            DisplayName = "Profile",
+            Url = "/account",
+            ExtraStyle = "margin-top: auto"
+        },
+        new()
+        {
+            Icon = Icons.Material.Filled.Settings,
+            DisplayName = "Settings",
+            Url = "/settings"
+        },
+    ];
 }
 
