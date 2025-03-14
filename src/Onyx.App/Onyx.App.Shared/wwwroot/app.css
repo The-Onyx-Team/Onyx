@@ -1,8 +1,12 @@
 
+/* General */
+
 html, body {
     height: 100dvh;
     overflow: hidden;
 }
+
+/* App Layout */
 
 #app-container, #app-box {
     height: 100dvh;
@@ -73,11 +77,52 @@ html, body {
         z-index: 5;
         width: 100%;
     }
-    
+
     .app-bar {
         display: none;
     }
 }
+
+/* Auth */
+
+.auth-wrapper {
+    display: flex;
+    flex-direction: row;
+    height: calc(100dvh - 64px);
+    overflow: hidden;
+}
+
+.auth-content {
+    overflow-y: scroll;
+    padding: 16px;
+}
+
+.auth-nav {
+    display: flex;
+    flex-direction: column;
+    background-color: #444;
+    padding: 16px;
+    gap: 4px;
+}
+
+.auth-nav-item {
+    text-align: left;
+    border-radius: 8px;
+    height: 32px;
+    width: 200px;
+}
+
+.auth-nav-item p {
+    margin-top: auto;
+    margin-bottom: auto;
+    padding: 4px 4px 4px 8px;
+}
+
+.auth-nav-item:hover {
+    background-color: #777;
+}
+
+/* Template */
 
 h1:focus {
     outline: none;
