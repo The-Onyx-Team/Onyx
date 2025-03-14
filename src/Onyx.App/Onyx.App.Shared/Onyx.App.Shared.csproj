@@ -32,4 +32,16 @@
     <ProjectReference Include="..\..\Onyx.Data\Onyx.Data.ApiSchema\Onyx.Data.ApiSchema.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <UpToDateCheckInput Remove="Pages\UserManagement\Manage2Fa.razor" />
+    <UpToDateCheckInput Remove="Pages\UserManagement\ManageExternalLogin.razor" />
+    <UpToDateCheckInput Remove="Pages\UserManagement\Secret.razor" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="Pages\Account\Manage\Manage2Fa.razor" />
+    <AdditionalFiles Include="Pages\Account\Manage\ManageExternalLogin.razor" />
+    <AdditionalFiles Include="Pages\Account\Manage\Secret.razor" />
+  </ItemGroup>
+
 </Project>

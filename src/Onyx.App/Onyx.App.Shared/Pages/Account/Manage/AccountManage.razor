@@ -1,0 +1,13 @@
+@page "/Account/Manage"
+@inject NavigationManager NavigationManager
+
+<h3>Manage Base Page</h3>
+
+@code {
+
+    protected override void OnInitialized()
+    {
+        NavigationManager.NavigateTo("/account/manage/2fa");
+    }
+
+}
