@@ -59,4 +59,17 @@
         <ProjectReference Include="..\Onyx.App.Shared\Onyx.App.Shared.csproj"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <Compile Update="Platforms\Android\Services\UsageStatsService.cs">
+        <ExcludeFromCurrentConfiguration>false</ExcludeFromCurrentConfiguration>
+      </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="Platforms\Android\Resources\img\Onyx.png">
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>

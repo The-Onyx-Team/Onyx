@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Onyx.App.Shared.Services.Usage;
 #if ANDROID
+using Onyx.App.Services;
 using Onyx.App.UsageData;
 #endif
 

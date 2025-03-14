@@ -3,7 +3,7 @@ using Android.Provider;
 using Onyx.App.Shared.Services.Usage;
 using Application = Android.App.Application;
 
-namespace Onyx.App.UsageData;
+namespace Onyx.App.Services;
 
 public class UsageStatsService : IStatsService
 {

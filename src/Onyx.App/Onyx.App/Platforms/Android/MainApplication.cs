@@ -1,4 +1,5 @@
 ﻿using Android.App;
+using Android.OS;
 using Android.Runtime;
 
 namespace Onyx.App
@@ -12,5 +13,19 @@ namespace Onyx.App
         }
 
         protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
+
+        public override void OnCreate()
+        {
+            base.OnCreate();
+
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.Lollipop)
+            {
+                if (GetSystemService(NotificationService) is NotificationManager manager)
+                    manager.CreateNotificationChannel(new NotificationChannel(
+                        "Service", 
+                        "Service Notification", 
+                        NotificationImportance.High));
+            }
+        }
     }
 }
