@@ -19,13 +19,28 @@
         }
     </div>
     <div id="app-box">
-        @Body
+        <MudAppBar Class="app-bar">
+            hi
+            <MudSpacer />
+            <MudToggleIconButton @bind-Toggled="@MainLayout.IsDarkMode"
+                                 Icon="@Icons.Material.Filled.LightMode"
+                                 ToggledIcon="@Icons.Material.Filled.DarkMode"
+                                 Class="mud-theme-primary"
+                                 ToggledColor="@Color.Success"
+                                 title="@(MainLayout.IsDarkMode ? "On" : "Off")"/>
+        </MudAppBar>
+        <MudMainContent>
+            @Body
+        </MudMainContent>
     </div>
 </div>
 
 
 @code
 {
+    [CascadingParameter]
+    public required MainLayout MainLayout { get; set; }
+    
     public struct NavItem
     {
         public string? Icon;

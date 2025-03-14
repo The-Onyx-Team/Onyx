@@ -47,6 +47,11 @@ html, body {
     background-color: #777;
 }
 
+.app-bar {
+    margin-left: 64px;
+    padding-right: 64px;
+}
+
 @media (max-width: 768px) {
     #app-box {
         height: calc(100dvh - 64px);
@@ -67,6 +72,10 @@ html, body {
         height: calc(100dvh - 64px);
         z-index: 5;
         width: 100%;
+    }
+    
+    .app-bar {
+        display: none;
     }
 }
 
