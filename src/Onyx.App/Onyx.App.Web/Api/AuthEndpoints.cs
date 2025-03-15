@@ -321,9 +321,9 @@ public static class AuthEndpoints
     /// <summary>
     /// Logs out the current user and redirects to the home page.
     /// </summary>
-    public static IResult WebLogOutHandler(HttpContext context)
+    public static async Task<IResult> WebLogOutHandler(SignInManager<ApplicationUser> signInManager)
     {
-        context.SignOutAsync(IdentityConstants.ApplicationScheme);
+        await signInManager.SignOutAsync();
         return Results.Redirect("/");
     }
 

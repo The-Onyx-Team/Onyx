@@ -1,6 +1,7 @@
 @page "/account/login"
+@layout MainLayout
+@using System.ComponentModel.DataAnnotations
 @using MudBlazor
-@using Onyx.App.Shared.Services
 @using Onyx.App.Shared.Services.Auth
 @using Onyx.App.Shared.Components.Auth
 @inject IUserManager UserManager
@@ -37,7 +38,11 @@
 
     public class RegisterModel
     {
+        [EmailAddress]
+        [Required]
         public string Email { get; set; } = "";
+        
+        [Required]
         public string Password { get; set; } = "";
     }
 

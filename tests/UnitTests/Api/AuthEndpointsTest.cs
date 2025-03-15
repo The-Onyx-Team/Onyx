@@ -1,7 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
 using JetBrains.Annotations;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
@@ -688,7 +687,7 @@ public class AuthEndpointsTest
     }
 
     [Fact]
-    public void WebLogOutHandler_SignsOutUserAndRedirectsToHomePage()
+    public async Task WebLogOutHandler_SignsOutUserAndRedirectsToHomePage()
     {
         // Arrange
         var authServiceMock = new Mock<IAuthenticationService>();
@@ -698,25 +697,19 @@ public class AuthEndpointsTest
             .Setup(x => x.GetService(typeof(IAuthenticationService)))
             .Returns(authServiceMock.Object);
 
-        m_HttpContext.Setup(x => x.RequestServices)
-            .Returns(serviceProviderMock.Object);
-
         // Act
-        var result = AuthEndpoints.WebLogOutHandler(m_HttpContext.Object);
+        var result = await AuthEndpoints.WebLogOutHandler(m_SignInManager.Object);
 
         // Assert
-        // Verify sign out was called
-        authServiceMock.Verify(x => x.SignOutAsync(
-                m_HttpContext.Object,
-                IdentityConstants.ApplicationScheme,
-                It.IsAny<AuthenticationProperties>()),
+        // Verify sign-out was called
+        m_SignInManager.Verify(x => x.SignOutAsync(),
             Times.Once);
 
         // Verify redirect result
         var redirectResult = result.ShouldBeOfType<RedirectHttpResult>();
         redirectResult.Url.ShouldBe("/");
     }
-    
+
     [Fact]
     public async Task LoginHandler_WithValidCredentials_ShouldRedirect()
     {
@@ -838,7 +831,7 @@ public class AuthEndpointsTest
     }
 
     [Fact]
-    public void WebLogOutHandler_SignsOutUser()
+    public async Task WebLogOutHandler_SignsOutUser()
     {
         // Arrange
         var authServiceMock = new Mock<IAuthenticationService>();
@@ -848,17 +841,11 @@ public class AuthEndpointsTest
             .Setup(x => x.GetService(typeof(IAuthenticationService)))
             .Returns(authServiceMock.Object);
 
-        m_HttpContext.Setup(x => x.RequestServices)
-            .Returns(serviceProviderMock.Object);
-
         // Act
-        AuthEndpoints.WebLogOutHandler(m_HttpContext.Object);
+        await AuthEndpoints.WebLogOutHandler(m_SignInManager.Object);
 
         // Assert
-        authServiceMock.Verify(x => x.SignOutAsync(
-                m_HttpContext.Object,
-                IdentityConstants.ApplicationScheme,
-                It.IsAny<AuthenticationProperties>()),
+        m_SignInManager.Verify(x => x.SignOutAsync(),
             Times.Once);
     }
 

@@ -1,7 +1,9 @@
 @using MudBlazor
+@using Onyx.App.Shared.Services.Auth
 @inherits LayoutComponentBase
 @layout MainLayout
 @inject NavigationManager NavigationManager
+@inject IUserManager UserManager
 
 
 <div id="app-container">
@@ -20,14 +22,19 @@
     </div>
     <div id="app-box">
         <MudAppBar Class="app-bar">
-            hi
-            <MudSpacer />
+            <MudText>Onyx App</MudText>
+            <MudSpacer/>
             <MudToggleIconButton @bind-Toggled="@MainLayout.IsDarkMode"
                                  Icon="@Icons.Material.Filled.LightMode"
                                  ToggledIcon="@Icons.Material.Filled.DarkMode"
                                  Class="mud-theme-primary"
                                  ToggledColor="@Color.Success"
                                  title="@(MainLayout.IsDarkMode ? "On" : "Off")"/>
+            <form action="Account/Logout" method="post">
+                <AntiforgeryToken/>
+                <MudIconButton OnClick="Logout" Icon="@Icons.Material.Filled.Logout"
+                               Color="Color.Tertiary" ButtonType="ButtonType.Submit"/>
+            </form>
         </MudAppBar>
         <MudMainContent>
             @Body
@@ -38,9 +45,8 @@
 
 @code
 {
-    [CascadingParameter]
-    public required MainLayout MainLayout { get; set; }
-    
+    [CascadingParameter] public required MainLayout MainLayout { get; set; }
+
     public struct NavItem
     {
         public string? Icon;
@@ -77,5 +83,7 @@
             Url = "/settings"
         },
     ];
+
+    private Task Logout() => UserManager.LogoutAsync();
 }
 
