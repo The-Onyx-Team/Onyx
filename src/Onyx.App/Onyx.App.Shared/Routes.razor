@@ -1,6 +1,4 @@
-﻿@using Microsoft.AspNetCore.Components.Authorization
-@using Onyx.App.Shared.Components
-<Router AppAssembly="typeof(Layout.MainLayout).Assembly">
+﻿<Router AppAssembly="typeof(Layout.MainLayout).Assembly">
     <Found Context="routeData">
         <AuthorizeRouteView Resource="routeData" RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
             <NotAuthorized>

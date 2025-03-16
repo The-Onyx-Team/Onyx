@@ -1,9 +1,4 @@
 @page "/account/login"
-@layout MainLayout
-@using System.ComponentModel.DataAnnotations
-@using MudBlazor
-@using Onyx.App.Shared.Services.Auth
-@using Onyx.App.Shared.Components.Auth
 @inject IUserManager UserManager
 @inject NavigationManager NavigationManager
 
@@ -16,8 +11,6 @@
     <MudTextField Label="Password" @bind-Value="m_RegisterModel.Password" Required="true"
                   InputType="InputType.Password"/>
     <MudButton ButtonType="ButtonType.Submit">Login</MudButton>
-    <MudButton OnClick="() => Console.WriteLine(12)">Test</MudButton>
-    <button @onclick="() => Console.WriteLine(11)">Test2</button>
 </EditForm>
 
 <ExternalLoginPicker />
@@ -29,7 +22,6 @@
 
     private async Task Submit()
     {
-        Console.WriteLine("asd");
         var result = await UserManager.LoginAsync(m_RegisterModel.Email, m_RegisterModel.Password, "/");
         if (result.Success)
         {
