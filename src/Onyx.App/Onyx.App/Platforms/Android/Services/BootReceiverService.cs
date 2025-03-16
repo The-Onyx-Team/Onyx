@@ -1,7 +1,7 @@
 ﻿using Android.App;
 using Android.Content;
+using Android.OS;
 using Android.Widget;
-using AndroidX.Core.Content;
 
 namespace Onyx.App.Services;
 
@@ -11,10 +11,30 @@ public class BootReceiverService : BroadcastReceiver
 {
     public override void OnReceive(Context? context, Intent? intent)
     {
-        if (intent.Action == Intent.ActionBootCompleted && context != null)
+        Console.WriteLine("Device booted!");
+        
+        if (intent?.Action == Intent.ActionBootCompleted)
         {
-            Toast.MakeText(context, "Toast showing as boot completed!", ToastLength.Short).Show();
-            ContextCompat.StartForegroundService(context, new Intent(context, typeof(BackgroundService)));
+            Toast.MakeText(context, "Boot completed event received", 
+                ToastLength.Short)
+                ?.Show();
+
+            if (context != null)
+            {
+                var serviceIntent = new Intent(context, 
+                    typeof(BackgroundService));
+
+                if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+                {
+#pragma warning disable CA1416
+                    context.StartForegroundService(serviceIntent);
+#pragma warning restore CA1416
+                }
+                else
+                {
+                    context.StartService(serviceIntent);
+                }
+            }
         }
     }
 }

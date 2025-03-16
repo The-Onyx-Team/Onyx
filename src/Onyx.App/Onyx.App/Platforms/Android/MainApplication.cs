@@ -2,30 +2,39 @@
 using Android.OS;
 using Android.Runtime;
 
-namespace Onyx.App
+namespace Onyx.App;
+
+[Application]
+public class MainApplication : MauiApplication
 {
-    [Application]
-    public class MainApplication : MauiApplication
+    public static readonly string ChannelId = "bgChannel";
+    
+    public MainApplication(IntPtr handle, JniHandleOwnership ownership)
+        : base(handle, ownership)
     {
-        public MainApplication(IntPtr handle, JniHandleOwnership ownership)
-            : base(handle, ownership)
+    }
+
+    protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
+
+    public override void OnCreate()
+    {
+        base.OnCreate();
+
+        if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
         {
-        }
-
-        protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
-
-        public override void OnCreate()
-        {
-            base.OnCreate();
-
-            if (Build.VERSION.SdkInt >= BuildVersionCodes.Lollipop)
+#pragma warning disable CA1416
+            var serviceChannel =
+                new NotificationChannel(
+                    ChannelId, 
+                    "Background Service Channel", 
+                    NotificationImportance.Low);
+            
+            if (GetSystemService(NotificationService)
+                is NotificationManager manager)
             {
-                if (GetSystemService(NotificationService) is NotificationManager manager)
-                    manager.CreateNotificationChannel(new NotificationChannel(
-                        "Service", 
-                        "Service Notification", 
-                        NotificationImportance.High));
+                manager.CreateNotificationChannel(serviceChannel);
             }
+#pragma warning restore CA1416
         }
     }
 }
