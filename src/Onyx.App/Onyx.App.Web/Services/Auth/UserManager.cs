@@ -208,7 +208,7 @@ public class UserManager(
 
     public async Task<IEnumerable<ExternalLoginData>?> GetLoginsAsync(User user)
     {
-        var appUser = await userManager.FindByEmailAsync(user.Email);
+        var appUser = await userManager.FindByEmailAsync(user.Email!);
         
         if (appUser is null) return [];
         
