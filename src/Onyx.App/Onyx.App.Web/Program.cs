@@ -40,6 +40,8 @@ builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo("./keys"))
     .SetApplicationName("OnyxApp");
 
+builder.Services.AddSingleton(new KeyAccessor(key));
+
 // UI
 
 builder.Services.AddMudServices();

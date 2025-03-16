@@ -7,24 +7,24 @@ public class AuthenticationService
 {
     private const string UserSessionKey = "app_user_session";
 
-    public async Task<User?> GetUserSessionAsync()
+    public async Task<UserSession?> GetUserSessionAsync()
     {
-        User? user = null;
+        UserSession? session = null;
 
         var userJson = await SecureStorage.Default.GetAsync(UserSessionKey);
 
         if (!string.IsNullOrWhiteSpace(userJson))
-            user = JsonSerializer.Deserialize<User>(userJson);
+            session = JsonSerializer.Deserialize<UserSession>(userJson);
         
-        return user;
+        return session;
     }
 
-    public async Task SetUserSessionAsync(User user)
+    public async Task SetUserSessionAsync(UserSession session)
     {
-        var userJson = JsonSerializer.Serialize(user);
+        var userJson = JsonSerializer.Serialize(session);
 
         await SecureStorage.Default.SetAsync(UserSessionKey, userJson);
     }
     
-    public void ClearUserSession() => SecureStorage.Remove(UserSessionKey);
+    public void ClearUserSession() => SecureStorage.Default.Remove(UserSessionKey);
 }

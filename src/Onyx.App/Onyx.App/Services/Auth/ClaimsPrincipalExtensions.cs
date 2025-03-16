@@ -9,4 +9,10 @@ public static class ClaimsPrincipalExtensions
         var claim = user.FindFirst("access_token");
         return Task.FromResult(claim?.Value);
     }
+    
+    public static Task<string?> GetRefreshTokenAsync(this ClaimsPrincipal user)
+    {
+        var claim = user.FindFirst("refresh_token");
+        return Task.FromResult(claim?.Value);
+    }
 }

@@ -23,16 +23,16 @@ public class MauiAuthenticationStateProvider(AuthenticationService authService) 
         return authState;
     }
 
-    public async Task UpdateAuthenticationStateAsync(User? user, bool rememberMe = true)
+    public async Task UpdateAuthenticationStateAsync(UserSession? session, bool rememberMe = true)
     {
         var cp = m_AnonymousUser;
         
-        if (user is not null)
+        if (session is not null)
         {
-            var identity = GetUserClaimsIdentity(user);
+            var identity = GetUserClaimsIdentity(session);
             
             if (rememberMe)
-                await authService.SetUserSessionAsync(user);
+                await authService.SetUserSessionAsync(session);
 
             cp = new ClaimsPrincipal(identity);
         }
@@ -44,12 +44,14 @@ public class MauiAuthenticationStateProvider(AuthenticationService authService) 
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(cp)));
     }
 
-    private static ClaimsIdentity GetUserClaimsIdentity(User user)
+    private static ClaimsIdentity GetUserClaimsIdentity(UserSession session)
     {
         var identity = new ClaimsIdentity([
-            new Claim(ClaimTypes.Name, user.Name ?? string.Empty),
-            new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
-            new Claim(ClaimTypes.Role, user.Role ?? string.Empty)
+            new Claim(ClaimTypes.Name, session.Name ?? string.Empty),
+            new Claim(ClaimTypes.Email, session.Email ?? string.Empty),
+            new Claim(ClaimTypes.Role, session.Role ?? string.Empty),
+            new Claim("access_token", session.Token),
+            new Claim("refresh_token", session.RefreshToken)
         ], "MauiAuth");
         return identity;
     }

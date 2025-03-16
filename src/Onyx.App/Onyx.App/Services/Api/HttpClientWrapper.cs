@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Logging;
 using OneOf;
 using Onyx.App.Services.Auth;
-using Onyx.App.Shared.Services.Auth;
 
 namespace Onyx.App.Services.Api;
 
@@ -20,6 +19,11 @@ public class HttpClientWrapper
     private readonly HttpClient m_HttpClient;
     private readonly ILogger<HttpClientWrapper> m_Logger;
     private readonly AuthenticationStateProvider m_AuthenticationStateProvider;
+    
+    private static readonly JsonSerializerOptions s_JsonSerializerOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
 
     public HttpClientWrapper(HttpClient httpClient, ILogger<HttpClientWrapper> logger,
         AuthenticationStateProvider authenticationStateProvider)
@@ -33,9 +37,8 @@ public class HttpClientWrapper
             var authState = await task;
             var user = authState.User;
 
-            if (user.Identity?.IsAuthenticated == true)
+            if (user.Identity?.IsAuthenticated == true && await user.GetAuthTokenAsync() is { } token)
             {
-                var token = await user.GetAuthTokenAsync();
                 SetAuthToken(token);
             }
             else
@@ -75,7 +78,7 @@ public class HttpClientWrapper
 
             try
             {
-                var result = JsonSerializer.Deserialize<T>(content);
+                var result = JsonSerializer.Deserialize<T>(content, s_JsonSerializerOptions);
                 if (result is null)
                     return new ParsingError("Deserialization returned null");
                 return result;
@@ -93,12 +96,18 @@ public class HttpClientWrapper
         }
     }
 
-    public async Task<OneOf<TResponse, HttpError, NetworkError, ParsingError>> PostAsync<TRequest, TResponse>(
-        string endpoint, TRequest request)
+    public Task<OneOf<T, HttpError, NetworkError, ParsingError>> PostAsync<T>(string endpoint, object request) =>
+        PostAsync<T>(endpoint, request, request.GetType());
+    
+    public Task<OneOf<TResponse, HttpError, NetworkError, ParsingError>> PostAsync<TRequest, TResponse>(string endpoint, object request) =>
+        PostAsync<TResponse>(endpoint, request, typeof(TRequest));
+
+    private async Task<OneOf<T, HttpError, NetworkError, ParsingError>> PostAsync<T>(
+        string endpoint, object request, Type requestType)
     {
         try
         {
-            var json = JsonSerializer.Serialize(request);
+            var json = JsonSerializer.Serialize(request, requestType, s_JsonSerializerOptions);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await m_HttpClient.PostAsync(endpoint, content);
@@ -112,7 +121,7 @@ public class HttpClientWrapper
 
             try
             {
-                var result = JsonSerializer.Deserialize<TResponse>(responseContent);
+                var result = JsonSerializer.Deserialize<T>(responseContent, s_JsonSerializerOptions);
                 if (result is null)
                     return new ParsingError("Deserialization returned null");
                 return result;

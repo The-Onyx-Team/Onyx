@@ -114,7 +114,7 @@ public class AuthEndpointsTest
     public async Task RefreshHandler_ShouldReturnUnauthorized_WhenUserIsNull()
     {
         // Arrange
-        var request = new RefreshTokenRequest(Token: "");
+        var request = new RefreshTokenDto(Token: "");
 
         // Act
         var result = await AuthEndpoints.RefreshHandler(request, m_UserManager.Object, m_KeyAccessor);
@@ -129,7 +129,7 @@ public class AuthEndpointsTest
         // Arrange
         var refreshToken =
             JwtTools.GenerateRefreshToken(m_KeyAccessor.ApplicationKey, m_TestUser.Id, m_TestUser.Email!);
-        var request = new RefreshTokenRequest(Token: refreshToken);
+        var request = new RefreshTokenDto(Token: refreshToken);
 
         // Act
         var result = await AuthEndpoints.RefreshHandler(request, m_UserManager.Object, m_KeyAccessor);
@@ -183,7 +183,7 @@ public class AuthEndpointsTest
             SigningCredentials = new SigningCredentials(m_KeyAccessor.ApplicationKey, SecurityAlgorithms.RsaSha256)
         });
 
-        var request = new RefreshTokenRequest(Token: handler.WriteToken(token));
+        var request = new RefreshTokenDto(Token: handler.WriteToken(token));
 
         // Act
         var result = await AuthEndpoints.RefreshHandler(request, m_UserManager.Object, m_KeyAccessor);
@@ -196,7 +196,7 @@ public class AuthEndpointsTest
     public async Task RefreshHandler_ShouldReturnBadRequest_WhenTokenIsInvalid()
     {
         // Arrange
-        var request = new RefreshTokenRequest(Token: "invalid_token");
+        var request = new RefreshTokenDto(Token: "invalid_token");
 
         // Act
         var result = await AuthEndpoints.RefreshHandler(request, m_UserManager.Object, m_KeyAccessor);
@@ -209,7 +209,7 @@ public class AuthEndpointsTest
     public async Task LoginHandler_WithValidCredentials_ReturnsOkWithTokens()
     {
         // Arrange
-        var request = new LoginRequest(Email: "test@example.com", Password: "Password123!");
+        var request = new LoginDto(Email: "test@example.com", Password: "Password123!");
 
         m_UserManager.Setup(x => x.FindByEmailAsync(request.Email))
             .ReturnsAsync(m_TestUser);
@@ -252,7 +252,7 @@ public class AuthEndpointsTest
     public async Task LoginHandler_WithNonExistentUser_ReturnsUnauthorized()
     {
         // Arrange
-        var request = new LoginRequest(Email: "test@example.com", Password: "Password123!");
+        var request = new LoginDto(Email: "test@example.com", Password: "Password123!");
 
         m_UserManager.Setup(x => x.FindByEmailAsync(request.Email))
             .ReturnsAsync((ApplicationUser)null!);
@@ -268,7 +268,7 @@ public class AuthEndpointsTest
     public async Task LoginHandler_WithIncorrectPassword_ReturnsUnauthorized()
     {
         // Arrange
-        var request = new LoginRequest(Email: "test@example.com", Password: "Password123!Wrong");
+        var request = new LoginDto(Email: "test@example.com", Password: "Password123!Wrong");
 
         m_UserManager.Setup(x => x.FindByEmailAsync(request.Email))
             .ReturnsAsync(m_TestUser);
@@ -286,7 +286,7 @@ public class AuthEndpointsTest
     public async Task RegisterHandler_WithValidData_ReturnsOk()
     {
         // Arrange
-        var request = new RegisterRequest(Email: "newuser@example.com", Password: "ValidPassword123!");
+        var request = new RegisterDto(Name: "newuser", Email: "newuser@example.com", Password: "ValidPassword123!");
 
         m_UserManager.Setup(x => x.CreateAsync(It.IsAny<ApplicationUser>(), request.Password))
             .ReturnsAsync(IdentityResult.Success);
@@ -300,7 +300,7 @@ public class AuthEndpointsTest
         m_UserManager.Verify(x => x.CreateAsync(
             It.Is<ApplicationUser>(u =>
                 u.Email == request.Email &&
-                u.UserName == request.Email
+                u.UserName == request.Name
             ),
             request.Password
         ), Times.Once);
@@ -310,7 +310,7 @@ public class AuthEndpointsTest
     public async Task RegisterHandler_WithInvalidData_ReturnsBadRequestWithErrors()
     {
         // Arrange
-        var request = new RegisterRequest(Email: "newuser@example.com", Password: "weak");
+        var request = new RegisterDto(Name: "newuser", Email: "newuser@example.com", Password: "weak");
 
         var identityErrors = new List<IdentityError>
         {
@@ -333,7 +333,7 @@ public class AuthEndpointsTest
     public async Task RegisterHandler_WithDuplicateEmail_ReturnsBadRequest()
     {
         // Arrange
-        var request = new RegisterRequest(Email: "existing@example.com", Password: "ValidPassword123!");
+        var request = new RegisterDto(Name: "newuser", Email: "existing@example.com", Password: "ValidPassword123!");
 
         var identityErrors = new List<IdentityError>
         {
@@ -408,7 +408,7 @@ public class AuthEndpointsTest
     public async Task UpdateProfileHandler_WithValidRequest_UpdatesUserAndReturnsOk()
     {
         // Arrange
-        var request = new UpdateProfileRequest(UserName: "newUsername", PhoneNumber: "1234567890");
+        var request = new UpdateProfileDto(UserName: "newUsername", PhoneNumber: "1234567890");
 
         m_UserManager.Setup(x => x.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
             .ReturnsAsync(m_TestUser);
@@ -429,7 +429,7 @@ public class AuthEndpointsTest
     public async Task UpdateProfileHandler_WithNonExistentUser_ReturnsNotFound()
     {
         // Arrange
-        var request = new UpdateProfileRequest(UserName: "newUsername", PhoneNumber: "1234567890");
+        var request = new UpdateProfileDto(UserName: "newUsername", PhoneNumber: "1234567890");
 
         m_UserManager.Setup(x => x.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
             .ReturnsAsync((ApplicationUser)null!);
@@ -446,7 +446,7 @@ public class AuthEndpointsTest
     public async Task UpdateProfileHandler_WithInvalidData_ReturnsBadRequestWithErrors()
     {
         // Arrange
-        var request = new UpdateProfileRequest(UserName: "invalid#username", PhoneNumber: "1234567890");
+        var request = new UpdateProfileDto(UserName: "invalid#username", PhoneNumber: "1234567890");
 
         var identityErrors = new List<IdentityError>
         {
@@ -472,7 +472,7 @@ public class AuthEndpointsTest
     public async Task ChangePasswordHandler_WithValidRequest_ChangesPasswordAndReturnsOk()
     {
         // Arrange
-        var request = new ChangePasswordRequest(CurrentPassword: "OldPassword123!", NewPassword: "NewPassword456!");
+        var request = new ChangePasswordDto(CurrentPassword: "OldPassword123!", NewPassword: "NewPassword456!");
 
         m_UserManager.Setup(x => x.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
             .ReturnsAsync(m_TestUser);
@@ -492,7 +492,7 @@ public class AuthEndpointsTest
     public async Task ChangePasswordHandler_WithNonExistentUser_ReturnsNotFound()
     {
         // Arrange
-        var request = new ChangePasswordRequest(CurrentPassword: "OldPassword123!", NewPassword: "NewPassword456!");
+        var request = new ChangePasswordDto(CurrentPassword: "OldPassword123!", NewPassword: "NewPassword456!");
 
         m_UserManager.Setup(x => x.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
             .ReturnsAsync((ApplicationUser)null!);
@@ -510,7 +510,7 @@ public class AuthEndpointsTest
     public async Task ChangePasswordHandler_WithIncorrectCurrentPassword_ReturnsBadRequestWithErrors()
     {
         // Arrange
-        var request = new ChangePasswordRequest(CurrentPassword: "WrongPassword!", NewPassword: "NewPassword456!");
+        var request = new ChangePasswordDto(CurrentPassword: "WrongPassword!", NewPassword: "NewPassword456!");
 
         var identityErrors = new List<IdentityError>
         {
@@ -803,7 +803,7 @@ public class AuthEndpointsTest
             m_HttpContext.Object);
 
         // Assert
-        authService.Verify((IAuthenticationService? x) => x!.SignInAsync(
+        authService.Verify(x => x!.SignInAsync(
             m_HttpContext.Object,
             IdentityConstants.ApplicationScheme,
             principal,
@@ -853,7 +853,7 @@ public class AuthEndpointsTest
     public async Task RequestEmailChangeHandler_WithValidRequest_GeneratesTokenAndReturnsOk()
     {
         // Arrange
-        var request = new ChangeEmailRequest("new@example.com");
+        var request = new ChangeEmailDto("new@example.com");
 
         m_UserManager.Setup(x => x.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
             .ReturnsAsync(m_TestUser);

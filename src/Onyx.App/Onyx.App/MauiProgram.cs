@@ -25,6 +25,7 @@ namespace Onyx.App
                 });
             
             builder.Services.AddHttpClient<HttpClientWrapper>();
+            builder.Services.AddScoped<AuthApi>();
 
             builder.Services.AddMauiBlazorWebView();
             builder.Services.AddMudServices();
