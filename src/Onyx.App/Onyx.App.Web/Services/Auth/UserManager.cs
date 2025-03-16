@@ -206,6 +206,22 @@ public class UserManager(
             new AuthenticationScheme(l.Name, l.DisplayName!));
     }
 
+    public async Task<IEnumerable<ExternalLoginData>?> GetLoginsAsync(User user)
+    {
+        var appUser = await userManager.FindByEmailAsync(user.Email);
+        
+        if (appUser is null) return [];
+        
+        return (await userManager.GetLoginsAsync(appUser)).Select(l =>
+            new ExternalLoginData()
+            {
+                ProviderDisplayName = l.ProviderDisplayName!,
+                ProviderKey = l.ProviderKey,
+                LoginProvider = l.LoginProvider,
+                Principal = null!
+            });
+    }
+
     private ApplicationUser CreateUser()
     {
         try
