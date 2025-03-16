@@ -58,5 +58,4 @@
     <ItemGroup>
         <ProjectReference Include="..\Onyx.App.Shared\Onyx.App.Shared.csproj"/>
     </ItemGroup>
-
 </Project>

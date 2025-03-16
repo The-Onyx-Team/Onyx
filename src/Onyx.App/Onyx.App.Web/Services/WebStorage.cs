@@ -19,7 +19,7 @@ public class WebStorage(ILocalStorageService storage, IHttpContextAccessor conte
         return new ValueTask<T?>((T)default!);
     }
 
-    public ValueTask SetItemAsync(string key, bool value)
+    public ValueTask SetItemAsync<T>(string key, T value)
     {
         if (contextAccessor.HttpContext is { Response.HasStarted: true })
             return storage.SetItemAsync(key, value);
