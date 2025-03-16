@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using MudBlazor.Services;
 using Onyx.App.Services;
+using Onyx.App.Services.Api;
 using Onyx.App.Services.Auth;
 using Onyx.App.Shared.Services;
 using Onyx.App.Shared.Services.Auth;
@@ -22,6 +23,8 @@ namespace Onyx.App
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 });
+            
+            builder.Services.AddHttpClient<HttpClientWrapper>();
 
             builder.Services.AddMauiBlazorWebView();
             builder.Services.AddMudServices();
