@@ -1,6 +1,5 @@
 ﻿@page "/Account/ExternalLogin"
-@using Microsoft.Extensions.Logging
-@using Onyx.App.Shared.Services.Auth
+@attribute [ExcludeFromInteractiveRouting]
 
 @inject ILogger<ExternalLogin> Logger
 @inject IUserManager UserManager
@@ -34,11 +33,18 @@
     </div>
 </div>
 
+@if (m_Message is not null)
+{
+    <div class="alert alert-danger" role="alert">
+        @m_Message
+    </div>
+}
+
 @code {
     public const string LoginCallbackAction = "LoginCallback";
 
-    private string? message;
-    private ExternalLoginData? externalLoginInfo;
+    private string? m_Message;
+    private ExternalLoginData? m_ExternalLoginInfo;
 
     [SupplyParameterFromForm] private EmailInputModel Input { get; set; } = new();
 
@@ -48,23 +54,23 @@
 
     [SupplyParameterFromQuery] private string? Action { get; set; }
 
-    private string? ProviderDisplayName => externalLoginInfo?.ProviderDisplayName;
+    private string? ProviderDisplayName => m_ExternalLoginInfo?.ProviderDisplayName;
 
     protected override async Task OnInitializedAsync()
     {
         if (RemoteError is not null)
         {
-            // TODO
-            throw new Exception(RemoteError);
+            m_Message = RemoteError;
+            return;
         }
 
         var info = await UserManager.GetExternalLoginDataAsync();
 
-        externalLoginInfo = info;
+        m_ExternalLoginInfo = info;
 
         if (Action == LoginCallbackAction)
         {
-            await UserManager.HandleExternalLoginAsync(externalLoginInfo, ReturnUrl, Input);
+            await UserManager.HandleExternalLoginAsync(m_ExternalLoginInfo, ReturnUrl, Input);
             StateHasChanged();
             return;
         }
@@ -75,7 +81,7 @@
 
     private async Task OnValidSubmitAsync()
     {
-        await UserManager.HandleNewExternalLoginAsync(externalLoginInfo, Input, ReturnUrl);
+        await UserManager.HandleNewExternalLoginAsync(m_ExternalLoginInfo, Input, ReturnUrl);
     }
 
 }

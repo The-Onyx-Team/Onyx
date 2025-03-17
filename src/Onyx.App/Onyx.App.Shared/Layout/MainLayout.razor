@@ -1,8 +1,13 @@
-﻿@using MudBlazor
-@inherits LayoutComponentBase
+﻿@inherits LayoutComponentBase
 
+@inject IStorage Storage
+@inject ISnackbar Snackbar
 
-@Body
+<CascadingValue Value="this">
+    <CustomErrorBoundary>
+        @Body
+    </CustomErrorBoundary>
+</CascadingValue>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
@@ -10,36 +15,64 @@
     <span class="dismiss">🗙</span>
 </div>
 
-<MudThemeProvider Theme="MyCustomTheme" />
+<MudThemeProvider Theme="m_MyCustomTheme" IsDarkMode="m_IsDarkMode" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
 @code
 {
-    MudTheme MyCustomTheme = new MudTheme()
+    private bool m_IsDarkMode = true;
+
+    public bool IsDarkMode
+    {
+        get => m_IsDarkMode;
+        set
+        {
+            m_IsDarkMode = value;
+            StateHasChanged();
+            Storage.SetItemAsync("darkMode", value);
+        }
+    }
+    
+    protected override async Task OnInitializedAsync()
+    {
+        Snackbar.Configuration.ClearAfterNavigation = true;
+        Snackbar.Configuration.SnackbarVariant = Variant.Filled;
+        Snackbar.Configuration.VisibleStateDuration = 5000;
+        Snackbar.Configuration.HideTransitionDuration = 500;
+        Snackbar.Configuration.ShowTransitionDuration = 500;
+        Snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomRight;
+
+        if (await Storage.ContainKeyAsync("darkMode"))
+            m_IsDarkMode = await Storage.GetItemAsync<bool>("darkMode");
+    }
+
+    private readonly MudTheme m_MyCustomTheme = new()
     {
         PaletteLight = new PaletteLight() //Helles Theme, bitte bei Bedarf Farben austauschen
         {
                 Black = "#E0E0E0",
-                Background = "F5F1EB",
+                Background = "#F5F1EB",
                 Surface = "#838383",
                 TextPrimary = "#A1A1A1",
                 Primary =  "#B34704",
                 Secondary = "#E85B09",
                 Tertiary =  "#FF8F32",
-                White = "#F5F1EB"
+                White = "#F5F1EB",
+                AppbarBackground = "#B34704"
         },
-        PaletteDark = new PaletteDark()//Dunkles Theme, bitte bei Bedarf Farben austauschen
+        PaletteDark = new PaletteDark() //Dunkles Theme, bitte bei Bedarf Farben austauschen
         {
             Black = "#E0E0E0",
-            Background = "3A3A3A",
+            Background = "#3A3A3A",
             Surface = "#838383",
             TextPrimary = "#A1A1A1",
             Primary = "#E37A37",
             Secondary = "#F5975E",
             Tertiary = "#FFC285",
-            White = "#F5F1EB"
+            White = "#F5F1EB",
+            AppbarBackground = "#E37A37"
         }
     };
 }

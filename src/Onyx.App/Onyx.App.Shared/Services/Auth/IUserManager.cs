@@ -7,10 +7,12 @@ public interface IUserManager
     public Task<RegisterResult> RegisterAsync(string name, string email, string password, string redirectUri);
     public Task<LoginResult> LoginAsync(string email, string password, string redirectUri);
     public Task<ExternalLoginData> GetExternalLoginDataAsync();
+    public Task LogoutAsync();
 
     public Task HandleExternalLoginAsync(ExternalLoginData externalLoginInfo, string? returnUrl, EmailInputModel input);
     public Task HandleNewExternalLoginAsync(ExternalLoginData? externalLoginInfo, EmailInputModel input, string? returnUrl);
     public Task<IEnumerable<AuthenticationScheme>> GetExternalAuthenticationSchemas();
+    public Task<IEnumerable<ExternalLoginData>?> GetLoginsAsync(User user);
 }
 
 public sealed class EmailInputModel

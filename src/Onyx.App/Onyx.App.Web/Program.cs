@@ -1,13 +1,17 @@
 ﻿using System.IO.Abstractions;
+using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 using MudBlazor.Services;
+using Onyx.App.Shared.Services;
 using Onyx.App.Shared.Services.Auth;
 using Onyx.App.Web.Api;
 using Onyx.App.Web.Components;
+using Onyx.App.Web.Services;
 using Onyx.App.Web.Services.Auth;
 using Onyx.App.Web.Services.Database;
 using Onyx.App.Web.Services.Mail;
@@ -32,11 +36,17 @@ builder.Services.AddOpenApi();
 builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
 
-builder.Services.AddMudServices();
-
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo("./keys"))
     .SetApplicationName("OnyxApp");
+
+builder.Services.AddSingleton(new KeyAccessor(key));
+
+// UI
+
+builder.Services.AddMudServices();
+builder.Services.AddBlazoredLocalStorage();
+builder.Services.TryAddScoped<IStorage, WebStorage>();
 
 // Database
 
@@ -132,6 +142,7 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
     .AddDefaultTokenProviders();
 
 builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, ApplicationUserClaimsPrincipalFactory>();
+builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddScoped<IUserManager, UserManager>();
 builder.Services.AddScoped<IUserProvider, UserProvider>();

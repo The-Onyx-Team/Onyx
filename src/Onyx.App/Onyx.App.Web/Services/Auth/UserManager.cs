@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.JSInterop;
 using Onyx.App.Shared.Services.Auth;
 using Onyx.Data.DataBaseSchema.Identity;
+using AuthenticationScheme = Onyx.App.Shared.Services.Auth.AuthenticationScheme;
 
 namespace Onyx.App.Web.Services.Auth;
 
@@ -91,6 +92,20 @@ public class UserManager(
             LoginProvider = info.LoginProvider,
             Principal = info.Principal
         };
+    }
+
+    public Task LogoutAsync()
+    {
+        try
+        {
+            signInManager.SignOutAsync();
+        }
+        catch (Exception)
+        {
+            // ignored
+        }
+
+        return Task.CompletedTask;
     }
 
     public async Task HandleExternalLoginAsync(ExternalLoginData externalLoginInfo, string? returnUrl,
@@ -189,6 +204,22 @@ public class UserManager(
     {
         return (await signInManager.GetExternalAuthenticationSchemesAsync()).Select(l =>
             new AuthenticationScheme(l.Name, l.DisplayName!));
+    }
+
+    public async Task<IEnumerable<ExternalLoginData>?> GetLoginsAsync(User user)
+    {
+        var appUser = await userManager.FindByEmailAsync(user.Email!);
+        
+        if (appUser is null) return [];
+        
+        return (await userManager.GetLoginsAsync(appUser)).Select(l =>
+            new ExternalLoginData()
+            {
+                ProviderDisplayName = l.ProviderDisplayName!,
+                ProviderKey = l.ProviderKey,
+                LoginProvider = l.LoginProvider,
+                Principal = null!
+            });
     }
 
     private ApplicationUser CreateUser()

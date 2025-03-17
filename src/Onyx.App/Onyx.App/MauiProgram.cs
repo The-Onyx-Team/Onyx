@@ -1,8 +1,14 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.Logging;
+using MudBlazor.Services;
+using Onyx.App.Services;
+using Onyx.App.Services.Api;
+using Onyx.App.Services.Auth;
+using Onyx.App.Shared.Services;
+using Onyx.App.Shared.Services.Auth;
 using Onyx.App.Shared.Services.Usage;
-#if ANDROID
+
 using Onyx.App.UsageData;
-#endif
 
 namespace Onyx.App
 {
@@ -17,12 +23,22 @@ namespace Onyx.App
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 });
+            
+            builder.Services.AddHttpClient<HttpClientWrapper>();
+            builder.Services.AddScoped<AuthApi>();
 
             builder.Services.AddMauiBlazorWebView();
-#if ANDROID
+            builder.Services.AddMudServices();
+            builder.Services.AddSingleton<IStorage, MauiStorage>();
+            
+            builder.Services.AddSingleton<AuthenticationService>();
+            builder.Services.AddScoped<AuthenticationStateProvider, MauiAuthenticationStateProvider>();
+            builder.Services.AddAuthorizationCore();
+            builder.Services.AddSingleton<IUserManager, UserManager>();
+
             builder.Services.AddSingleton<IStatsService, UsageStatsService>();
             builder.Services.AddSingleton<IStatsHelper, StatsHelper>();
-#endif
+
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
             builder.Logging.AddDebug();

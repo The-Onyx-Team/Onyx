@@ -1,8 +1,4 @@
 @page "/account/register"
-@using Onyx.App.Shared.Services
-@using MudBlazor
-@using Onyx.App.Shared.Services.Auth
-@using Onyx.App.Shared.Components.Auth
 @inject IUserManager UserManager
 
 <h3>Register</h3>
@@ -41,9 +37,18 @@
 
     public class RegisterModel
     {
+        [Required]
         public string Username { get; set; } = "";
+        
+        [EmailAddress]
+        [Required]
         public string Email { get; set; } = "";
+        
+        [Required]
         public string Password { get; set; } = "";
+        
+        [Required]
+        [Compare(nameof(Password))]
         public string ConfirmPassword { get; set; } = "";
     }
 

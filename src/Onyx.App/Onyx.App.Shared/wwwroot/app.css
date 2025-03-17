@@ -1,3 +1,129 @@
+
+/* General */
+
+html, body {
+    height: 100dvh;
+    overflow: hidden;
+}
+
+/* App Layout */
+
+#app-container, #app-box {
+    height: 100dvh;
+    overflow-y: scroll;
+}
+
+#app-container {
+    display: flex;
+    flex-direction: row;
+}
+
+#nav {
+    display: flex;
+    flex-direction: column;
+    width: 64px;
+    background-color: #333;
+    color: white;
+    gap: 8px;
+    padding: 8px;
+}
+
+#sub-nav {
+    display: flex;
+    flex-direction: column;
+    width: 256px;
+    background-color: #444;
+    color: white;
+    gap: 8px;
+    padding: 16px;
+}
+
+.nav-item {
+    padding-top: 6px;
+    display: grid;
+    place-items: center;
+    height: 48px;
+    aspect-ratio: 1;
+    border-radius: 8px;
+}
+
+.selected-nav-item {
+    background-color: #777;
+}
+
+.app-bar {
+    margin-left: 64px;
+    padding-right: 64px;
+}
+
+@media (max-width: 768px) {
+    #app-box {
+        height: calc(100dvh - 64px);
+    }
+
+    #app-container {
+        flex-direction: column-reverse;
+    }
+
+    #nav {
+        flex-direction: row;
+        justify-content: space-evenly;
+        width: 100%;
+    }
+
+    #sub-nav {
+        flex-direction: row;
+        height: calc(100dvh - 64px);
+        z-index: 5;
+        width: 100%;
+    }
+
+    .app-bar {
+        display: none;
+    }
+}
+
+/* Auth */
+
+.auth-wrapper {
+    display: flex;
+    flex-direction: row;
+    height: calc(100dvh - 64px);
+    overflow: hidden;
+}
+
+.auth-content {
+    overflow-y: scroll;
+    padding: 16px;
+}
+
+.auth-nav {
+    display: flex;
+    flex-direction: column;
+    background-color: #444;
+    padding: 16px;
+    gap: 4px;
+}
+
+.auth-nav-item {
+    text-align: left;
+    border-radius: 8px;
+    height: 32px;
+    width: 200px;
+}
+
+.auth-nav-item p {
+    margin-top: auto;
+    margin-bottom: auto;
+    padding: 4px 4px 4px 8px;
+}
+
+.auth-nav-item:hover {
+    background-color: #777;
+}
+
+/* Template */
+
 h1:focus {
     outline: none;
 }

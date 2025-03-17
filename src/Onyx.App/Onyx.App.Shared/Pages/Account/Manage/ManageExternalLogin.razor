@@ -1,8 +1,6 @@
 ﻿@page "/account/manage/external"
-@using Microsoft.AspNetCore.Authorization
-@using Onyx.App.Shared.Services.Auth
-@attribute [Authorize]
 @inject IUserProvider UserProvider
+@inject IUserManager UserManager
 
 @if (m_User is null)
 {
@@ -19,15 +17,15 @@ else
             @foreach (var login in m_CurrentLogins)
             {
                 <tr>
-                    <td>@login.DisplayName</td>
+                    <td>@login.ProviderDisplayName</td>
                     <td>
-                        <form @formname="@($"remove-login-{login.Provider}")" @onsubmit="OnSubmit" method="post">
+                        <form @formname="@($"remove-login-{login.LoginProvider}")" @onsubmit="OnSubmit" method="post">
                             <AntiforgeryToken/>
                             <div>
-                                <input type="hidden" name="@nameof(LoginProvider)" value="@login.Provider"/>
+                                <input type="hidden" name="@nameof(LoginProvider)" value="@login.LoginProvider"/>
                                 <input type="hidden" name="@nameof(ProviderKey)" value="@login.ProviderKey"/>
                                 <button type="submit" class="btn btn-primary"
-                                        title="Remove this @login.DisplayName login from your account">Remove
+                                        title="Remove this @login.ProviderDisplayName login from your account">Remove
                                 </button>
                             </div>
                         </form>
@@ -63,7 +61,7 @@ else
     public const string LinkLoginCallbackAction = "LinkLoginCallback";
 
     private User? m_User;
-    private IList<UserLogin>? m_CurrentLogins;
+    private IList<ExternalLoginData>? m_CurrentLogins;
     private IList<AuthenticationScheme>? m_OtherLogins;
 
 
@@ -79,16 +77,20 @@ else
         {
             await OnGetLinkLoginCallbackAsync();
         }
+
+        m_OtherLogins = (await UserManager.GetExternalAuthenticationSchemas()).ToList();
+        m_CurrentLogins = (await UserManager.GetLoginsAsync(m_User))?.ToList();
     }
 
     private void OnSubmit()
     {
-        var toRemove = (LoginProvider!, ProviderKey!);
+        //var toRemove = (LoginProvider!, ProviderKey!);
         // TODO
     }
 
-    private async Task OnGetLinkLoginCallbackAsync()
+    private Task OnGetLinkLoginCallbackAsync()
     {
+        return Task.CompletedTask;
         // var userId = await UserManager.GetUserIdAsync(user);
         // var info = await SignInManager.GetExternalLoginInfoAsync(userId);
         // if (info is null)
