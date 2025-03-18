@@ -2,20 +2,31 @@
 @inject IUserManager UserManager
 @inject NavigationManager NavigationManager
 
-<h3>Login</h3>
+<PageTitle>Login</PageTitle>
 
-<EditForm Model="m_RegisterModel" OnValidSubmit="Submit" FormName="LoginForm">
-    <DataAnnotationsValidator/>
-    <ValidationSummary/>
-    <MudTextField Label="Email" @bind-Value="m_RegisterModel.Email" Required="true"/>
-    <MudTextField Label="Password" @bind-Value="m_RegisterModel.Password" Required="true"
-                  InputType="InputType.Password"/>
-    <MudButton ButtonType="ButtonType.Submit">Login</MudButton>
-</EditForm>
+<MudContainer>
+    <MudImage Src="./img/LoginBackground.png" Alt="Background" Width="1920" Height="1080"/>
+    <MudContainer Class="flex-column justify-center align-content-lg-space-between">
+        <MudContainer>
+            <MudImage Src="./img/Icon.png" Alt="Icon" Width="100" Height="100"/>
+            <MudText Align="Align.Center" Color="Color.Primary" Typo="Typo.h1">Onyx</MudText>
+        </MudContainer>
+        <MudContainer>
+            <EditForm Model="m_RegisterModel" OnValidSubmit="Submit" FormName="LoginForm">
+                <DataAnnotationsValidator/>
+                <ValidationSummary/>
+                <MudTextField Label="Email" @bind-Value="m_RegisterModel.Email" Required="true"/>
+                <MudTextField Label="Password" @bind-Value="m_RegisterModel.Password" Required="true"
+                              InputType="InputType.Password"/>
+                <MudButton ButtonType="ButtonType.Submit">Login</MudButton>
+            </EditForm>
 
-<ExternalLoginPicker />
+            <ExternalLoginPicker />
 
-<MudText>Go to <a href="/account/register">register</a> page</MudText>
+            <MudText>Go to <a href="/account/register">register</a> page</MudText>
+        </MudContainer>
+    </MudContainer>
+</MudContainer>
 
 @code {
     private readonly RegisterModel m_RegisterModel = new();
