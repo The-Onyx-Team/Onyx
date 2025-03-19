@@ -4,28 +4,51 @@
 
 <PageTitle>Login</PageTitle>
 
-<MudContainer>
-    <MudImage Src="./img/LoginBackground.png" Alt="Background" Width="1920" Height="1080"/>
-    <MudContainer Class="flex-column justify-center align-content-lg-space-between">
-        <MudContainer>
-            <MudImage Src="./img/Icon.png" Alt="Icon" Width="100" Height="100"/>
-            <MudText Align="Align.Center" Color="Color.Primary" Typo="Typo.h1">Onyx</MudText>
-        </MudContainer>
-        <MudContainer>
-            <EditForm Model="m_RegisterModel" OnValidSubmit="Submit" FormName="LoginForm">
+<MudContainer Style="height: 100vh" Class="ma-0 pa-0">
+    <MudContainer Style="height: 100vh; position: absolute; z-index: -1000 !important" 
+                  Class="ma-0 pa-0 mud-width-full" MaxWidth="MaxWidth.False">
+        <MudImage Src="/img/LoginBackground.png" Alt="Background"               
+                  ObjectFit="ObjectFit.Cover" Elevation="-1"/>
+    </MudContainer>
+    <MudContainer Class="d-flex justify-center align-center"
+                  MaxWidth="MaxWidth.Small" Style="height: 100vh">
+        <MudContainer Class="d-flex flex-column align-content-space-between 
+                                justify-center border-solid border-2 rounded
+                                mud-theme-tertiary" 
+                      MaxWidth="MaxWidth.Small">
+            <MudText Typo="Typo.h3" Color="Color.Surface"
+                     Class="mb-3">Login</MudText>
+            <EditForm Model="m_RegisterModel" OnValidSubmit="Submit" 
+                      FormName="LoginForm">
                 <DataAnnotationsValidator/>
                 <ValidationSummary/>
-                <MudTextField Label="Email" @bind-Value="m_RegisterModel.Email" Required="true"/>
-                <MudTextField Label="Password" @bind-Value="m_RegisterModel.Password" Required="true"
-                              InputType="InputType.Password"/>
-                <MudButton ButtonType="ButtonType.Submit">Login</MudButton>
+                <MudTextField Class="mud-form mb-3" Label="Email" Variant="Variant.Outlined"
+                              @bind-Value="m_RegisterModel.Email" 
+                              InputType="InputType.Email"/>
+                <MudTextField Class="mud-form" Label="Password" Variant="Variant.Outlined"
+                              @bind-Value="m_RegisterModel.Password"
+                              InputType="InputType.Password"/> 
+                <MudLink Class="mb-3 d-flex justify-end" Href="" 
+                         Underline="Underline.Always"
+                         Color="Color.Primary">Forgot Password?</MudLink>
+                <MudButton ButtonType="ButtonType.Submit" Color="Color.Dark"
+                           Variant="Variant.Filled" 
+                           Class="rounded mud-button-full-width mb-3">
+                    Login
+                </MudButton>
             </EditForm>
 
-            <ExternalLoginPicker />
+            <ExternalLoginPicker/>
 
-            <MudText>Go to <a href="/account/register">register</a> page</MudText>
+            <MudText>No account?
+                <MudLink Color="Color.Primary" Underline="Underline.Always"
+                         Href="/account/register">Sign up</MudLink>
+            </MudText>
         </MudContainer>
     </MudContainer>
+        <MudContainer Class="flex-column justify-center align-content-lg-space-between border-solid border-2 rounded mud-background">
+            
+        </MudContainer>
 </MudContainer>
 
 @code {

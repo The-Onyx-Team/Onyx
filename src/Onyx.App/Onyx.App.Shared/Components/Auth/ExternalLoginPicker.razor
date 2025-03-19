@@ -1,6 +1,20 @@
 ﻿@inject IUserManager UserManager
 
-<form class="form-horizontal" action="account/perform-external-login" method="post">
+<MudForm action="account/perform-external-login" method="post" 
+         Class="form-horizontal">
+    <AntiforgeryToken/>
+    <MudInput InputType="InputType.Hidden" name="ReturnUrl" value="@ReturnUrl"/>
+    <MudContainer>
+        @foreach (var provider in m_ExternalLogins)
+        {
+            <button type="submit" class="btn btn-primary" name="provider" value="@provider.Name"
+                    title="Log in using your @provider.DisplayName account">@provider.DisplayName</button>
+        }
+    </MudContainer>
+</MudForm>
+
+
+<!--<form class="form-horizontal" action="account/perform-external-login" method="post">
     <div>
         <AntiforgeryToken/>
         <input type="hidden" name="ReturnUrl" value="@ReturnUrl"/>
@@ -12,7 +26,7 @@
             }
         </p>
     </div>
-</form>
+</form>-->
 
 @code {
     private AuthenticationScheme[] m_ExternalLogins = [];
