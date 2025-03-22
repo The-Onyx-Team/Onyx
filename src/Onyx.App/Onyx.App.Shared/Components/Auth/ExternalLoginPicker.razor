@@ -4,11 +4,13 @@
          Class="form-horizontal">
     <AntiforgeryToken/>
     <MudInput InputType="InputType.Hidden" name="ReturnUrl" value="@ReturnUrl"/>
-    <MudContainer>
+    <MudContainer Class="d-flex justify-center">
         @foreach (var provider in m_ExternalLogins)
         {
-            <button type="submit" class="btn btn-primary" name="provider" value="@provider.Name"
-                    title="Log in using your @provider.DisplayName account">@provider.DisplayName</button>
+            <MudIconButton Style="color: black"
+                           Icon="@GetIcon(provider.DisplayName)" 
+                           name="provider" value="@provider.Name" ButtonType="ButtonType.Submit"
+                           title="@($"log in using your {@provider.DisplayName} account")"/>
         }
     </MudContainer>
 </MudForm>
@@ -37,5 +39,16 @@
     {
         m_ExternalLogins = (await UserManager.GetExternalAuthenticationSchemas()).ToArray();
     }
-
+    
+    private string GetIcon(string iconName)
+    {
+        return iconName.ToLower() switch
+        {
+            "github" => "fa-brands fa-github",
+            "google openidconnect" => "fa-brands fa-google",
+            "Apple" => "fa-brands fa-apple",
+            "microsoft" => "fa-brands fa-microsoft",
+            _ => Icons.Material.Filled.Help
+        };
+    }
 }
