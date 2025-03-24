@@ -6,6 +6,10 @@
 
 <EditForm Model="m_RegisterModel" OnValidSubmit="Submit" FormName="LoginForm">
     <DataAnnotationsValidator/>
+    @if (Error is not null)
+    {
+        <MudText Color="Color.Error">@Error</MudText>
+    }
     <ValidationSummary/>
     <MudTextField Label="Email" @bind-Value="m_RegisterModel.Email" Required="true"/>
     <MudTextField Label="Password" @bind-Value="m_RegisterModel.Password" Required="true"
@@ -19,17 +23,18 @@
 
 @code {
     private readonly RegisterModel m_RegisterModel = new();
+    [SupplyParameterFromQuery] private string? Error { get; set; }
 
     private async Task Submit()
     {
         var result = await UserManager.LoginAsync(m_RegisterModel.Email, m_RegisterModel.Password, "/");
         if (result.Success)
         {
-            NavigationManager.NavigateTo("/");
+            NavigationManager.NavigateTo("/", forceLoad: true);
         }
         else
         {
-            Console.WriteLine("Error: " + result.Message);
+            Error = result.Message;
         }
     }
 

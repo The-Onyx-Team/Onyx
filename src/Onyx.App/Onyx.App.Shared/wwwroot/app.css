@@ -79,7 +79,8 @@ html, body {
     }
 
     .app-bar {
-        display: none;
+        margin-left: 0;
+        padding-right: 0;
     }
 }
 

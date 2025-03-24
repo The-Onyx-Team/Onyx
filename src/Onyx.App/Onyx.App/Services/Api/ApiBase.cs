@@ -8,6 +8,8 @@ public abstract class ApiBase<T> where T : ApiBase<T>
 {
     protected readonly HttpClientWrapper m_HttpClientWrapper;
     protected readonly ILogger<T> m_Logger;
+    
+    protected record Empty;
 
     // ReSharper disable once ContextualLoggerProblem
     protected ApiBase(HttpClientWrapper httpClientWrapper, ILogger<T> logger)

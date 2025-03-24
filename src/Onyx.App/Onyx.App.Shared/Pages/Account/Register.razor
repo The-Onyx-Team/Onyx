@@ -1,10 +1,15 @@
 @page "/account/register"
 @inject IUserManager UserManager
+@inject NavigationManager NavigationManager
 
 <h3>Register</h3>
 
 <EditForm Model="m_RegisterModel" OnValidSubmit="Submit">
     <DataAnnotationsValidator/>
+    @if (m_Error is not null)
+    {
+        <MudText Color="Color.Error">@m_Error</MudText>
+    }
     <ValidationSummary/>
     <MudTextField Label="Username" @bind-Value="m_RegisterModel.Username" Required="true"/>
     <MudTextField Label="Email" @bind-Value="m_RegisterModel.Email" Required="true"/>
@@ -19,6 +24,7 @@
 
 @code {
     private readonly RegisterModel m_RegisterModel = new();
+    private string? m_Error;
 
     private async Task Submit()
     {
@@ -26,13 +32,13 @@
             m_RegisterModel.Email, m_RegisterModel.Password, "/");
         if (result.Success)
         {
-            // Redirect
+            NavigationManager.NavigateTo("/");
         }
         else
         {
-            // TODO
-            Console.WriteLine("Error: " + result.Message);
+            m_Error = result.Message;
         }
+        StateHasChanged();
     }
 
     public class RegisterModel

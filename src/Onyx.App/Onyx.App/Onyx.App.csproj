@@ -21,7 +21,7 @@
         <EnableDefaultCssItems>false</EnableDefaultCssItems>
         <Nullable>enable</Nullable>
 
-        <OutputPath>$(SolutionDir)/build/app</OutputPath>
+        <OutputPath>../../build/app</OutputPath>
 
         <ApplicationTitle>Onyx</ApplicationTitle>
         <ApplicationId>com.onyx-team.onyx.app</ApplicationId>
