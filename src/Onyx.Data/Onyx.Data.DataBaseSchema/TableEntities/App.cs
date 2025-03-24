@@ -2,8 +2,8 @@
 
 namespace Onyx.Data.DataBaseSchema.TableEntities;
 
-[Table("Categories")]
-public class Category
+[Table("RegisteredApps")]
+public class RegisteredApp
 {
     public int Id { get; set; }
     public string Name { get; set; }
