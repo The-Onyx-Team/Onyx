@@ -261,7 +261,7 @@ public class AuthEndpointsTest
         var result = await AuthEndpoints.LoginHandler(request, m_UserManager.Object, m_KeyAccessor);
 
         // Assert
-        result.ShouldBeOfType<UnauthorizedHttpResult>();
+        result.ShouldBeOfType<BadRequest<string>>();
     }
 
     [Fact]
@@ -279,7 +279,7 @@ public class AuthEndpointsTest
         var result = await AuthEndpoints.LoginHandler(request, m_UserManager.Object, m_KeyAccessor);
 
         // Assert
-        result.ShouldBeOfType<UnauthorizedHttpResult>();
+        result.ShouldBeOfType<BadRequest<string>>();
     }
 
     [Fact]
@@ -295,7 +295,7 @@ public class AuthEndpointsTest
         var result = await AuthEndpoints.RegisterHandler(request, m_UserManager.Object);
 
         // Assert
-        result.ShouldBeOfType<Ok>();
+        result.ShouldBeOfType<Ok<object>>();
 
         m_UserManager.Verify(x => x.CreateAsync(
             It.Is<ApplicationUser>(u =>
@@ -750,7 +750,7 @@ public class AuthEndpointsTest
             m_HttpContext.Object);
 
         // Assert
-        result.ShouldBeOfType<UnauthorizedHttpResult>();
+        result.ShouldBeOfType<RedirectHttpResult>();
     }
 
     [Fact]
@@ -771,7 +771,7 @@ public class AuthEndpointsTest
             m_HttpContext.Object);
 
         // Assert
-        result.ShouldBeOfType<UnauthorizedHttpResult>();
+        result.ShouldBeOfType<RedirectHttpResult>();
     }
 
     [Fact]
