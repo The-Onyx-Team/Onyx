@@ -61,4 +61,16 @@
     <ItemGroup>
         <ProjectReference Include="..\Onyx.App.Shared\Onyx.App.Shared.csproj"/>
     </ItemGroup>
+
+    <ItemGroup>
+      <None Include="Platforms\iOS\ServerConnectionHelper.cs">
+        <ExcludeFromCurrentConfiguration>false</ExcludeFromCurrentConfiguration>
+      </None>
+      <None Include="Platforms\MacCatalyst\ServerConnectionHelper.cs">
+        <ExcludeFromCurrentConfiguration>false</ExcludeFromCurrentConfiguration>
+      </None>
+      <None Include="Platforms\Windows\ServerConnectionHelper.cs">
+        <ExcludeFromCurrentConfiguration>false</ExcludeFromCurrentConfiguration>
+      </None>
+    </ItemGroup>
 </Project>
