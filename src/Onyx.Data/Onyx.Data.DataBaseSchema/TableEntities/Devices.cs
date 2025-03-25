@@ -11,7 +11,7 @@ public class Devices
     public int Id { get; set; }
     [Column("Name"),Required]
     public string Name { get; set; }
-    public ApplicationUser Users { get; set; }
+    public ApplicationUser User { get; set; }
     [Column("UserId"),Required]
-    public int UserId { get; set; }
+    public string UserId { get; set; }
 }

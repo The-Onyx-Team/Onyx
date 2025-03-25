@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Onyx.Data.DataBaseSchema.Identity;
 using Onyx.Data.DataBaseSchema.TableEntities;
@@ -7,6 +8,14 @@ namespace Onyx.Data.DataBaseSchema;
 
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<ApplicationUser, ApplicationRole, string>(options)
 {
+    public DbSet<ApplicationUser> ApplicationUsers { get; set; }
+    public DbSet<ApplicationRole> ApplicationRoles { get; set; }
+    public DbSet<Groups> Groups { get; set; }
+    public DbSet<Category> Categories { get; set; }
+    public DbSet<Devices>Devices { get; set; }
+    public DbSet<GroupHasUser> GroupHasUsers { get; set; }
+    public DbSet<Usage> Usages { get; set; }
+    public DbSet<RegisteredApp> RegisteredApps { get; set; }
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
@@ -44,6 +53,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .WithMany()
             .HasForeignKey(a => a.UserId);
         builder.Entity<GroupHasUser>().HasKey(a => new {a.GroupId, a.UserId});
+        //Devices Table config
+        builder.Entity<Devices>()
+            .HasOne(a => a.User)
+            .WithMany()
+            .HasForeignKey(a => a.UserId);
 
     }
 }

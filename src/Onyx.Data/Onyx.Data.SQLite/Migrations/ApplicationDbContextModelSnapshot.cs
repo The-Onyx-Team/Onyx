@@ -238,17 +238,14 @@ namespace Onyx.Data.SQLite.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("Name");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("UserId");
-
-                    b.Property<string>("UsersId")
+                    b.Property<string>("UserId")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("UserId");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UsersId");
+                    b.HasIndex("UserId");
 
                     b.ToTable("Devices");
                 });
@@ -401,13 +398,13 @@ namespace Onyx.Data.SQLite.Migrations
 
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Devices", b =>
                 {
-                    b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "Users")
+                    b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "User")
                         .WithMany()
-                        .HasForeignKey("UsersId")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Users");
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.GroupHasUser", b =>
