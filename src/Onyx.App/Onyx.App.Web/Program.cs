@@ -1,4 +1,5 @@
 ﻿using System.IO.Abstractions;
+using System.Net.Mail;
 using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -83,7 +84,6 @@ else if (provider == SQLite.Name && sqliteConnectionString is not null)
 }
 else if (provider == SqlServer.Name && config.GetConnectionString("db") is not null)
 {
-    
     builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
     {
         options.UseSqlServer(
@@ -177,7 +177,23 @@ builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddScoped<IUserManager, UserManager>();
 builder.Services.AddScoped<IUserProvider, UserProvider>();
-builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+
+// e-mail
+
+var smtpServer = config.GetConnectionString("mail");
+
+if (smtpServer is not null)
+{
+    builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentitySmtpEmailSender>();
+    builder.Services.AddSingleton<SmtpClient>(sp =>
+    {
+        var smtpUri = new Uri(smtpServer);
+        var smtpClient = new SmtpClient(smtpUri.Host, smtpUri.Port);
+        return smtpClient;
+    });
+}
+else
+    builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 var app = builder.Build();
 
