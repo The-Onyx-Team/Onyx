@@ -6,7 +6,7 @@ namespace Onyx.App.Web.Services.Mail;
 
 public class IdentitySmtpEmailSender(SmtpClient smtpClient) : IEmailSender<ApplicationUser>
 {
-    private const string SenderMailAddress = "no-reply@onyx.at";
+    private const string SenderMailAddress = "no-reply@onyx.g-martin.work";
     
     public async Task SendConfirmationLinkAsync(ApplicationUser user, string email, string confirmationLink)
     {
