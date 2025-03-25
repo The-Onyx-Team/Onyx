@@ -9,12 +9,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Hosting\ServiceDefaults\ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\Onyx.Data\Onyx.Data.SQLite\Onyx.Data.SQLite.csproj" />
     <ProjectReference Include="..\..\Onyx.Data\Onyx.Data.SqlServer\Onyx.Data.SqlServer.csproj" />
     <ProjectReference Include="..\Onyx.App.Shared\Onyx.App.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="9.1.0" />
     <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Analyzers" Version="9.0.3" />
     <PackageReference Include="AspNet.Security.OAuth.GitHub" Version="9.1.0" />

@@ -140,10 +140,10 @@ public static class AuthEndpoints
         [FromServices] KeyAccessor keyAccessor)
     {
         var user = await userManager.FindByEmailAsync(dto.Email);
-        if (user == null) return Results.Unauthorized();
+        if (user == null) return Results.BadRequest("Invalid email or password");
 
         if (!await userManager.CheckPasswordAsync(user, dto.Password))
-            return Results.Unauthorized();
+            return Results.BadRequest("Invalid email or password");
 
         var token = JwtTools.GenerateToken(keyAccessor.ApplicationKey,
             user.Id, user.Email ?? user.Id, TimeSpan.FromDays(2));
@@ -168,7 +168,7 @@ public static class AuthEndpoints
         };
 
         var result = await userManager.CreateAsync(user, dto.Password);
-        return !result.Succeeded ? Results.BadRequest(result.Errors) : Results.Ok();
+        return !result.Succeeded ? Results.BadRequest(result.Errors) : Results.Ok(new object());
     }
 
     /// <summary>
@@ -340,14 +340,14 @@ public static class AuthEndpoints
 
         if (user == null)
         {
-            return Results.Unauthorized();
+            return Results.Redirect("/account/login?error=Invalid login attempt");
         }
 
         var result = await signInManager.PasswordSignInAsync(user, webLoginModel.Password, true, false);
 
         if (!result.Succeeded)
         {
-            return Results.Unauthorized();
+            return Results.Redirect("/account/login?error=Invalid login attempt");
         }
 
         var principal = await claimsFactory.CreateAsync(user);

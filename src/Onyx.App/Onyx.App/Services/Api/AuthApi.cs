@@ -24,7 +24,7 @@ public class AuthApi(HttpClientWrapper httpClientWrapper, ILogger<AuthApi> logge
     {
         const string endpoint = "/api/auth/register";
         var result =
-            await m_HttpClientWrapper.PostAsync<RegisterResultDto>(endpoint, new RegisterDto(name, email, password));
+            await m_HttpClientWrapper.PostAsync<Empty>(endpoint, new RegisterDto(name, email, password));
 
         return result.Match(
             success => new RegisterResultDto(true, null),
