@@ -3,11 +3,12 @@ using Onyx.Data.DataBaseSchema.Identity;
 
 namespace Onyx.Data.DataBaseSchema.TableEntities;
 
-[Table("Devices")]
-public class Devices
+[Table("GroupHasUsers")]
+public class GroupHasUser
 {
-    public int Id { get; set; }
-    public string Name { get; set; }
-    public List<ApplicationUser> Users { get; set; }
     public int UserId { get; set; }
+    public List<ApplicationUser> User { get; set; }
+    public int GroupId { get; set; }
+    public List<Groups> Group { get; set; }
+
 }

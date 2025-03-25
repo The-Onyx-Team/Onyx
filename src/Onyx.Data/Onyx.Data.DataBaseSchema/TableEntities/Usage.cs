@@ -7,11 +7,12 @@ namespace Onyx.Data.DataBaseSchema.TableEntities;
 public class Usage
 {
     public string Id { get; set; }
-    public DateOnly date { get; set; }
-    public TimeSpan duration { get; set; }
-    public List<Devices> devices { get; set; }
-    public int deviceId { get; set; }
-    public List<Category> category { get; set; }
-    public int categoryId { get; set; }
-    public List<RegisteredApp> app { get; set; }
+    public DateOnly Date { get; set; }
+    public TimeSpan Duration { get; set; }
+    public Devices Devices { get; set; }
+    public int DeviceId { get; set; }
+    public Category Category { get; set; }
+    public int CategoryId { get; set; }
+    public int AppId { get; set; }
+    public RegisteredApp App { get; set; }
 }
