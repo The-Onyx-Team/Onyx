@@ -43,6 +43,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasOne(a => a.User)
             .WithMany()
             .HasForeignKey(a => a.UserId);
+        builder.Entity<GroupHasUser>().HasKey(a => new {a.GroupId, a.UserId});
 
     }
 }

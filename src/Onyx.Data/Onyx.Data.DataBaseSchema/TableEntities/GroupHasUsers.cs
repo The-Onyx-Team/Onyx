@@ -6,9 +6,11 @@ namespace Onyx.Data.DataBaseSchema.TableEntities;
 [Table("GroupHasUsers")]
 public class GroupHasUser
 {
-    public int UserId { get; set; }
-    public List<ApplicationUser> User { get; set; }
+    [Column("UserId")]
+    public string UserId { get; set; }
+    public ApplicationUser User { get; set; }
+    [Column("GroupId")]
     public int GroupId { get; set; }
-    public List<Groups> Group { get; set; }
+    public Groups Group { get; set; }
 
 }
