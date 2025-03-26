@@ -1,0 +1,74 @@
+@page "/account/register"
+@inject IUserManager UserManager
+@inject ISnackbar Snackbar
+@inject NavigationManager NavManager
+
+@layout AuthNavLayout
+
+<PageTitle>Register</PageTitle>
+
+<MudText Typo="Typo.h4"
+         Class="mb-3">Register</MudText>
+<EditForm Model="m_RegisterModel" OnValidSubmit="Submit"
+          FormName="RegisterForm">
+    <DataAnnotationsValidator/>
+    <ValidationSummary/>
+
+    <MudTextField Class="mb-3" Label="Username" Variant="Variant.Outlined"
+                  @bind-Value="m_RegisterModel.Username" Required="true"/>
+    <MudTextField Class="mb-3" Label="Email" Variant="Variant.Outlined"
+                  @bind-Value="m_RegisterModel.Email" Required="true"
+                  InputType="InputType.Email"/>
+    <MudTextField Class="mb-3" Label="Password" Variant="Variant.Outlined"
+                  @bind-Value="m_RegisterModel.Password" Required="true"
+                  InputType="InputType.Password"/>
+    <MudTextField Class="mb-3" Label="Confirm Password" Variant="Variant.Outlined"
+                  @bind-Value="m_RegisterModel.ConfirmPassword" Required="true"
+                  InputType="InputType.Password"/>
+    <MudButton ButtonType="ButtonType.Submit"
+               Variant="Variant.Filled"
+               Class="rounded mud-button-full-width mb-3"
+               Style="background-color: black">
+        Register
+    </MudButton>
+</EditForm>
+
+<MudText Align="Align.Center">Or sign up using</MudText>
+<ExternalLoginPicker/>
+
+@code {
+    private readonly RegisterModel m_RegisterModel = new();
+
+    private async Task Submit()
+    {
+        var result = await UserManager.RegisterAsync(m_RegisterModel.Username,
+            m_RegisterModel.Email, m_RegisterModel.Password, "/account/confirmEmail");
+        if (result.Success)
+        {
+            Snackbar.Add("Successfully created user! Sending email confirmation link...", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("Failed to register user!", Severity.Error);
+            Console.WriteLine("Error: " + result.Message);
+        }
+    }
+
+    public class RegisterModel
+    {
+        [Required]
+        public string Username { get; set; } = "";
+        
+        [EmailAddress]
+        [Required]
+        public string Email { get; set; } = "";
+        
+        [Required]
+        public string Password { get; set; } = "";
+        
+        [Required]
+        [Compare(nameof(Password))]
+        public string ConfirmPassword { get; set; } = "";
+    }
+
+}

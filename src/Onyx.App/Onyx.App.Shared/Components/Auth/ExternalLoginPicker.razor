@@ -3,7 +3,7 @@
 <MudForm action="account/perform-external-login" method="post" 
          Class="form-horizontal">
     <AntiforgeryToken/>
-    <MudInput InputType="InputType.Hidden" name="ReturnUrl" value="@ReturnUrl"/>
+    <MudInput InputType="InputType.Hidden" Underline="false" name="ReturnUrl" value="@ReturnUrl"/>
     <MudContainer Class="d-flex justify-center">
         @foreach (var provider in m_ExternalLogins)
         {
@@ -14,7 +14,6 @@
         }
     </MudContainer>
 </MudForm>
-
 
 <!--<form class="form-horizontal" action="account/perform-external-login" method="post">
     <div>

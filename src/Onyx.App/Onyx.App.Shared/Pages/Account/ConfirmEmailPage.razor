@@ -1,0 +1,23 @@
+﻿@page "/account/confirmEmail"
+@inject NavigationManager NavManager
+
+@layout AuthNavLayout
+
+<PageTitle>Confirm Email</PageTitle>
+
+<MudText Typo="Typo.h4"
+         Class="mb-3">Your email has been confirmed!</MudText>
+<MudText Typo="Typo.h5"
+         Class="mb-3">You'll be redirected to your home page is a few seconds!</MudText>
+
+@code {
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        await Task.Delay(5000);
+        NavManager.NavigateTo("/home", forceLoad: true);
+    }
+
+}

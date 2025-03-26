@@ -49,8 +49,8 @@ public class UserManager(
             { "email", email },
             { "password", password }
         };
-
-        await jsRuntime.InvokeVoidAsync("postRedirect", "/account/login", data);
+        
+        await emailSender.SendConfirmationLinkAsync(user, email, redirectUri);
 
         return new RegisterResult()
         {

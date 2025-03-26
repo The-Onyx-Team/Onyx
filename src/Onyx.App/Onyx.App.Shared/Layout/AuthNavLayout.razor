@@ -1,0 +1,43 @@
+﻿@inherits LayoutComponentBase
+@layout MainLayout
+
+<MudContainer Style="height: 100vh" Class="ma-0 pa-0">
+    <MudContainer Style="height: 100vh; position: absolute; z-index: -1000 !important"
+                  Class="ma-0 pa-0 mud-width-full" MaxWidth="MaxWidth.False">
+        <MudImage Src="/img/LoginBackground.png" Alt="Background" Elevation="-1"
+                  Style="position: fixed; 
+                 top: 0; left: 0;
+                 width: 100vw;
+                 object-fit: cover; 
+                 object-position: center; 
+                 z-index: -1;"/>
+    </MudContainer>
+    <MudContainer Style="height: 15vh; position: absolute;" Class="pa-0 ma-10 d-flex align-center">
+        <MudImage Src="/img/Icon.png" Alt="Icon"
+                  Style="max-width: 80px; min-width: 40px; width: 10%; height: auto;"
+                  Class="mr-5"/>
+        <MudText Typo="Typo.h4" Style="color: #FFFFFF">Onyx</MudText>
+    </MudContainer>
+    <MudContainer Style="position: absolute; 
+                         top: 50%; left: 50%; 
+                         transform: translate(-50%, -50%);border-radius: 2.5vw; 
+                         background-color: #E4E4E4; 
+                         opacity: 85%; 
+                         padding: 4vw; 
+                         color: #000000;"
+                  Class="d-flex flex-column align-center justify-center"
+                  MaxWidth="MaxWidth.Small">
+        <MudGrid Justify="Justify.Center"
+                 Style="opacity: 100%; 
+                        background-color: transparent;">
+            <MudItem lg="8" md="8" sm="10" xs="10" Class="d-flex flex-column align-content-space-between 
+                            justify-center">
+                @Body
+            </MudItem>
+        </MudGrid>
+    </MudContainer>
+</MudContainer>
+
+@code {
+    
+}
