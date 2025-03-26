@@ -14,4 +14,5 @@ public class Devices
     public ApplicationUser User { get; set; }
     [Column("UserId"),Required]
     public string UserId { get; set; }
+    public List<Usage> Usages { get; set; }
 }

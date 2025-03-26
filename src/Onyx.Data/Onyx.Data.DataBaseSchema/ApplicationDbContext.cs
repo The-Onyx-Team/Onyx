@@ -23,23 +23,23 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         //Usage Table config
         builder.Entity<Usage>()
             .HasOne(a => a.Category)
-            .WithMany()
+            .WithMany(a => a.Usages)
             .HasForeignKey(a => a.CategoryId);
 
         builder.Entity<Usage>()
             .HasOne(a => a.App)
-            .WithMany()
+            .WithMany(a => a.Usages)
             .HasForeignKey(a => a.AppId);
         
         builder.Entity<Usage>()
             .HasOne(a => a.Devices)
-            .WithMany()
+            .WithMany(a => a.Usages)
             .HasForeignKey(a => a.DeviceId);
         
         //Groups Table config
         builder.Entity<Groups>()
-            .HasOne(a => a.Users)
-            .WithMany()
+            .HasOne(a => a.Admin)
+            .WithMany(a => a.Groups)
             .HasForeignKey(a => a.AdminId);
         
         //GroupHasUsers Table config

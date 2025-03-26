@@ -10,4 +10,6 @@ public class Category
     public int Id { get; set; }
     [Column("Name"),Required]
     public string Name { get; set; }
+    
+    public List<Usage> Usages { get; set; }
 }

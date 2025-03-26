@@ -13,5 +13,5 @@ public class Groups
     public string Name { get; set; }
     [Column ("AdminId"),Required]
     public string AdminId { get; set; }
-    public ApplicationUser Users { get; set; }
+    public ApplicationUser Admin { get; set; }
 }
