@@ -8,8 +8,8 @@ namespace Onyx.Data.DataBaseSchema;
 
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<ApplicationUser, ApplicationRole, string>(options)
 {
-    public DbSet<ApplicationUser> ApplicationUsers { get; set; }
-    public DbSet<ApplicationRole> ApplicationRoles { get; set; }
+
+
     public DbSet<Groups> Groups { get; set; }
     public DbSet<Category> Categories { get; set; }
     public DbSet<Devices>Devices { get; set; }

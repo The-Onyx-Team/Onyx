@@ -13,7 +13,7 @@ public class Usage
     public DateOnly Date { get; set; }
     [Column ("Duration"),Required,DataType(DataType.Time)]
     public TimeSpan Duration { get; set; }
-    public Devices Devices { get; set; }
+    public Device Devices { get; set; }
     [Column ("DeviceId"),Required]
     public int DeviceId { get; set; }
     public Category Category { get; set; }

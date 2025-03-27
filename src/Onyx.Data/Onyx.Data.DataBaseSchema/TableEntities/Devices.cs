@@ -5,7 +5,7 @@ using Onyx.Data.DataBaseSchema.Identity;
 namespace Onyx.Data.DataBaseSchema.TableEntities;
 
 [Table("Devices")]
-public class Devices
+public class Device 
 {
     [Key,DatabaseGenerated(DatabaseGeneratedOption.Identity),Column("Id")]
     public int Id { get; set; }
