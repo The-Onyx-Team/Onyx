@@ -12,7 +12,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<Groups> Groups { get; set; }
     public DbSet<Category> Categories { get; set; }
-    public DbSet<Devices>Devices { get; set; }
+    public DbSet<Device>Devices { get; set; }
     public DbSet<GroupHasUser> GroupHasUsers { get; set; }
     public DbSet<Usage> Usages { get; set; }
     public DbSet<RegisteredApp> RegisteredApps { get; set; }
@@ -54,7 +54,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasForeignKey(a => a.UserId);
         builder.Entity<GroupHasUser>().HasKey(a => new {a.GroupId, a.UserId});
         //Devices Table config
-        builder.Entity<Devices>()
+        builder.Entity<Device>()
             .HasOne(a => a.User)
             .WithMany()
             .HasForeignKey(a => a.UserId);

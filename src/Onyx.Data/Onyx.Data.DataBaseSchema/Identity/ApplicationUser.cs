@@ -1,10 +1,11 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
+using Onyx.Data.DataBaseSchema.TableEntities;
 
 namespace Onyx.Data.DataBaseSchema.Identity;
 
 public class ApplicationUser : IdentityUser
 {
-    public List<Group> Groups { get; set; }
+    public List<Groups> Groups { get; set; }
     
 }
