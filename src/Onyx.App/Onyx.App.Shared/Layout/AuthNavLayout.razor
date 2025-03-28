@@ -1,21 +1,20 @@
 ﻿@inherits LayoutComponentBase
 @layout MainLayout
 
-<MudContainer Style="height: 100vh" Class="ma-0 pa-0">
-    <MudContainer Style="height: 100vh; position: absolute; z-index: -1000 !important"
+<MudContainer Style="height: 100%" Class="ma-0 pa-0">
+    <MudContainer Style="height: 100%; 
+                         position: absolute; 
+                         z-index: -1000 !important; 
+                         background-image: url('img/LoginBackground.png'); 
+                         background-position: center; 
+                         background-repeat: no-repeat; 
+                         background-size: cover;"
                   Class="ma-0 pa-0 mud-width-full" MaxWidth="MaxWidth.False">
-        <MudImage Src="/img/LoginBackground.png" Alt="Background" Elevation="-1"
-                  Style="position: fixed; 
-                 top: 0; left: 0;
-                 width: 100vw;
-                 object-fit: cover; 
-                 object-position: center; 
-                 z-index: -1;"/>
     </MudContainer>
-    <MudContainer Style="height: 15vh; position: absolute;" Class="pa-0 ma-10 d-flex align-center">
+    <MudContainer Style="height: 15vh; position: absolute;" Class="pa-0 ma-5 d-flex align-center">
         <MudImage Src="/img/Icon.png" Alt="Icon"
-                  Style="max-width: 80px; min-width: 40px; width: 10%; height: auto;"
-                  Class="mr-5"/>
+                  Style="max-width: 80px; min-width: 60px; width: 10%; height: auto;"
+                  Class="mr-7"/>
         <MudText Typo="Typo.h4" Style="color: #FFFFFF">Onyx</MudText>
     </MudContainer>
     <MudContainer Style="position: absolute; 
@@ -30,7 +29,7 @@
         <MudGrid Justify="Justify.Center"
                  Style="opacity: 100%; 
                         background-color: transparent;">
-            <MudItem lg="8" md="8" sm="10" xs="10" Class="d-flex flex-column align-content-space-between 
+            <MudItem lg="9" md="9" sm="8" xs="8" Class="d-flex flex-column align-content-space-between 
                             justify-center">
                 @Body
             </MudItem>

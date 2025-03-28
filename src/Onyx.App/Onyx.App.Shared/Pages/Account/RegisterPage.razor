@@ -7,6 +7,11 @@
 
 <PageTitle>Register</PageTitle>
 
+<MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+               Style="position: absolute; top: 2vh; left: 1vw;"
+               Href="/account/login"
+               Color="Color.Primary"/>
+
 <MudText Typo="Typo.h4"
          Class="mb-3">Register</MudText>
 <EditForm Model="m_RegisterModel" OnValidSubmit="Submit"
