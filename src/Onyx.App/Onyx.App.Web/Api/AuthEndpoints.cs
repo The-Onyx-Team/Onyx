@@ -12,6 +12,7 @@ using Onyx.App.Shared.Pages.Account.Manage;
 using Onyx.App.Web.Services.Auth;
 using Onyx.Data.ApiSchema;
 using Onyx.Data.DataBaseSchema.Identity;
+using Onyx.Data.DataBaseSchema.TableEntities;
 
 namespace Onyx.App.Web.Api;
 
@@ -164,8 +165,11 @@ public static class AuthEndpoints
         var user = new ApplicationUser
         {
             UserName = dto.Name,
-            Email = dto.Email
+            Email = dto.Email,
+            Groups = new List<Groups>()
         };
+        
+        user.Groups = new List<Groups>();
 
         var result = await userManager.CreateAsync(user, dto.Password);
         return !result.Succeeded ? Results.BadRequest(result.Errors) : Results.Ok();

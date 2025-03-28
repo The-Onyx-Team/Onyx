@@ -8,7 +8,7 @@ public class RegisteredApp
 {
     [Column("Id"),Key,DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
-    [Column ("Name"),Required]
-    public string Name { get; set; }
-    public List<Usage> Usages { get; set; }
+    [Column ("Name",TypeName = "VARCHAR(50)"),Required,]
+    public string? Name { get; set; }
+    public List<Usage>? Usages { get; set; }
 }
