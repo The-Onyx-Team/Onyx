@@ -1,65 +1,69 @@
 ﻿@inherits LayoutComponentBase
 @layout MainLayout
 
-<MudAppBar Color="Color.Primary" Fixed="true">
-    <MudContainer Style="height: 20%;" Class="pa-0 ma-5 d-flex align-center">
-        <MudImage Src="/img/Icon.png" Alt="Icon"
-                  Style="max-width: 40px; min-width: 30px; width: 10%; height: auto;"
-                  Class="mr-7"/>
-        <MudText Typo="Typo.h4" Style="color: #FFFFFF">Onyx</MudText>
-    </MudContainer>
-    <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Inherit" Edge="Edge.Start" />
-    <MudIconButton Icon="@Icons.Material.Filled.AppRegistration" Color="Color.Inherit"></MudIconButton>
-    <MudIconButton Icon="@Icons.Material.Filled.Login" Color="Color.Inherit" />
+<style>
+    .logo-container {
+        height: 10%;
+        width: 100%;
+        color: #FFFFFF;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+    }
+    
+    .toolbar {
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    .logo {
+        max-width: 60px; 
+        min-width: 30px; 
+        width: 50%; 
+        height: auto;
+    }
+    
+    .content {
+        height: 100%;
+    }
+</style>
+
+<script>
+    const sections = document.querySelectorAll(".section");
+    let currentIndex = 0;
+
+    window.addEventListener("wheel", (event) => {
+        if (event.deltaY > 0) {
+            // Scroll down
+            currentIndex = Math.min(currentIndex + 1, sections.length - 1);
+        } else {
+            // Scroll up
+            currentIndex = Math.max(currentIndex - 1, 0);
+        }
+
+        sections[currentIndex].scrollIntoView({
+            behavior: "smooth"
+        });
+
+        event.preventDefault();
+    }, { passive: false });
+</script>
+
+<MudAppBar Color="Color.Primary" Fixed="true" ToolBarClass="mud-width-full toolbar" Class="mud-width-full logo-container">
+    <div class="pa-0 ma-5 d-flex align-center">
+        <MudImage Src="/img/Icon.png" Alt="Icon" Class="logo mr-7"/>
+        <MudText Typo="Typo.h4">Onyx</MudText>
+    </div>
+    <div>
+        <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Inherit"
+                       Href="/downloads" Size="Size.Large" title="Downloads"/>
+        <MudIconButton Icon="@Icons.Material.Filled.NewLabel" Color="Color.Inherit"
+                       Href="/account/register" Size="Size.Large" title="Register"/>
+        <MudIconButton Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit"
+                       Href="/account/login" Size="Size.Large" title="Login"/>
+    </div>
 </MudAppBar>
 
-<MudContainer Style="height: 100%" Class="ma-0 pa-0">
-    
-    <MudCarousel Class="mud-width-full" Style="height: 50%;" 
-                 ShowArrows="true" ShowBullets="true" 
-                 EnableSwipeGesture="true" AutoCycle="true" 
-                 TData="object">
-        <MudCarouselItem Transition="Transition.Fade" Color="@Color.Primary">
-            <MudContainer Style="height: 100%; 
-                         position: absolute; 
-                         z-index: -1000 !important; 
-                         background-image: url('img/LoginBackground.png'); 
-                         background-position: center; 
-                         background-repeat: no-repeat; 
-                         background-size: cover;"
-                          Class="ma-0 pa-0 mud-width-full" MaxWidth="MaxWidth.False">
-            </MudContainer>
-        </MudCarouselItem>
-        <MudCarouselItem Transition="Transition.Fade" Color="@Color.Secondary">
-            <div class="d-flex" style="height:100%">
-                <MudIcon Class="mx-auto my-auto" Icon="@Icons.Custom.Brands.MudBlazor" Size="@Size.Large" />
-            </div>
-        </MudCarouselItem>
-        <MudCarouselItem Transition="Transition.Fade">
-            <div class="d-flex" style="height:100%">
-                <MudIcon Class="mx-auto my-auto" Icon="@Icons.Custom.Brands.MudBlazor" Color="@Color.Primary" Size="@Size.Large" />
-            </div>
-        </MudCarouselItem>
-    </MudCarousel>
-    
-    
-    
-    <MudContainer Style="position: absolute; 
-                         top: 50%; left: 50%; 
-                         transform: translate(-50%, -50%);border-radius: 2.5vw; 
-                         background-color: #E4E4E4; 
-                         opacity: 85%; 
-                         padding: 4vw; 
-                         color: #000000;"
-                  Class="d-flex flex-column align-center justify-center"
-                  MaxWidth="MaxWidth.Small">
-        <MudGrid Justify="Justify.Center"
-                 Style="opacity: 100%; 
-                        background-color: transparent;">
-            <MudItem lg="9" md="9" sm="8" xs="8" Class="d-flex flex-column align-content-space-between 
-                            justify-center">
-                @Body
-            </MudItem>
-        </MudGrid>
-    </MudContainer>
-</MudContainer>
+<div class="content ma-0 pa-0 mud-width-full">
+    @Body
+</div>
