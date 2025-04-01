@@ -148,14 +148,38 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
         return true;   
     }
 
-    public Task<bool> ChangePhoneNumber(User user, string phoneNumber)
+    public async Task<bool> ChangePhoneNumber(User user, string phoneNumber)
     {
-        throw new NotImplementedException();
+         
+        var DbUser = await _userManager.FindByIdAsync(user.Id);
+            DbUser.PhoneNumber = phoneNumber;
+            var result = await _userManager.UpdateAsync(DbUser);
+            
+        return result.Succeeded;
     }
 
-    public Task<bool> ChangePassword(User user, string oldPassword, string newPassword)
+    public async Task<bool> ChangePassword(User user, string oldPassword, string newPassword)
     {
-        throw new NotImplementedException();
+        var DbUser = await _userManager.FindByIdAsync(user.Id);
+        try
+        {
+            if (oldPassword != newPassword)
+            {
+                if (expr)
+                {
+                    
+                }
+                Console.WriteLine("New Password can't be old Password");
+                return false;
+            }
+            await _userManager.UpdateAsync(DbUser);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return false;
+        }
+        return true;
     }
 
     public Task<bool> SendChangePasswordEmail(string email)
