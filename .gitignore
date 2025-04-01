@@ -12,3 +12,4 @@ key.rsa
 *.db
 *.db-shm
 *.db-wal
+*.p8

@@ -1,5 +1,8 @@
-﻿using System.IO.Abstractions;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.IO.Abstractions;
 using System.Net.Mail;
+using System.Security.Claims;
+using System.Security.Cryptography;
 using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -147,6 +150,15 @@ builder.Services.AddAuthentication()
         options.ClientId = config["Authentication:GitHub:ClientId"]!;
         options.ClientSecret = config["Authentication:GitHub:ClientSecret"]!;
         options.CallbackPath = "/signin-oidc-github";
+    })
+    .AddApple(options =>
+    {
+        options.ClientId = config["Authentication:Apple:ClientId"]!;
+        options.KeyId = config["Authentication:Apple:KeyId"]!;
+        options.TeamId = config["Authentication:Apple:TeamId"]!;
+        options.UsePrivateKey(_ =>
+            builder.Environment.ContentRootFileProvider.GetFileInfo("Apple.p8"));
+        options.CallbackPath = "/signin-apple";
     });
 
 builder.Services.AddAuthorization(options =>
