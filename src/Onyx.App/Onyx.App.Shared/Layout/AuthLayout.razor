@@ -10,6 +10,11 @@
             </MudText>
         </div>
         <div class="auth-nav-item">
+            <MudText @onclick="@(() => NavigationManager.NavigateTo("/account/manage/changepassword"))">
+                Change Password
+            </MudText>
+        </div>
+        <div class="auth-nav-item">
             <MudText @onclick="@(() => NavigationManager.NavigateTo("/account/manage/2fa"))">
                 2 Factor Authentication
             </MudText>
