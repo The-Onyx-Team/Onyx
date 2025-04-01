@@ -7,7 +7,7 @@ namespace Onyx.Data.DataBaseSchema.TableEntities;
 [Table ("Usage")]
 public class Usage
 {
-    [Column ("Id",TypeName = "VARCHAR(50)"),Required,Key]
+    [Column ("Id"),Required,Key,StringLength(50)]
     public string? Id { get; set; }
     [Column ("Date"),Required,DataType(DataType.DateTime)]
     public DateOnly Date { get; set; }

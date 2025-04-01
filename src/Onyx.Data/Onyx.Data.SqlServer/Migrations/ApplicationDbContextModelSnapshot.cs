@@ -231,7 +231,8 @@ namespace Onyx.Data.SqlServer.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
                         .HasColumnName("Name");
 
                     b.HasKey("Id");
@@ -250,12 +251,14 @@ namespace Onyx.Data.SqlServer.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
                         .HasColumnName("Name");
 
                     b.Property<string>("UserId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
                         .HasColumnName("UserId");
 
                     b.HasKey("Id");
@@ -268,11 +271,13 @@ namespace Onyx.Data.SqlServer.Migrations
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.GroupHasUser", b =>
                 {
                     b.Property<int>("GroupId")
+                        .HasMaxLength(50)
                         .HasColumnType("int")
                         .HasColumnName("GroupId");
 
                     b.Property<string>("UserId")
-                        .HasColumnType("nvarchar(450)")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
                         .HasColumnName("UserId");
 
                     b.HasKey("GroupId", "UserId");
@@ -293,12 +298,14 @@ namespace Onyx.Data.SqlServer.Migrations
 
                     b.Property<string>("AdminId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
                         .HasColumnName("AdminId");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
                         .HasColumnName("Name");
 
                     b.HasKey("Id");
@@ -319,7 +326,8 @@ namespace Onyx.Data.SqlServer.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
                         .HasColumnName("Name");
 
                     b.HasKey("Id");
@@ -330,7 +338,8 @@ namespace Onyx.Data.SqlServer.Migrations
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Usage", b =>
                 {
                     b.Property<string>("Id")
-                        .HasColumnType("nvarchar(450)")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
                         .HasColumnName("Id");
 
                     b.Property<int>("AppId")

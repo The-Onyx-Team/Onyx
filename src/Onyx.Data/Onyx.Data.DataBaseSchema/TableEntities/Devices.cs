@@ -9,10 +9,10 @@ public class Device
 {
     [Key,DatabaseGenerated(DatabaseGeneratedOption.Identity),Column("Id")]
     public int Id { get; set; }
-    [Column("Name",TypeName = "VARCHAR(500)"),Required]
+    [Column("Name"),Required,StringLength(500)]
     public string? Name { get; set; }
     public ApplicationUser? User { get; set; }
-    [Column("UserId",TypeName = "VARCHAR(50)"),Required]
+    [Column("UserId"),Required,StringLength(50)]
     public string? UserId { get; set; }
     public List<Usage>? Usages { get; set; }
 }

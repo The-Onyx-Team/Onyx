@@ -8,7 +8,7 @@ public class Category
 {
     [Column("Id"),Key,DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
-    [Column("Name",TypeName = "VARCHAR(500)"),Required]
+    [Column("Name"),Required,StringLength(500)]
     public string? Name { get; set; }
     public List<Usage>? Usages { get; set; }
 }

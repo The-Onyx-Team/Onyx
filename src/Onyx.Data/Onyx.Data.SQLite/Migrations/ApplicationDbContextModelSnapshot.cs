@@ -218,6 +218,7 @@ namespace Onyx.Data.SQLite.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasMaxLength(500)
                         .HasColumnType("TEXT")
                         .HasColumnName("Name");
 
@@ -235,11 +236,13 @@ namespace Onyx.Data.SQLite.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasMaxLength(500)
                         .HasColumnType("TEXT")
                         .HasColumnName("Name");
 
                     b.Property<string>("UserId")
                         .IsRequired()
+                        .HasMaxLength(50)
                         .HasColumnType("TEXT")
                         .HasColumnName("UserId");
 
@@ -253,10 +256,12 @@ namespace Onyx.Data.SQLite.Migrations
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.GroupHasUser", b =>
                 {
                     b.Property<int>("GroupId")
+                        .HasMaxLength(50)
                         .HasColumnType("INTEGER")
                         .HasColumnName("GroupId");
 
                     b.Property<string>("UserId")
+                        .HasMaxLength(50)
                         .HasColumnType("TEXT")
                         .HasColumnName("UserId");
 
@@ -276,11 +281,13 @@ namespace Onyx.Data.SQLite.Migrations
 
                     b.Property<string>("AdminId")
                         .IsRequired()
+                        .HasMaxLength(50)
                         .HasColumnType("TEXT")
                         .HasColumnName("AdminId");
 
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasMaxLength(500)
                         .HasColumnType("TEXT")
                         .HasColumnName("Name");
 
@@ -300,6 +307,7 @@ namespace Onyx.Data.SQLite.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasMaxLength(50)
                         .HasColumnType("TEXT")
                         .HasColumnName("Name");
 
@@ -311,6 +319,7 @@ namespace Onyx.Data.SQLite.Migrations
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Usage", b =>
                 {
                     b.Property<string>("Id")
+                        .HasMaxLength(50)
                         .HasColumnType("TEXT")
                         .HasColumnName("Id");
 
