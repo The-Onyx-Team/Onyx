@@ -1,13 +1,17 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Onyx.App.Services.Api;
 using Onyx.App.Shared.Services.Auth;
+using Onyx.Data.DataBaseSchema.Identity;
 
 namespace Onyx.App.Services.Auth;
 
-public class UserManager(AuthenticationStateProvider authenticationStateProvider, AuthApi api) : IUserManager
+public class UserManager(AuthenticationStateProvider authenticationStateProvider, AuthApi api,UserManager<ApplicationUser> userManager) : IUserManager
 {
+    private readonly UserManager<ApplicationUser> _userManager = userManager;
+    
     public async Task<RegisterResult> RegisterAsync(string name, string email, string password, string redirectUri)
     {
         var result = await api.RegisterAsync(name, email, password);
@@ -114,5 +118,63 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
     public Task<IEnumerable<ExternalLoginData>?> GetLoginsAsync(User user)
     {
         return Task.FromResult<IEnumerable<ExternalLoginData>>([])!;
+    }
+
+    public Task<bool> RemoveLogin(User user, string loginProvider)
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task<bool> ChangeEmail(User user, string newEmail)
+    {
+        var existingUser = await _userManager.FindByEmailAsync(newEmail);
+        if (existingUser != null)
+        {
+            return false;
+        }
+        var DbUser = await _userManager.FindByIdAsync(user.Id!);
+        newEmail = newEmail.ToUpper();
+        DbUser.Email = newEmail;
+        try
+        {
+            await _userManager.UpdateNormalizedEmailAsync(DbUser);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return false;
+        }
+        
+        return true;   
+    }
+
+    public Task<bool> ChangePhoneNumber(User user, string phoneNumber)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<bool> ChangePassword(User user, string oldPassword, string newPassword)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<bool> SendChangePasswordEmail(string email)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<bool> ChangeUserName(User user, string userName)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<string> GetUserData(User user)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<string[]> GetRecoveryCodes(User user)
+    {
+        throw new NotImplementedException();
     }
 }

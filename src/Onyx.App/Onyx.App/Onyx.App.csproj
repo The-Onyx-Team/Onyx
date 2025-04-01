@@ -59,6 +59,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\..\Onyx.Data\Onyx.Data.DataBaseSchema\Onyx.Data.DataBaseSchema.csproj" />
         <ProjectReference Include="..\Onyx.App.Shared\Onyx.App.Shared.csproj"/>
     </ItemGroup>
 
