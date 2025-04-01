@@ -132,12 +132,12 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
         {
             return false;
         }
-        var DbUser = await _userManager.FindByIdAsync(user.Id!);
+        var dbUser = await _userManager.FindByIdAsync(user.Id!);
         newEmail = newEmail.ToUpper();
-        DbUser.Email = newEmail;
+        dbUser!.Email = newEmail;
         try
         {
-            await _userManager.UpdateNormalizedEmailAsync(DbUser);
+            await _userManager.UpdateNormalizedEmailAsync(dbUser);
         }
         catch (Exception e)
         {
@@ -151,23 +151,23 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
     public async Task<bool> ChangePhoneNumber(User user, string phoneNumber)
     {
          
-        var DbUser = await _userManager.FindByIdAsync(user.Id);
-            DbUser.PhoneNumber = phoneNumber;
-            var result = await _userManager.UpdateAsync(DbUser);
+        var dbUser = await _userManager.FindByIdAsync(user.Id!);
+            dbUser!.PhoneNumber = phoneNumber;
+            var result = await _userManager.UpdateAsync(dbUser);
             
         return result.Succeeded;
     }
 
     public async Task<bool> ChangePassword(User user, string oldPassword, string newPassword)
     {
-        var DbUser = await _userManager.FindByIdAsync(user.Id);
+        var dbUser = await _userManager.FindByIdAsync(user.Id!);
         try
         {
             if (oldPassword != newPassword)
             {
-                if (DbUser.PasswordHash == oldPassword.GetHashCode().ToString())
+                if (dbUser!.PasswordHash == oldPassword.GetHashCode().ToString())
                 {
-                    DbUser.PasswordHash = newPassword.GetHashCode().ToString();
+                    dbUser.PasswordHash = newPassword.GetHashCode().ToString();
                 }
                 else
                 {
@@ -186,7 +186,7 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
             Console.WriteLine(e);
             return false;
         }
-        var result = await _userManager.UpdateAsync(DbUser);
+        var result = await _userManager.UpdateAsync(dbUser);
         return result.Succeeded;
     }
 
@@ -195,9 +195,17 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
         throw new NotImplementedException();
     }
 
-    public Task<bool> ChangeUserName(User user, string userName)
+    public async Task<bool> ChangeUserName(User user, string userName)
     {
-        throw new NotImplementedException();
+        var existingUser = await _userManager.FindByNameAsync(userName);
+        if (existingUser != null)
+        {
+            return false;
+        }
+        var dbUser = await _userManager.FindByIdAsync(user.Id!);
+        dbUser!.UserName = userName;
+        var result = await _userManager.UpdateAsync(dbUser);
+        return result.Succeeded;
     }
 
     public Task<string> GetUserData(User user)
