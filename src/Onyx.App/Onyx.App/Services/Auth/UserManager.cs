@@ -165,21 +165,29 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
         {
             if (oldPassword != newPassword)
             {
-                if (expr)
+                if (DbUser.PasswordHash == oldPassword.GetHashCode().ToString())
                 {
-                    
+                    DbUser.PasswordHash = newPassword.GetHashCode().ToString();
                 }
-                Console.WriteLine("New Password can't be old Password");
+                else
+                {
+                    Console.WriteLine("Old password does not match!");
+                    return false;
+                }
+            }
+            else
+            {
+                Console.WriteLine("New Password can't be old Password!");
                 return false;
             }
-            await _userManager.UpdateAsync(DbUser);
         }
         catch (Exception e)
         {
             Console.WriteLine(e);
             return false;
         }
-        return true;
+        var result = await _userManager.UpdateAsync(DbUser);
+        return result.Succeeded;
     }
 
     public Task<bool> SendChangePasswordEmail(string email)
