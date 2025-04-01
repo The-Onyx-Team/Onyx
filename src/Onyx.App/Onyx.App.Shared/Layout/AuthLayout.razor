@@ -15,6 +15,11 @@
             </MudText>
         </div>
         <div class="auth-nav-item">
+            <MudText @onclick="@(() => NavigationManager.NavigateTo("/account/manage/changephonenumber"))">
+                Change Phone Number
+            </MudText>
+        </div>
+        <div class="auth-nav-item">
             <MudText @onclick="@(() => NavigationManager.NavigateTo("/account/manage/2fa"))">
                 2 Factor Authentication
             </MudText>
