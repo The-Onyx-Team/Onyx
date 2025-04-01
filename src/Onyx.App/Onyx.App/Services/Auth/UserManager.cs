@@ -120,9 +120,11 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
         return Task.FromResult<IEnumerable<ExternalLoginData>>([])!;
     }
 
-    public Task<bool> RemoveLogin(User user, string loginProvider)
+    public async Task<bool> RemoveLogin(User user, string loginProvider, string providerKey)
     {
-        throw new NotImplementedException();
+        var dbUser = await _userManager.FindByIdAsync(user.Id);
+        var result = await _userManager.RemoveLoginAsync(dbUser,loginProvider,providerKey);
+        return result.Succeeded;
     }
 
     public async Task<bool> ChangeEmail(User user, string newEmail)

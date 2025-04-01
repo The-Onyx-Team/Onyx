@@ -13,7 +13,7 @@ public interface IUserManager
     public Task HandleNewExternalLoginAsync(ExternalLoginData? externalLoginInfo, EmailInputModel input, string? returnUrl);
     public Task<IEnumerable<AuthenticationScheme>> GetExternalAuthenticationSchemas();
     public Task<IEnumerable<ExternalLoginData>?> GetLoginsAsync(User user);
-    public Task<bool> RemoveLogin(User user, string loginProvider);
+    public Task<bool> RemoveLogin(User user, string loginProvider, string providerKey);
     public Task<bool> ChangeEmail(User user, string newEmail);
     public Task<bool> ChangePhoneNumber(User user, string phoneNumber);
     public Task<bool> ChangePassword(User user, string oldPassword, string newPassword);
