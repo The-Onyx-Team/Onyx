@@ -11,14 +11,14 @@ using Onyx.Data.DataBaseSchema;
 namespace Onyx.Data.SQLite.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250220130710_DataBaseInit")]
-    partial class DataBaseInit
+    [Migration("20250401121910_ProblemSolved")]
+    partial class ProblemSolved
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.2");
+            modelBuilder.HasAnnotation("ProductVersion", "9.0.3");
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
@@ -212,6 +212,151 @@ namespace Onyx.Data.SQLite.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Category", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("Id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Categories");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Device", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("Id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Name");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("UserId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Devices");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.GroupHasUser", b =>
+                {
+                    b.Property<int>("GroupId")
+                        .HasMaxLength(50)
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("GroupId");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("UserId");
+
+                    b.HasKey("GroupId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("GroupHasUsers");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Groups", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("Id");
+
+                    b.Property<string>("AdminId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("AdminId");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminId");
+
+                    b.ToTable("Groups");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.RegisteredApp", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("Id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("RegisteredApps");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Usage", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Id");
+
+                    b.Property<int>("AppId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("AppId");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("CategoryId");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Date");
+
+                    b.Property<int>("DeviceId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("DeviceId");
+
+                    b.Property<TimeSpan>("Duration")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Duration");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppId");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("DeviceId");
+
+                    b.ToTable("Usage");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationRole", null)
@@ -261,6 +406,94 @@ namespace Onyx.Data.SQLite.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Device", b =>
+                {
+                    b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.GroupHasUser", b =>
+                {
+                    b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.Groups", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Group");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Groups", b =>
+                {
+                    b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "Admin")
+                        .WithMany("Groups")
+                        .HasForeignKey("AdminId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Admin");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Usage", b =>
+                {
+                    b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.RegisteredApp", "App")
+                        .WithMany("Usages")
+                        .HasForeignKey("AppId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.Category", "Category")
+                        .WithMany("Usages")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.Device", "Devices")
+                        .WithMany("Usages")
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("App");
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Devices");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", b =>
+                {
+                    b.Navigation("Groups");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Category", b =>
+                {
+                    b.Navigation("Usages");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Device", b =>
+                {
+                    b.Navigation("Usages");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.RegisteredApp", b =>
+                {
+                    b.Navigation("Usages");
                 });
 #pragma warning restore 612, 618
         }
