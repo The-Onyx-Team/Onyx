@@ -122,8 +122,8 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
 
     public async Task<bool> RemoveLogin(User user, string loginProvider, string providerKey)
     {
-        var dbUser = await _userManager.FindByIdAsync(user.Id);
-        var result = await _userManager.RemoveLoginAsync(dbUser,loginProvider,providerKey);
+        var dbUser = await _userManager.FindByIdAsync(user.Id!);
+        var result = await _userManager.RemoveLoginAsync(dbUser!,loginProvider,providerKey);
         return result.Succeeded;
     }
 
@@ -209,14 +209,25 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
         var result = await _userManager.UpdateAsync(dbUser);
         return result.Succeeded;
     }
+    
 
-    public Task<string> GetUserData(User user)
+    public async Task<string[]> GetRecoveryCodes(User user)
     {
-        throw new NotImplementedException();
-    }
+        var dbUser = await _userManager.FindByIdAsync(user.Id!);
+        try
+        {
+            if (dbUser!.TwoFactorEnabled)
+            {
+                return _userManager.GenerateNewTwoFactorRecoveryCodesAsync(dbUser, 10).Result!.ToArray();
+            }
 
-    public Task<string[]> GetRecoveryCodes(User user)
-    {
-        throw new NotImplementedException();
+            Console.WriteLine("2Fa not enabled");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return null!;
+        }
+        return null!;
     }
 }

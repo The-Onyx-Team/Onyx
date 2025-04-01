@@ -19,7 +19,6 @@ public interface IUserManager
     public Task<bool> ChangePassword(User user, string oldPassword, string newPassword);
     public Task<bool> SendChangePasswordEmail(string email);
     public Task<bool> ChangeUserName(User user, string userName);
-    public Task<string> GetUserData(User user);
     public Task<string[]> GetRecoveryCodes(User user);
 }
 
