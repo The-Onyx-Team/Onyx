@@ -4,7 +4,7 @@
 @inject IUserManager UserManager
 
 
-<div id="app-container">
+<div id="app-container" style="overflow: hidden;">
     <div id="nav">
         @foreach (var item in NavItems)
         {
@@ -18,7 +18,7 @@
             </div>
         }
     </div>
-    <div id="app-box">
+    <div id="app-box" style="overflow: hidden;">
         <MudAppBar Class="app-bar">
             <MudText>Onyx App</MudText>
             <MudSpacer/>
