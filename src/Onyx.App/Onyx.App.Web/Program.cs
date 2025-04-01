@@ -70,6 +70,7 @@ if (provider == SqlServer.Name && sqlServerConnectionString is not null)
                 x.EnableRetryOnFailure();
                 x.MigrationsAssembly(SqlServer.Assembly);
             });
+        options.EnableDetailedErrors();
     });
 }
 else if (provider == SQLite.Name && sqliteConnectionString is not null)
@@ -80,9 +81,10 @@ else if (provider == SQLite.Name && sqliteConnectionString is not null)
             config.GetConnectionString(SQLite.Name)!,
             x => x.MigrationsAssembly(SQLite.Assembly)
         );
+        options.EnableDetailedErrors();
     });
 }
-else if (provider == SqlServer.Name && config.GetConnectionString("db") is not null)
+else if (provider == SqlServer.Name)
 {
     builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
     {
@@ -93,6 +95,7 @@ else if (provider == SqlServer.Name && config.GetConnectionString("db") is not n
                 x.MigrationsAssembly(SqlServer.Assembly);
                 x.EnableRetryOnFailure();
             });
+        options.EnableDetailedErrors();
     });
 }
 else
