@@ -41,7 +41,7 @@ public static class AuthEndpoints
         authorized.MapDelete("/account", DeleteAccountHandler);
 
         authorized.MapPost("/email/change", RequestEmailChangeHandler);
-        authorized.MapPost("/email/confirm", ConfirmEmailHandler);
+        authorized.MapGet("/email/confirm", ConfirmEmailHandler);
 
         authorized.MapPost("/2fa/enable", Enable2FaHandler);
         authorized.MapPost("/2fa/disable", Disable2FaHandler);
@@ -263,14 +263,15 @@ public static class AuthEndpoints
     /// </summary>
     public static async Task<IResult> ConfirmEmailHandler(
         [FromQuery] string userId,
-        [FromQuery] string token,
+        [FromQuery] string code,
         [FromServices] UserManager<ApplicationUser> userManager)
     {
         var user = await userManager.FindByIdAsync(userId);
         if (user == null) return Results.NotFound();
 
-        var result = await userManager.ConfirmEmailAsync(user, token);
-        return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
+        Console.WriteLine(code);
+        var result = await userManager.ConfirmEmailAsync(user, code);
+        return result.Succeeded ? Results.Redirect("/account/confirmEmail") : Results.BadRequest(result.Errors);
     }
 
     /// <summary>

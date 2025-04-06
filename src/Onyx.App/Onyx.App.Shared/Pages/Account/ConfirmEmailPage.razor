@@ -1,23 +1,45 @@
 ﻿@page "/account/confirmEmail"
 @inject NavigationManager NavManager
+@inject IUserManager UserManager
+@inject ISnackbar Snackbar
 
 @layout AuthNavLayout
 
 <PageTitle>Confirm Email</PageTitle>
 
-<MudText Typo="Typo.h4"
-         Class="mb-3">Your email has been confirmed!</MudText>
-<MudText Typo="Typo.h5"
-         Class="mb-3">You'll be redirected to your home page is a few seconds!</MudText>
+<MudText Typo="Typo.h4">
+    @Result
+</MudText>
+<MudText Typo="Typo.body1">You will be redirected in a few seconds!</MudText>
 
 @code {
+    [SupplyParameterFromQuery(Name = "userId")]
+    public required string Id { get; set; }
 
+    [SupplyParameterFromQuery(Name = "code")]
+    public required string Token { get; set; }
+
+    public string Result { get; set; } = "Loading...";
+    
     protected override async Task OnInitializedAsync()
     {
         await base.OnInitializedAsync();
 
-        await Task.Delay(5000);
-        NavManager.NavigateTo("/home", forceLoad: true);
+        Console.WriteLine(Token);
+        var result = await UserManager.ConfirmEmailAsync(Id, Token);
+        if (result.Success)
+        {
+            Result = "Successfully confirmed Email!";
+            Snackbar.Add("Confirmed Email!", Severity.Success);
+            await InvokeAsync(StateHasChanged);
+            await Task.Delay(5000);
+            NavManager.NavigateTo("/home", forceLoad: true);
+        }
+        else
+        {
+            Result = "Something went wrong while confirming your Email! Please check your Emails and try again!";
+            Snackbar.Add("Couldn't confirm Email! PLease try again!", Severity.Error);
+            await InvokeAsync(StateHasChanged);
+        }
     }
-
 }

@@ -47,7 +47,7 @@
     private async Task Submit()
     {
         var result = await UserManager.RegisterAsync(m_RegisterModel.Username,
-            m_RegisterModel.Email, m_RegisterModel.Password, "/account/confirmEmail");
+            m_RegisterModel.Email, m_RegisterModel.Password);
         if (result.Success)
         {
             Snackbar.Add("Successfully created user! Sending email confirmation link...", Severity.Success);
