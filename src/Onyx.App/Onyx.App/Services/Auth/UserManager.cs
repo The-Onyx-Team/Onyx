@@ -8,7 +8,7 @@ namespace Onyx.App.Services.Auth;
 
 public class UserManager(AuthenticationStateProvider authenticationStateProvider, AuthApi api) : IUserManager
 {
-    public async Task<RegisterResult> RegisterAsync(string name, string email, string password, string redirectUri)
+    public async Task<RegisterResult> RegisterAsync(string name, string email, string password)
     {
         var result = await api.RegisterAsync(name, email, password);
 
