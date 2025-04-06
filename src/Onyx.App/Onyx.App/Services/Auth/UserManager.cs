@@ -32,6 +32,11 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
         };
     }
 
+    public Task<RegisterResult> ConfirmEmailAsync(string id, string token)
+    {
+        throw new NotImplementedException();
+    }
+
     public async Task<LoginResult> LoginAsync(string email, string password, string redirectUri)
     {
         var result = await api.LoginAsync(email, password);
@@ -83,6 +88,16 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
                 Message = "Failed to parse JWT Token"
             };
         }
+    }
+
+    public Task<ResetPasswordResult> ResetPasswordAsync(string email)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<ResetPasswordResult> SetPasswordAsync(string id, string password)
+    {
+        throw new NotImplementedException();
     }
 
     public Task LogoutAsync()
