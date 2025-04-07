@@ -36,16 +36,6 @@ jobs:
       - name: Set Xcode version (macOS)
         if: matrix.os == 'macos-latest'
         run: sudo xcode-select -s /Applications/Xcode_16.2.0.app/Contents/Developer
-
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Build
-        run: dotnet build --configuration Release --no-restore
-
-      - name: Run Tests
-        run: dotnet test --configuration Release --no-build --verbosity normal
-
       - name: Import Code-Signing Certificates
         if: matrix.os == 'macos-latest'
         uses: Apple-Actions/import-codesign-certs@v1
@@ -60,6 +50,16 @@ jobs:
           issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
           api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
           api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Run Tests
+        run: dotnet test --configuration Release --no-build --verbosity normal
+
       - name: Sign and Publish (macOS)
         if: matrix.os == 'macos-latest'
         run: dotnet publish src/Onyx.App/Onyx.App/Onyx.App.csproj -f net9.0-ios -c Release -p:ArchiveOnBuild=true -p:EnableAssemblyILStripping=false
