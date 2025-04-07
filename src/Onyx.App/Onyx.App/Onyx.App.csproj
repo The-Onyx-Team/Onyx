@@ -21,10 +21,10 @@
         <EnableDefaultCssItems>false</EnableDefaultCssItems>
         <Nullable>enable</Nullable>
 
-        <OutputPath>../../build/app</OutputPath>
+        <OutputPath>../../../build/app</OutputPath>
 
         <ApplicationTitle>Onyx</ApplicationTitle>
-        <ApplicationId>com.onyx-team.onyx.app</ApplicationId>
+        <ApplicationId>com.onyx-team.onyx</ApplicationId>
 
         <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
         <ApplicationVersion>1</ApplicationVersion>

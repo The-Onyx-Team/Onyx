@@ -9,39 +9,85 @@ on:
 env:
   DOTNETVERSION: 9.0.x
 jobs:
-  build:
+  build-test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest] # windows-latest, macos-latest
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup .NET SDK
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '${{env.DOTNETVERSION}}'
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '${{env.DOTNETVERSION}}'
 
-    - name: Install MAUI Workloads (macOS)
-      if: matrix.os == 'macos-latest'
-      run: dotnet workload install maui-ios maui-maccatalyst
-    - name: Install MAUI Workloads (Windows)
-      if: matrix.os == 'windows-latest'
-      run: dotnet workload install maui
-    - name: Install MAUI Workloads (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: dotnet workload install maui-android
+      - name: Install MAUI Workloads (macOS)
+        if: matrix.os == 'macos-latest'
+        run: dotnet workload install maui-ios maui-maccatalyst
+      - name: Install MAUI Workloads (Windows)
+        if: matrix.os == 'windows-latest'
+        run: dotnet workload install maui
+      - name: Install MAUI Workloads (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: dotnet workload install maui-android
 
-    - name: Set Xcode version (macOS)
-      if: matrix.os == 'macos-latest'
-      run: sudo xcode-select -s /Applications/Xcode_16.2.0.app/Contents/Developer
+      - name: Set Xcode version (macOS)
+        if: matrix.os == 'macos-latest'
+        run: sudo xcode-select -s /Applications/Xcode_16.2.0.app/Contents/Developer
 
-    - name: Restore dependencies
-      run: dotnet restore
+      - name: Restore dependencies
+        run: dotnet restore
 
-    - name: Build
-      run: dotnet build --configuration Release --no-restore
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
 
-    - name: Run Tests
-      run: dotnet test --configuration Release --no-build --verbosity normal
+      - name: Run Tests
+        run: dotnet test --configuration Release --no-build --verbosity normal
+
+      - name: Import Code-Signing Certificates
+        if: matrix.os == 'macos-latest'
+        uses: Apple-Actions/import-codesign-certs@v1
+        with:
+          p12-filepath: 'AppleSigningCertificate.p12'
+          p12-password: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
+      - name: Download Apple Provisioning Profiles
+        if: matrix.os == 'macos-latest'
+        uses: Apple-Actions/download-provisioning-profiles@v1
+        with:
+          bundle-id: 'com.onyx-team.onyx'
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+      - name: Sign and Publish (macOS)
+        if: matrix.os == 'macos-latest'
+        run: dotnet publish src/Onyx.App/Onyx.App/Onyx.App.csproj -f net9.0-ios -c Release -p:ArchiveOnBuild=true -p:EnableAssemblyILStripping=false
+      - name: Upload app to TestFlight
+        if: matrix.os == 'macos-latest'
+        uses: Apple-Actions/upload-testflight-build@v1
+        with:
+          app-path: 'build/app/net9.0-ios/publish/App.ipa'
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+
+
+      - name: Publish (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          dotnet publish -f:net9.0-windows -c Release
+
+      - name: Publish (Andoid)
+        if: matrix.os == 'windows-latest'
+        run: dotnet publish -f net9.0-android -c Release 
+        # run: dotnet publish -f net9.0-android -c Release -p:AndroidKeyStore=true -p:AndroidSigningKeyStore=daze-for-private.keystore -p:AndroidSigningKeyAlias=daze-for-private -p:AndroidSigningKeyPass="${{ secrets.KEYSTORE_PASSWORD }}" -p:AndroidSigningStorePass="${{ secrets.KEYSTORE_PASSWORD_ALIAS }}"
+        
+        
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: signed-artifacts
+          path: |
+            **/bin/Release/**/*.app
+            **/bin/Release/**/*.msix

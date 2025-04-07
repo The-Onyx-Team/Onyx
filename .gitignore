@@ -12,3 +12,4 @@ key.rsa
 *.db
 *.db-shm
 *.db-wal
+/src/Onyx.App/Onyx.App.Web/apple.p8
