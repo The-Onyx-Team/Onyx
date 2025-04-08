@@ -602,7 +602,7 @@ public class AuthEndpointsTest
         var result = await AuthEndpoints.ConfirmEmailHandler(userId, token, m_UserManager.Object);
 
         // Assert
-        result.ShouldBeOfType<Ok>();
+        result.ShouldBeOfType<RedirectHttpResult>();
         m_UserManager.Verify(x => x.ConfirmEmailAsync(m_TestUser, token), Times.Once);
     }
 
