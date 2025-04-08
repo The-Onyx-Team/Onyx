@@ -1,13 +1,84 @@
 @page "/"
 
+@layout LandingPageLayout
+
+<style>
+    .container {
+        scroll-snap-type: y mandatory;
+        overflow-y: scroll;
+        height: 100%;
+    }
+    
+    .section {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        scroll-snap-align: start;
+    }
+    
+    .blocked {
+        display: flex;
+        justify-content: space-around;
+        margin: 10%;
+    }
+    
+    .present-image1 {
+        border-radius: 3%;
+        height: 50%;
+        z-index: -1000 !important;
+        background-image: url('img/Test1.png');
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: contain;
+    }
+
+    .present-image2 {
+        border-radius: 3%;
+        height: 50%;
+        z-index: -1000 !important;
+        background-image: url('img/Test2.png');
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: contain;
+    }
+</style>
+
 <AuthorizeView>
     <Authorized>
         <RedirectToHome />
     </Authorized>
     <NotAuthorized>
-        <h3>LandingPage</h3>
-        <p>
-            Welcome to the Onyx App! Please <a href="/account/login">log in</a> to continue.
-        </p>
+        <div class="container mud-width-full">
+            <div class="section">
+                <div style="height: 100%;
+                         z-index: -1000 !important; 
+                         background-image: url('img/LoginBackground.png'); 
+                         background-position: center; 
+                         background-repeat: no-repeat; 
+                         background-size: cover;"
+                     class="ma-0 pa-0 mud-width-full">
+                </div>
+                <h3>LandingPage</h3>
+                <p>
+                    Welcome to the Onyx App! Please <a href="/account/login">log in</a> to continue.
+                </p>
+            </div>
+            <div class="section blocked">
+                <div class="mr-5">
+                    <MudText Color="Color.Secondary" Typo="Typo.h3">Get your screen time ready in one place!</MudText>
+                    <MudText Typo="Typo.body1">This is the newest way of keeping track of the screen time of all your devices to manage your important time!</MudText>
+                </div>
+                <MudContainer Class="present-image1"/>
+            </div>
+            <div class="section blocked">
+                <MudContainer Class="present-image2"/>
+                <div class="ml-5">
+                    <MudText Color="Color.Secondary" Typo="Typo.h3">Get your screen time ready in one place!</MudText>
+                    <MudText Typo="Typo.body1">This is the newest way of keeping track of the screen time of all your devices to manage your important time!</MudText>
+                </div>
+            </div>
+        </div>
     </NotAuthorized>
 </AuthorizeView>

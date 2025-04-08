@@ -1,0 +1,69 @@
+﻿@inherits LayoutComponentBase
+@layout MainLayout
+
+<style>
+    .logo-container {
+        height: 10%;
+        width: 100%;
+        color: #FFFFFF;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+    }
+    
+    .toolbar {
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    .logo {
+        max-width: 60px; 
+        min-width: 30px; 
+        width: 50%; 
+        height: auto;
+    }
+    
+    .content {
+        height: 100%;
+    }
+</style>
+
+<script>
+    const sections = document.querySelectorAll(".section");
+    let currentIndex = 0;
+
+    window.addEventListener("wheel", (event) => {
+        if (event.deltaY > 0) {
+            // Scroll down
+            currentIndex = Math.min(currentIndex + 1, sections.length - 1);
+        } else {
+            // Scroll up
+            currentIndex = Math.max(currentIndex - 1, 0);
+        }
+
+        sections[currentIndex].scrollIntoView({
+            behavior: "smooth"
+        });
+
+        event.preventDefault();
+    }, { passive: false });
+</script>
+
+<MudAppBar Color="Color.Primary" Fixed="true" ToolBarClass="mud-width-full toolbar" Class="mud-width-full logo-container">
+    <div class="pa-0 ma-5 d-flex align-center">
+        <MudImage Src="/img/Icon.png" Alt="Icon" Class="logo mr-7"/>
+        <MudText Typo="Typo.h4">Onyx</MudText>
+    </div>
+    <div>
+        <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Inherit"
+                       Href="/downloads" Size="Size.Large" title="Downloads"/>
+        <MudIconButton Icon="@Icons.Material.Filled.NewLabel" Color="Color.Inherit"
+                       Href="/account/register" Size="Size.Large" title="Register"/>
+        <MudIconButton Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit"
+                       Href="/account/login" Size="Size.Large" title="Login"/>
+    </div>
+</MudAppBar>
+
+<div class="content ma-0 pa-0 mud-width-full">
+    @Body
+</div>
