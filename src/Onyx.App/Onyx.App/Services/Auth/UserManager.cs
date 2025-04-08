@@ -194,6 +194,7 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
 
     public Task<bool> SendChangePasswordEmail(string email)
     {
+        
         throw new NotImplementedException();
     }
 

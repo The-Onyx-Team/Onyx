@@ -222,6 +222,41 @@ public class UserManager(
             });
     }
 
+    public Task<bool> RemoveLogin(User user, string loginProvider, string providerKey)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<bool> ChangeEmail(User user, string newEmail)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<bool> ChangePhoneNumber(User user, string phoneNumber)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<bool> ChangePassword(User user, string oldPassword, string newPassword)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<bool> SendChangePasswordEmail(string email)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<bool> ChangeUserName(User user, string userName)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<string[]> GetRecoveryCodes(User user)
+    {
+        throw new NotImplementedException();
+    }
+
     private ApplicationUser CreateUser()
     {
         try
