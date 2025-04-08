@@ -136,11 +136,11 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
         throw new NotImplementedException();
     }
 
-    public Task<bool> SendChangePasswordEmail(string email)
+    public Task<bool> SendChangePasswordEmail(string id, string email)
     {
         throw new NotImplementedException();
     }
-
+    
     public Task<bool> ChangeUserName(User user, string userName)
     {
         throw new NotImplementedException();

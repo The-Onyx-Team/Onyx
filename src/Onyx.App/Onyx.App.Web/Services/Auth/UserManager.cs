@@ -222,39 +222,148 @@ public class UserManager(
             });
     }
 
-    public Task<bool> RemoveLogin(User user, string loginProvider, string providerKey)
+    public async Task<bool> RemoveLogin(User user, string loginProvider, string providerKey)
     {
-        throw new NotImplementedException();
+        var dbUser = await userManager.FindByIdAsync(user.Id!);
+        var result = await userManager.RemoveLoginAsync(dbUser!,loginProvider,providerKey);
+        return result.Succeeded;
     }
 
-    public Task<bool> ChangeEmail(User user, string newEmail)
+    public async Task<bool> ChangeEmail(User user, string newEmail)
     {
-        throw new NotImplementedException();
+        var existingUser = await userManager.FindByEmailAsync(newEmail);
+        if (existingUser != null)
+        {
+            return false;
+        }
+        var dbUser = await userManager.FindByIdAsync(user.Id!);
+        newEmail = newEmail.ToUpper();
+        dbUser!.Email = newEmail;
+        try
+        {
+            await userManager.UpdateNormalizedEmailAsync(dbUser);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return false;
+        }
+        return true;   
     }
 
-    public Task<bool> ChangePhoneNumber(User user, string phoneNumber)
+    public async Task<bool> ChangePhoneNumber(User user, string phoneNumber)
     {
-        throw new NotImplementedException();
+        var dbUser = await userManager.FindByIdAsync(user.Id!);
+        dbUser!.PhoneNumber = phoneNumber;
+        var result = await userManager.UpdateAsync(dbUser);
+            
+        return result.Succeeded;
     }
 
-    public Task<bool> ChangePassword(User user, string oldPassword, string newPassword)
+    public async Task<bool> ChangePassword(User user, string oldPassword, string newPassword)
     {
-        throw new NotImplementedException();
+        var dbUser = await userManager.FindByIdAsync(user.Id!);
+        try
+        {
+            if (oldPassword != newPassword)
+            {
+                if (dbUser!.PasswordHash == oldPassword.GetHashCode().ToString())
+                {
+                    dbUser.PasswordHash = newPassword.GetHashCode().ToString();
+                }
+                else
+                {
+                    Console.WriteLine("Old password does not match!");
+                    return false;
+                }
+            }
+            else
+            {
+                Console.WriteLine("New Password can't be old Password!");
+                return false;
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return false;
+        }
+
+        var result = await userManager.UpdateAsync(dbUser);
+        return result.Succeeded;
     }
 
-    public Task<bool> SendChangePasswordEmail(string email)
+    public async Task<bool> SendChangePasswordEmail(string id, string email)
     {
-        throw new NotImplementedException();
+        // Find the user by ID
+        var dbUser = await userManager.FindByIdAsync(id);
+        if (dbUser == null || dbUser.Email != email)
+        {
+            Console.WriteLine("User not found or email mismatch.");
+            return false;
+        }
+
+        try
+        {
+            // Generate a password reset token
+            var token = await userManager.GeneratePasswordResetTokenAsync(dbUser);
+
+            // Encode the token for safe transmission in a URL
+            var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+
+            // Generate the callback URL for resetting the password
+            var callbackUrl = navigationManager.GetUriWithQueryParameters(
+                navigationManager.ToAbsoluteUri("Account/ResetPassword").AbsoluteUri,
+                new Dictionary<string, object?>
+                {
+                    ["userId"] = dbUser.Id,
+                    ["token"] = encodedToken
+                });
+
+            // Send the password reset email using the email sender service
+            await emailSender.SendPasswordResetLinkAsync(dbUser, email, HtmlEncoder.Default.Encode(callbackUrl));
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred while sending the password reset email: {ex.Message}");
+            return false;
+        }
     }
 
-    public Task<bool> ChangeUserName(User user, string userName)
+
+    public async Task<bool> ChangeUserName(User user, string userName)
     {
-        throw new NotImplementedException();
+        var existingUser = await userManager.FindByNameAsync(userName);
+        if (existingUser != null)
+        {
+            return false;
+        }
+        var dbUser = await userManager.FindByIdAsync(user.Id!);
+        dbUser!.UserName = userName;
+        var result = await userManager.UpdateAsync(dbUser);
+        return result.Succeeded;
     }
 
-    public Task<string[]> GetRecoveryCodes(User user)
+    public async Task<string[]> GetRecoveryCodes(User user)
     {
-        throw new NotImplementedException();
+        var dbUser = await userManager.FindByIdAsync(user.Id!);
+        try
+        {
+            if (dbUser!.TwoFactorEnabled)
+            {
+                return userManager.GenerateNewTwoFactorRecoveryCodesAsync(dbUser, 10).Result!.ToArray();
+            }
+
+            Console.WriteLine("2Fa not enabled");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return null!;
+        }
+        return null!;
     }
 
     private ApplicationUser CreateUser()
@@ -265,7 +374,7 @@ public class UserManager(
         }
         catch
         {
-            throw new InvalidOperationException($"Can't create an instance of '{nameof(ApplicationUser)}'. " +
+            throw new InvalidOperationException($"Can't create an instance of '{nameof(ApplicationUser)}'. " + 
                                                 $"Ensure that '{nameof(ApplicationUser)}' is not an abstract class and has a parameterless constructor");
         }
     }
