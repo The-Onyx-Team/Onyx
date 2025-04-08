@@ -46,6 +46,13 @@ public static class AuthEndpoints
         authorized.MapPost("/2fa/enable", Enable2FaHandler);
         authorized.MapPost("/2fa/disable", Disable2FaHandler);
         authorized.MapPost("/2fa/recovery-codes", RegenerateRecoveryCodesHandler);
+        
+        authorized.MapPost("/RemoveLogin",RemoveLoginHandler);
+        authorized.MapPost("/ChangeEmail",ChangeEmailHandler);
+        authorized.MapPost("/ChangePhoneNumber",ChangePhoneNumberHandler);
+        authorized.MapPost("/SendChangePasswordEmail",SendChangePasswordEmailHandler);
+        authorized.MapPost("/ChangeUserName",ChangeUserNameHandler);
+        authorized.MapPost("/GetRecoveryCodes"GetRecoveryCodesHandler);
     }
 
     private static async Task<IResult> DownloadPersonalDataHandler(HttpContext context,
@@ -354,7 +361,7 @@ public static class AuthEndpoints
         await context.SignInAsync(IdentityConstants.ApplicationScheme, principal);
 
         return Results.Redirect(webLoginModel.Redirect);
-    }
+    } 
 
     public class WebLoginModel
     {
