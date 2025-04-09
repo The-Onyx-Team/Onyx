@@ -34,6 +34,7 @@ jobs:
         run: dotnet workload install maui-android
 
       - name: Load Code-Signing Certificates
+        if: matrix.os == 'macos-latest'
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE }}
           P12_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
