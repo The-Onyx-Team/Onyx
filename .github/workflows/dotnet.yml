@@ -34,7 +34,9 @@ jobs:
         run: dotnet workload install maui-android
 
       - name: Load Code-Signing Certificates
-        run: echo "${{ secrets.APPLE_SIGNING_CERTIFICATE }}" | base64 --decode > AppleSigningCertificate.p12
+        run: |
+          echo "${{ secrets.APPLE_SIGNING_CERTIFICATE }}" | base64 --decode > AppleSigningCertificate.p12
+          echo "${{ secrets.APPLE_BUILD_CERTIFICATE_BASE64 }}" | base64 --decode > $RUNNER_TEMP/onyx-time.mobileprovision
       - name: Import Code-Signing Certificates
         if: matrix.os == 'macos-latest'
         uses: Apple-Actions/import-codesign-certs@v1
