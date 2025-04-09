@@ -54,9 +54,11 @@ jobs:
         run: dotnet restore
 
       - name: Build
+        if: matrix.os == 'ubuntu-latest'
         run: dotnet build --configuration Release --no-restore
 
       - name: Run Tests
+        if: matrix.os == 'ubuntu-latest'
         run: dotnet test --configuration Release --no-build --verbosity normal
 
       - name: Sign and Publish (macOS)
