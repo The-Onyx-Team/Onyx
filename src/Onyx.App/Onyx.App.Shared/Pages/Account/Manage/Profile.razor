@@ -1,47 +1,104 @@
 @page "/Account/Manage/Profile"
+@inject NavigationManager NavigationManager
 
+<MudContainer Class="py-4 px-3">
+    <MudGrid>
+        <MudItem xs="12" sm="11">
+            <MudPaper Class="pa-4 elevation-1">
+                <MudText Typo="Typo.h6" Class="mb-4">Profile Settings</MudText>
 
-<MudContainer Fluid="true" MaxWidth="MaxWidth.ExtraLarge" Class="mt-4" Style="overflow: hidden;">
-    <MudText Typo="Typo.h3">Profile</MudText>
-    <br/>
-    <MudCard Class="mt-4">
-        <MudCardContent>
-            <MudGrid Gutter="3">
-                <MudItem xs="12" sm="6" Style="display: flex; align-items: center;">
-                    <MudAvatar Size="Size.Large"> 
-                        <MudImage Src=""></MudImage><!--implement upload image-->
-                    </MudAvatar>
-
-                    <div style="margin-left: 20px; display: flex; gap: 10px;">
-                        <MudButton Variant="Variant.Outlined">
-                            Upload image
-                            <InputFile OnChange="@OnFileChanged" Style="display:none"/>
-                        </MudButton>
-                        <MudButton Variant="Variant.Text">Reset</MudButton>
+                <div class="d-flex flex-column align-items-center mb-4">
+                    <MudAvatar Image="https://i.pravatar.cc/150?img=3" Class="mb-3" Size="Size.Large" />
+                    <div>
+                        <MudFileUpload T="IBrowserFile" FilesChanged="UploadImage">
+                            <ActivatorContent>
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Image">
+                                    Upload Image
+                                </MudButton>
+                            </ActivatorContent>
+                        </MudFileUpload>
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Class="mt-2">Delete avatar</MudButton>
                     </div>
-                </MudItem>
-            </MudGrid>
+                </div>
 
-            <MudTextField T="string" Label="Username" Class="mt-3" FullWidth="true"/>
-            <MudTextField T="string" Label="Name" FullWidth="true"/>
-            <MudTextField T="string" Label="E-mail" Class="mt-2" FullWidth="true"/>
+                <EditForm Model="@accountModel" OnValidSubmit="@SaveChanges">
+                    <MudGrid>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField T="string" Label="First Name" @bind-Value="@accountModel.FirstName"
+                                          Variant="Variant.Outlined" FullWidth="true" />
+                        </MudItem>
 
-            <MudAlert Severity="Severity.Warning" Elevation="0" Class="mt-2">
-                Your email is not confirmed. Please check your inbox.
-                <MudLink Href="javascript:void(0)">Resend confirmation</MudLink>
-            </MudAlert>
-        </MudCardContent>
-        <MudCardActions Class="justify-end">
-            <MudButton Color="Color.Primary" Variant="Variant.Filled">Save changes</MudButton>
-            <MudButton Variant="Variant.Text" Class="ml-2">Cancel</MudButton>
-        </MudCardActions>
-    </MudCard>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField T="string" Label="Last Name" @bind-Value="@accountModel.LastName"
+                                          Variant="Variant.Outlined" FullWidth="true" />
+                        </MudItem>
+
+                        <MudItem xs="12" sm="6">
+                            <MudTextField T="string" Label="Email" @bind-Value="@accountModel.Email"
+                                          Variant="Variant.Outlined" FullWidth="true" />
+                        </MudItem>
+                    </MudGrid>
+
+                    <!-- Save Changes Button -->
+                    <div class="mt-4">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@DisableSave" Type="submit">
+                            Save Changes
+                        </MudButton>
+                    </div>
+                </EditForm>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
 </MudContainer>
 
 @code
 {
-    private async Task OnFileChanged(InputFileChangeEventArgs e)
+    private AccountModel accountModel = new AccountModel
     {
-        //todo file upload
+        FirstName = "",
+        LastName = "",
+        Email = "",
+        MobileNumber = "",
+        Gender = "",
+        ID = "",
+        TaxIdentificationNumber = "",
+        TaxIdentificationCountry = "",
+        ResidentialAddress = "",
+        PhoneCountryCode = ""
+    };
+
+    IList<IBrowserFile> _files = new List<IBrowserFile>();
+
+    private void UploadImage(IBrowserFile? file)
+    {
+        _files.Add(file);
+        //TODO upload the files to the server
+    }
+
+    private bool DisableSave => string.IsNullOrWhiteSpace(accountModel.FirstName)
+    || string.IsNullOrWhiteSpace(accountModel.LastName)
+    || string.IsNullOrWhiteSpace(accountModel.Email);
+
+    private void SaveChanges()
+    {
+        // todo: logik zum speichern der daten in der db
+    }
+
+    public class AccountModel
+    {
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Email { get; set; }
+        public string MobileNumber { get; set; }
+        public string Gender { get; set; }
+        public string ID { get; set; }
+        public string TaxIdentificationNumber { get; set; }
+        public string TaxIdentificationCountry { get; set; }
+        public string ResidentialAddress { get; set; }
+
+        // Extra: For demonstration if you want a prefix field
+        public string PhoneCountryCode { get; set; }
     }
 }
