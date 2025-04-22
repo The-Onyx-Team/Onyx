@@ -7,6 +7,7 @@
 @inject IStatsService UsageStatsService
 
 <button @onclick="RequestPermission">Request Access</button>
+<button @onclick="Update">Update</button>
 
 @if (Usage != null)
 {
@@ -14,7 +15,7 @@
     {
         <div class="mb-3">
             <img src="@($"data:image/png;base64,{Convert.ToBase64String(usage.Icon)}")"
-                 alt="@usage.Name" width="50" height="50" />
+            alt="@usage.Name" width="50" height="50"/>
             <div>Name: @usage.Name</div>
             <div>Time in foreground: @usage.TimeInForeground</div>
             <div>Interval End: @usage.IntervalEnd</div>
@@ -31,14 +32,19 @@
 
     protected override void OnInitialized()
     {
-        // gets usage stats for a month
-        long endTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        long startTime = endTime - (30L * 24 * 60 * 60 * 1000);
-        Usage = StatsHelper.GetUsageStatsTimeIntervalMilliseconds(startTime, endTime);
+        Update();
     }
 
     private void RequestPermission()
     {
         UsageStatsService.OpenUsageAccessSettings();
     }
+
+    private void Update()
+    {
+        long endTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        long startTime = endTime - (30L * 24 * 60 * 60 * 1000);
+        Usage = StatsHelper.GetUsageStatsTimeIntervalMilliseconds(startTime, endTime);
+    }
+
 }

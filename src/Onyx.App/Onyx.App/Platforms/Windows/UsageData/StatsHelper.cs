@@ -1,12 +1,13 @@
-﻿using Onyx.App.Shared.Services.Usage;
+﻿using Onyx.App.Platforms.Windows.UsageData;
+using Onyx.App.Shared.Services.Usage;
 
 namespace Onyx.App.UsageData;
 
-public class StatsHelper : IStatsHelper
+public class StatsHelper(DataCollector dataCollector) : IStatsHelper
 {
     public List<Stats>? GetUsageStatsTimeIntervalMilliseconds(long startTime, long endTime)
     {
-        throw new NotImplementedException();
+        return dataCollector.Stats;
     }
     
     public string GetAppNameFromPackage(string packageName)
