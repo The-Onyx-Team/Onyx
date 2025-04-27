@@ -1,0 +1,15 @@
+@page "/"
+
+@layout LandingPageLayout
+
+<AuthorizeView>
+    <Authorized>
+        <RedirectToHome />
+    </Authorized>
+    <NotAuthorized>
+        <h3>LandingPage</h3>
+        <p>
+            Welcome to the Onyx App! Please <a href="/account/login">log in</a> to continue.
+        </p>
+    </NotAuthorized>
+</AuthorizeView>
