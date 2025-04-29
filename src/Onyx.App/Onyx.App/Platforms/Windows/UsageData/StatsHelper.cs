@@ -1,5 +1,4 @@
-﻿using Onyx.App.Platforms.Windows.UsageData;
-using Onyx.App.Shared.Services.Usage;
+﻿using Onyx.App.Shared.Services.Usage;
 
 namespace Onyx.App.UsageData;
 

@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Maui.LifecycleEvents;
 #if WINDOWS
 using Microsoft.UI.Windowing;
-using Onyx.App.Platforms.Windows.UsageData;
 #endif
 using MudBlazor.Services;
 using Onyx.App.Services;
@@ -54,7 +53,8 @@ namespace Onyx.App
                 }));
             });
 
-            builder.Services.AddSingleton<DataCollector>();
+            var dataCollector = new DataCollector();
+            builder.Services.AddSingleton(dataCollector);
             #endif
 
             builder.Services.AddHttpClient<HttpClientWrapper>();
