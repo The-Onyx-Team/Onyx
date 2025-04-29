@@ -9,7 +9,7 @@ public static class DeviceEndpoints
     {
         var dataApi = endpoints.MapGroup("/api/devices")
             .WithTags("Devices API")
-            .RequireAuthorization("api");
+            .RequireAuthorization();
 
         dataApi.MapGet("/", GetDevicesAsync);
         dataApi.MapPost("/", RegisterDeviceAsync);

@@ -9,9 +9,11 @@ namespace Onyx.App.Web.Services.Data;
 public class DeviceManager(ApplicationDbContext dbContext, IHttpContextAccessor contextAccessor)
     : IDeviceManager
 {
+    private const string SubClaim = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
+    
     public async Task<List<DeviceDto>> GetDevices()
     {
-        var user = contextAccessor.HttpContext?.User.FindFirst("sub");
+        var user = contextAccessor.HttpContext?.User.FindFirst(SubClaim);
 
         if (user is null)
         {
@@ -34,7 +36,7 @@ public class DeviceManager(ApplicationDbContext dbContext, IHttpContextAccessor 
             throw new ArgumentException("Device name cannot be null or empty", nameof(deviceName));
         }
 
-        var user = contextAccessor.HttpContext?.User.FindFirst("sub");
+        var user = contextAccessor.HttpContext?.User.FindFirst(SubClaim);
 
         if (user is null)
         {
@@ -53,7 +55,7 @@ public class DeviceManager(ApplicationDbContext dbContext, IHttpContextAccessor 
 
     public Task UnregisterDeviceAsync(int deviceId)
     {
-        var user = contextAccessor.HttpContext?.User.FindFirst("sub");
+        var user = contextAccessor.HttpContext?.User.FindFirst(SubClaim);
 
         if (user is null)
         {

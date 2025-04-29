@@ -10,7 +10,7 @@ public static class DataEndpoints
     {
         var dataApi = endpoints.MapGroup("/api/data")
             .WithTags("Data API")
-            .RequireAuthorization("api");
+            .RequireAuthorization();
         
         
         
