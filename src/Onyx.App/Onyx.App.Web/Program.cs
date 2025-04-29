@@ -10,10 +10,12 @@ using Microsoft.IdentityModel.Tokens;
 using MudBlazor.Services;
 using Onyx.App.Shared.Services;
 using Onyx.App.Shared.Services.Auth;
+using Onyx.App.Shared.Services.Usage;
 using Onyx.App.Web.Api;
 using Onyx.App.Web.Components;
 using Onyx.App.Web.Services;
 using Onyx.App.Web.Services.Auth;
+using Onyx.App.Web.Services.Data;
 using Onyx.App.Web.Services.Database;
 using Onyx.App.Web.Services.Mail;
 using Onyx.Data.DataBaseSchema;
@@ -120,7 +122,8 @@ builder.Services.AddAuthentication()
             ValidateAudience = false,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero,
-            IssuerSigningKey = key
+            ValidateActor = false,
+            ValidateIssuerSigningKey = false
         };
 
         options.MapInboundClaims = true;
@@ -151,6 +154,10 @@ builder.Services.AddAuthorization(options =>
     options.DefaultPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
+
+    options.AddPolicy("api", x =>
+        x.AddAuthenticationSchemes("JwtSchema")
+            .RequireAuthenticatedUser());
 
     options.AddPolicy("TwoFactorEnabled", x => x.RequireClaim("amr", "mfa"));
 });
@@ -195,6 +202,11 @@ if (smtpServer is not null)
 else
     builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
+// Usage Data
+
+builder.Services.AddScoped<IUsageDataService, UsageDataService>();
+builder.Services.AddScoped<IDeviceManager, DeviceManager>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -214,10 +226,11 @@ app.UseAntiforgery();
 
 app.MapOpenApi();
 app.MapDefaultEndpoints();
+app.MapAuthEndpoints();
+app.MapDataEndpoints();
+app.MapDeviceEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(typeof(Onyx.App.Shared._Imports).Assembly);
-
-app.MapAuthEndpoints();
 
 app.Run();

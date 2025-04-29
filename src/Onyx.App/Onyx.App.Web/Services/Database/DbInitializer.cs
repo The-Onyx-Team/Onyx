@@ -52,6 +52,12 @@ public class DbInitializer(
 
         if (env.IsDevelopment())
         {
+            await m_UserManager.CreateAsync(new ApplicationUser
+                {
+                    UserName = "admin", 
+                    Email = "admin@admin.com"
+                },
+                "Admin123456");
         }
 
         await m_DbContext.SaveChangesAsync(cancellationToken);
