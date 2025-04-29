@@ -11,6 +11,8 @@ public class RegisteredApp
 
     [Column("Name"), Required, StringLength(50)]
     public string? Name { get; set; }
+    
+    public byte[]? IconBitmap { get; set; }
 
     public List<Usage>? Usages { get; set; }
 }

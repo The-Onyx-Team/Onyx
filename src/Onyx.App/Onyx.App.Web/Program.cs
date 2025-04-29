@@ -229,6 +229,7 @@ app.MapDefaultEndpoints();
 app.MapAuthEndpoints();
 app.MapDataEndpoints();
 app.MapDeviceEndpoints();
+app.MapAppEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(typeof(Onyx.App.Shared._Imports).Assembly);
