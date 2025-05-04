@@ -21,7 +21,7 @@
         <EnableDefaultCssItems>false</EnableDefaultCssItems>
         <Nullable>enable</Nullable>
 
-        <OutputPath>$(SolutionDir)/build/app</OutputPath>
+        <OutputPath>../../build/app</OutputPath>
 
         <ApplicationTitle>Onyx</ApplicationTitle>
         <ApplicationId>com.onyx-team.onyx.app</ApplicationId>
@@ -50,15 +50,29 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)"/>
-        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)"/>
-        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0"/>
+        <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.3" />
+        <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.50" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="9.0.50" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.3" />
+        <PackageReference Include="OneOf" Version="3.0.271" />
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\Onyx.App.Shared\Onyx.App.Shared.csproj"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <None Include="Platforms\iOS\ServerConnectionHelper.cs">
+        <ExcludeFromCurrentConfiguration>false</ExcludeFromCurrentConfiguration>
+      </None>
+      <None Include="Platforms\MacCatalyst\ServerConnectionHelper.cs">
+        <ExcludeFromCurrentConfiguration>false</ExcludeFromCurrentConfiguration>
+      </None>
+      <None Include="Platforms\Windows\ServerConnectionHelper.cs">
+        <ExcludeFromCurrentConfiguration>false</ExcludeFromCurrentConfiguration>
+      </None>
+    </ItemGroup>
     <ItemGroup>
       <Compile Update="Platforms\Android\Services\UsageStatsService.cs">
         <ExcludeFromCurrentConfiguration>false</ExcludeFromCurrentConfiguration>

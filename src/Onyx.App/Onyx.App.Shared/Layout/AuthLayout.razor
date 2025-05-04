@@ -1,0 +1,31 @@
+@inherits LayoutComponentBase
+@layout AppLayout
+@inject NavigationManager NavigationManager
+
+<div class="auth-wrapper">
+    <div class="auth-nav">
+        <div class="auth-nav-item">
+            <MudText @onclick="@(() => NavigationManager.NavigateTo("/account/manage/profile"))">
+                Profile
+            </MudText>
+        </div>
+        <div class="auth-nav-item">
+            <MudText @onclick="@(() => NavigationManager.NavigateTo("/account/manage/2fa"))">
+                2 Factor Authentication
+            </MudText>
+        </div>
+        <div class="auth-nav-item">
+            <MudText @onclick="@(() => NavigationManager.NavigateTo("/account/manage/external"))">
+                External Logins
+            </MudText>
+        </div>
+        <div class="auth-nav-item">
+            <MudText @onclick="@(() => NavigationManager.NavigateTo("TODO"))">
+                Personal Data
+            </MudText>
+        </div>
+    </div>
+    <div class="auth-content">
+        @Body
+    </div>
+</div>

@@ -1,0 +1,87 @@
+@inherits LayoutComponentBase
+@layout MainLayout
+@inject NavigationManager NavigationManager
+@inject IUserManager UserManager
+
+
+<div id="app-container">
+    <div id="nav">
+        @foreach (var item in NavItems)
+        {
+            var isSelected = item.Url is not null && NavigationManager.Uri.EndsWith(item.Url);
+            <div class="nav-item @(isSelected ? "selected-nav-item" : "")"
+                 style="@(item.ExtraStyle ?? "")"
+                 @onclick="@(() => NavigationManager.NavigateTo(item.Url ?? NavigationManager.Uri))">
+                <MudTooltip Text="@item.DisplayName">
+                    <MudIcon Icon="@item.Icon"/>
+                </MudTooltip>
+            </div>
+        }
+    </div>
+    <div id="app-box">
+        <MudAppBar Class="app-bar">
+            <MudText>Onyx App</MudText>
+            <MudSpacer/>
+            <MudToggleIconButton @bind-Toggled="@MainLayout.IsDarkMode"
+                                 Icon="@Icons.Material.Filled.LightMode"
+                                 ToggledIcon="@Icons.Material.Filled.DarkMode"
+                                 Class="mud-theme-primary"
+                                 ToggledColor="@Color.Success"
+                                 title="@(MainLayout.IsDarkMode ? "On" : "Off")"/>
+            <form action="Account/Logout" method="post">
+                <AntiforgeryToken/>
+                <MudIconButton OnClick="Logout" Icon="@Icons.Material.Filled.Logout"
+                               Color="Color.Tertiary" ButtonType="ButtonType.Submit"/>
+            </form>
+        </MudAppBar>
+        <MudMainContent>
+            @Body
+        </MudMainContent>
+    </div>
+</div>
+
+
+@code
+{
+    [CascadingParameter] public required MainLayout MainLayout { get; set; }
+
+    public struct NavItem
+    {
+        public string? Icon;
+        public string? Url;
+        public required string DisplayName;
+        public string? ExtraStyle;
+    }
+
+    public readonly List<NavItem> NavItems =
+    [
+        new()
+        {
+            Icon = Icons.Material.Filled.Home,
+            DisplayName = "Home",
+            Url = "/home"
+        },
+        new()
+        {
+            Icon = Icons.Material.Filled.Dataset,
+            DisplayName = "Data",
+            Url = "/data"
+        },
+        new()
+        {
+            Icon = Icons.Material.Filled.AccountCircle,
+            DisplayName = "Profile",
+            Url = "/account/manage",
+            ExtraStyle = "margin-top: auto"
+        },
+        new()
+        {
+            Icon = Icons.Material.Filled.Settings,
+            DisplayName = "Settings",
+            Url = "/settings"
+        },
+    ];
+
+    private Task Logout() => UserManager.LogoutAsync();
+}
+
