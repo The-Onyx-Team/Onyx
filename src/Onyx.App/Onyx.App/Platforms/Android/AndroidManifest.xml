@@ -7,27 +7,18 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
-    <application android:name="Onyx.App.MainApplication"
-                 android:debuggable="true"
-                 android:enabled="true"
-                 android:allowBackup="true"
-                 android:icon="@mipmap/appicon"
-                 android:roundIcon="@mipmap/appicon_round"
+    <application android:name="Onyx.App.MainApplication" 
+                 android:debuggable="true" 
+                 android:enabled="true" 
+                 android:allowBackup="true" 
+                 android:permission="android.permission.RECEIVE_BOOT_COMPLETED" 
+                 android:icon="@mipmap/appicon" 
+                 android:roundIcon="@mipmap/appicon_round" 
                  android:supportsRtl="true">
-        <receiver android:name=".Services.BootReceiverService"
-                  android:directBootAware="true"
-                  android:enabled="true"
-                  android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </receiver>
-        <service android:name=".Services.BackgroundService"
-                 android:foregroundServiceType="dataSync"
-                 android:enabled="true"
-                 android:exported="true" 
-                 android:directBootAware="true"/>
+        <service
+                android:name=".UsageDataForegroundService"
+                android:exported="false"
+                android:foregroundServiceType="dataSync" />
+
     </application>
 </manifest>
