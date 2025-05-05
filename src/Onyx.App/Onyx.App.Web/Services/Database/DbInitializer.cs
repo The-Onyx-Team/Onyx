@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Onyx.Data.DataBaseSchema;
 using Onyx.Data.DataBaseSchema.Identity;
+using Onyx.Data.DataBaseSchema.TableEntities;
 
 namespace Onyx.App.Web.Services.Database;
 
@@ -52,6 +53,120 @@ public class DbInitializer(
 
         if (env.IsDevelopment())
         {
+            if (await m_UserManager.FindByNameAsync("admin") is not null)
+                return;
+
+            await m_UserManager.CreateAsync(new ApplicationUser
+                {
+                    UserName = "admin",
+                    Email = "admin@admin.com"
+                },
+                "Admin123456");
+
+            var user = await m_UserManager.FindByNameAsync("admin");
+
+            m_DbContext.Devices.Add(new Device()
+            {
+                Name = "Admin Device 1",
+                UserId = user!.Id,
+            });
+            m_DbContext.Devices.Add(new Device()
+            {
+                Name = "Admin Device 2",
+                UserId = user!.Id,
+            });
+            m_DbContext.Devices.Add(new Device()
+            {
+                Name = "Admin Device 3",
+                UserId = user!.Id,
+            });
+
+            m_DbContext.RegisteredApps.Add(new RegisteredApp()
+            {
+                Name = "Test App 1"
+            });
+            m_DbContext.RegisteredApps.Add(new RegisteredApp()
+            {
+                Name = "Test App 2"
+            });
+            m_DbContext.RegisteredApps.Add(new RegisteredApp()
+            {
+                Name = "Test App 3"
+            });
+
+            m_DbContext.Categories.AddRange([
+                new Category()
+                {
+                    Name = "Test Category 1"
+                },
+                new Category()
+                {
+                    Name = "Test Category 2"
+                },
+                new Category()
+                {
+                    Name = "Test Category 3"
+                }
+            ]);
+
+            m_DbContext.Usages.AddRange([
+                new Usage
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Date = DateTime.Now.AddDays(-1),
+                    Duration = TimeSpan.FromHours(1),
+                    DeviceId = 1,
+                    AppId = 1,
+                    CategoryId = 1,
+                },
+                new Usage
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Date = DateTime.Now.AddDays(-2),
+                    Duration = TimeSpan.FromHours(2),
+                    DeviceId = 1,
+                    AppId = 2,
+                    CategoryId = 2,
+                },
+                new Usage
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Date = DateTime.Now.AddDays(-3),
+                    Duration = TimeSpan.FromHours(3),
+                    DeviceId = 1,
+                    AppId = 3,
+                    CategoryId = 3,
+                },
+                new Usage
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Date = DateTime.Now.AddDays(-1),
+                    Duration = TimeSpan.FromHours(4),
+                    DeviceId = 2,
+                    AppId = 1,
+                    CategoryId = 1,
+                },
+                new Usage
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Date = DateTime.Now.AddDays(-2),
+                    Duration = TimeSpan.FromHours(5),
+                    DeviceId = 2,
+                    AppId = 2,
+                    CategoryId = 2,
+                },
+                new Usage
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Date = DateTime.Now.AddDays(-3),
+                    Duration = TimeSpan.FromHours(6),
+                    DeviceId = 2,
+                    AppId = 3,
+                    CategoryId = 3,
+                },
+            ]);
+            
+            await m_DbContext.SaveChangesAsync(cancellationToken);
         }
 
         await m_DbContext.SaveChangesAsync(cancellationToken);
