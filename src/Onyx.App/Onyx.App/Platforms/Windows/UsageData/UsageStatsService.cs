@@ -6,6 +6,6 @@ public class UsageStatsService : IStatsService
 {
     public void OpenUsageAccessSettings()
     {
-        throw new NotImplementedException();
+
     }
 }
