@@ -2,11 +2,11 @@
 
 namespace Onyx.App.UsageData;
 
-public class StatsHelper : IStatsHelper
+public class StatsHelper(DataCollector dataCollector) : IStatsHelper
 {
     public List<Stats>? GetUsageStatsTimeIntervalMilliseconds(long startTime, long endTime)
     {
-        throw new NotImplementedException();
+        return dataCollector.Stats;
     }
     
     public string GetAppNameFromPackage(string packageName)
