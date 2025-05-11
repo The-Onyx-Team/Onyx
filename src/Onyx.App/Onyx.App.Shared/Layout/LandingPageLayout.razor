@@ -1,33 +1,6 @@
 ﻿@inherits LayoutComponentBase
 @layout MainLayout
 
-<style>
-    .logo-container {
-        height: 10%;
-        width: 100%;
-        color: #FFFFFF;
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-    }
-    
-    .toolbar {
-        display: flex;
-        justify-content: space-between;
-    }
-    
-    .logo {
-        max-width: 60px; 
-        min-width: 30px; 
-        width: 50%; 
-        height: auto;
-    }
-    
-    .content {
-        height: 100%;
-    }
-</style>
-
 <script>
     const sections = document.querySelectorAll(".section");
     let currentIndex = 0;
@@ -49,7 +22,7 @@
     }, { passive: false });
 </script>
 
-<MudAppBar Color="Color.Primary" Fixed="true" ToolBarClass="mud-width-full toolbar" Class="mud-width-full logo-container">
+<MudAppBar Color="Color.Primary" Fixed="true" ToolBarClass="mud-width-full toolbar" Class="mud-width-full logo-container appbar-full">
     <div class="pa-0 ma-5 d-flex align-center">
         <MudImage Src="/img/Icon.png" Alt="Icon" Class="logo mr-7"/>
         <MudText Typo="Typo.h4">Onyx</MudText>
@@ -64,6 +37,20 @@
         <MudIconButton Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit"
                        Href="/account/login" Size="Size.Large" title="Login"/>
     </div>
+</MudAppBar>
+<MudAppBar Color="Color.Primary" ToolBarClass="mud-width-full toolbar" Class="mud-width-full logo-container appbar-top">
+    <div class="pa-0 ma-5 d-flex align-center">
+        <MudImage Src="/img/Icon.png" Alt="Icon" Class="logo mr-7"/>
+        <MudText Typo="Typo.h4">Onyx</MudText>
+    </div>
+</MudAppBar>
+<MudAppBar Color="Color.Primary" Fixed="true" ToolBarClass="mud-width-full toolbar" Class="mud-width-full logo-container mud-appbar-fixed-bottom appbar-bottom">
+    <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Inherit"
+                   Href="/downloads" Size="Size.Large" title="Downloads"/>
+    <MudIconButton Icon="@Icons.Material.Filled.NewLabel" Color="Color.Inherit"
+                   Href="/account/register" Size="Size.Large" title="Register"/>
+    <MudIconButton Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit"
+                   Href="/account/login" Size="Size.Large" title="Login"/>
 </MudAppBar>
 
 <div class="content ma-0 pa-0 mud-width-full">

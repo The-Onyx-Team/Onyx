@@ -17,8 +17,8 @@
                  android:supportsRtl="true">
         <service
                 android:name=".UsageDataForegroundService"
-                android:exported="false"
-                android:foregroundServiceType="dataSync" />
+                android:foregroundServiceType="dataSync"
+                android:exported="false" />
 
     </application>
 </manifest>
