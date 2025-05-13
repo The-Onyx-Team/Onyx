@@ -2,8 +2,6 @@
 @using Onyx.Data.DataBaseSchema.TableEntities
 
 @layout AppLayout
-<h3>Settings</h3>
-
 
 <MudExpansionPanels>
     <MudExpansionPanel Text="Registered devices" MaxHeight="150" Expanded="true">
@@ -13,24 +11,24 @@
         }
     </MudExpansionPanel>
     <MudExpansionPanel Text="Register new device" MaxHeight="500">
-        <MudForm @ref="form" @bind-IsValid="@success" @bind-Errors="@errors">
-            
-        </MudForm>
     </MudExpansionPanel>
     <MudExpansionPanel Text="Device Name" MaxHeight="1000">
-        <MudSelect>
+        <!--  <MudSelect>
             @foreach (var device in _MyDevices)
             {
                 <MudSelectItem>@device.Name</MudSelectItem>
             }
-        </MudSelect>
+        </MudSelect>-->
+    </MudExpansionPanel>
+    <MudExpansionPanel Text="Max Time per App" MaxHeight="1000">
+
     </MudExpansionPanel>
 </MudExpansionPanels>
 
 
 @code {
     private Device NewDevice;
-    private List<Device> _MyDevices;
+    private List<Device> _MyDevices = new();
     
     protected override Task OnInitializedAsync()
     {
