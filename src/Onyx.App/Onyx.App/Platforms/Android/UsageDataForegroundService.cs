@@ -8,7 +8,7 @@ using Onyx.App.Shared.Services.Usage;
 
 namespace Onyx.App;
 
-[Service]
+[Service(ForegroundServiceType = ForegroundService.TypeDataSync)]
 public class UsageDataForegroundService : Service
 {
     private Timer? m_Timer;
@@ -58,7 +58,10 @@ public class UsageDataForegroundService : Service
 #pragma warning restore CS0618 // Type or member is obsolete
             var usageStatsService = serviceProvider.GetService<IStatsService>();
 
-            var result = usageStatsService != null && await usageStatsService.UploadData();
+            var nullCheck = usageStatsService != null;
+            Console.WriteLine((bool)nullCheck);
+            
+            var result = await usageStatsService.UploadData();
             if (!result) throw new Exception("Failed to upload data");
         }
         catch (Exception ex)

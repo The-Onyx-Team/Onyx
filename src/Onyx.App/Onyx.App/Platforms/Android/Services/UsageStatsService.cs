@@ -32,10 +32,14 @@ public class UsageStatsService(IServiceProvider provider) : IStatsService
         long startTime = endTime - SyncIntervalHelper.SyncIntervalInMilliseconds;
         var data = m_StatsService.GetUsageStatsTimeIntervalMilliseconds(startTime, endTime);
 
+        m_HttpClientWrapper.SetBaseUrl(ServerConnectionHelper.BaseUrl);
+        
         var result = await m_HttpClientWrapper.PostAsync<bool>(
             "/api/data/usage/upload",
             data!
         );
+
+        Console.WriteLine(result.ToString());
 
         return result is { IsT0: true, AsT0: true };
     }
