@@ -2,8 +2,6 @@
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
@@ -11,21 +9,21 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="9.0.3" />
-    <PackageReference Include="Microsoft.AspNetCore.Components" Version="9.0.3" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Analyzers" Version="9.0.3" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="9.0.3" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Forms" Version="9.0.3" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.3" />
-    <PackageReference Include="Microsoft.AspNetCore.Metadata" Version="9.0.3" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.3" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.3" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.3" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.3" />
-    <PackageReference Include="Microsoft.Extensions.Primitives" Version="9.0.3" />
-    <PackageReference Include="Microsoft.JSInterop" Version="9.0.3" />
-    <PackageReference Include="MudBlazor" Version="8.4.0" />
-    <PackageReference Include="Net.Codecrete.QrCodeGenerator" Version="2.0.6" />
+    <PackageReference Include="Microsoft.AspNetCore.Authorization"/>
+    <PackageReference Include="Microsoft.AspNetCore.Components"/>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Analyzers"/>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization"/>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Forms"/>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web"/>
+    <PackageReference Include="Microsoft.AspNetCore.Metadata"/>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions"/>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions"/>
+    <PackageReference Include="Microsoft.Extensions.Options"/>
+    <PackageReference Include="Microsoft.Extensions.Primitives"/>
+    <PackageReference Include="Microsoft.JSInterop"/>
+    <PackageReference Include="MudBlazor"/>
+    <PackageReference Include="Net.Codecrete.QrCodeGenerator"/>
   </ItemGroup>
 
   <ItemGroup>

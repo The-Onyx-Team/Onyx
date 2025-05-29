@@ -59,7 +59,7 @@ builder.Services.TryAddScoped<IStorage, WebStorage>();
 builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
 {
     options.UseSqlite(
-        config.GetConnectionString("Data Source=app.db")!,
+        "Data Source=app.db",
         x => x.MigrationsAssembly(typeof(ApplicationDbContext).Assembly)
     );
 });

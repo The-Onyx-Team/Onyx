@@ -2,8 +2,6 @@
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <OutputPath>../../../build/web</OutputPath>
     <UserSecretsId>2d5df833-3084-4d60-8700-aae50895ab8f</UserSecretsId>
   </PropertyGroup>
@@ -16,19 +14,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="9.1.0" />
-    <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Analyzers" Version="9.0.3" />
-    <PackageReference Include="AspNet.Security.OAuth.GitHub" Version="9.1.0" />
-    <PackageReference Include="Google.Apis.Auth.AspNetCore3" Version="1.69.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.3" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" Version="9.0.3" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.3" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.3">
+    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer"/>
+    <PackageReference Include="Blazored.LocalStorage"/>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Analyzers"/>
+    <PackageReference Include="AspNet.Security.OAuth.GitHub"/>
+    <PackageReference Include="Google.Apis.Auth.AspNetCore3"/>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"/>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount"/>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi"/>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="System.IO.Abstractions" Version="22.0.12" />
+    <PackageReference Include="System.IO.Abstractions"/>
   </ItemGroup>
   
 </Project>

@@ -1,0 +1,21 @@
+<Project>
+    <PropertyGroup>
+        <Copyright>$(CopyrightNetFoundation)</Copyright>
+        <PackageLicenseExpression>GPL-3.0</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/The-Onyx-Team/Onyx</PackageProjectUrl>
+        <Nullable>enable</Nullable>
+        <DebugType>embedded</DebugType>
+        <DebugSymbols>true</DebugSymbols>
+        <StrongNameKeyId>Open</StrongNameKeyId>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UsePublicApiAnalyzers>true</UsePublicApiAnalyzers>
+
+        <BuildOs Condition="$([MSBuild]::IsOsPlatform('Linux'))">linux</BuildOs>
+        <BuildOs Condition="$([MSBuild]::IsOsPlatform('OSX'))">darwin</BuildOs>
+        <BuildOs Condition=" '$(BuildOs)' == '' ">windows</BuildOs>
+        <BuildArch Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X86' ">386</BuildArch>
+        <BuildArch Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64' ">arm64</BuildArch>
+        <BuildArch Condition=" '$(BuildArch)' == '' ">amd64</BuildArch>
+    </PropertyGroup>
+
+</Project>

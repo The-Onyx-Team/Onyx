@@ -1,3 +1,6 @@
+using Aspire.Hosting;
+using Aspire.Hosting.ApplicationModel;
+
 namespace AppHost.Resources;
 
 public static class MailDevResourceBuilderExtensions
