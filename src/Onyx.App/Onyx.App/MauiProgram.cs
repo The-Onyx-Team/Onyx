@@ -24,7 +24,7 @@ namespace Onyx.App
                 .UseMauiApp<App>()
                 .ConfigureFonts(fonts => { fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular"); });
 
-            #if WINDOWS
+#if WINDOWS
             builder.ConfigureLifecycleEvents(lifecycle =>
             {
                 lifecycle.AddWindows(lifecycleBuilder => lifecycleBuilder.OnWindowCreated(window =>
@@ -53,19 +53,25 @@ namespace Onyx.App
                 }));
             });
 
-            var dataCollector = new DataCollector();
-            builder.Services.AddSingleton(dataCollector);
-            #endif
+            builder.Services.AddSingleton<DataCollector>();
+            
+            Task.Run(async () =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(5));
+                MauiWinUIApplication.Current.Services.GetRequiredService<DataCollector>();
+            });
+#endif
 
             builder.Services.AddHttpClient<HttpClientWrapper>();
             builder.Services.AddScoped<AuthApi>();
+            builder.Services.AddScoped<UsageApi>();
 
             builder.Services.AddMauiBlazorWebView();
             builder.Services.AddMudServices();
             builder.Services.AddSingleton<IStorage, MauiStorage>();
 
             builder.Services.AddSingleton<AuthenticationService>();
-            builder.Services.AddScoped<AuthenticationStateProvider, MauiAuthenticationStateProvider>();
+            builder.Services.AddSingleton<AuthenticationStateProvider, MauiAuthenticationStateProvider>();
             builder.Services.AddAuthorizationCore();
             builder.Services.AddSingleton<IUserManager, UserManager>();
 

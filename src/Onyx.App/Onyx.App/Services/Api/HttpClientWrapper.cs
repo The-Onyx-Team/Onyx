@@ -32,6 +32,14 @@ public class HttpClientWrapper
         m_Logger = logger;
         m_AuthenticationStateProvider = authenticationStateProvider;
 
+        var state = m_AuthenticationStateProvider.GetAuthenticationStateAsync().GetAwaiter().GetResult();
+        var user = state.User;
+
+        if (user.Identity?.IsAuthenticated == true && user.GetAuthTokenAsync().GetAwaiter().GetResult() is { } token)
+        {
+            SetAuthToken(token);
+        }
+
         m_AuthenticationStateProvider.AuthenticationStateChanged += async task =>
         {
             var authState = await task;
@@ -72,9 +80,9 @@ public class HttpClientWrapper
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                return !string.IsNullOrWhiteSpace(errorContent) ? 
-                    new HttpError($"{errorContent}", (int)response.StatusCode) :
-                    new HttpError($"HTTP Error: {response.ReasonPhrase}", (int)response.StatusCode);
+                return !string.IsNullOrWhiteSpace(errorContent)
+                    ? new HttpError($"{errorContent}", (int)response.StatusCode)
+                    : new HttpError($"HTTP Error: {response.ReasonPhrase}", (int)response.StatusCode);
             }
 
             var content = await response.Content.ReadAsStringAsync();
@@ -119,9 +127,9 @@ public class HttpClientWrapper
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                return !string.IsNullOrWhiteSpace(errorContent) ? 
-                    new HttpError($"{errorContent}", (int)response.StatusCode) :
-                    new HttpError($"HTTP Error: {response.ReasonPhrase}", (int)response.StatusCode);
+                return !string.IsNullOrWhiteSpace(errorContent)
+                    ? new HttpError($"{errorContent}", (int)response.StatusCode)
+                    : new HttpError($"HTTP Error: {response.ReasonPhrase}", (int)response.StatusCode);
             }
 
             var responseContent = await response.Content.ReadAsStringAsync();

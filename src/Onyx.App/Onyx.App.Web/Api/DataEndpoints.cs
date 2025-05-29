@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Onyx.App.Shared.Services.Usage;
 using Onyx.Data.ApiSchema;
 
@@ -9,8 +10,7 @@ public static class DataEndpoints
     public static IEndpointRouteBuilder MapDataEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var dataApi = endpoints.MapGroup("/api/data")
-            .WithTags("Data API")
-            .RequireAuthorization();
+            .WithTags("Data API");
         
         dataApi.MapGet("/usage", GetUsageDataAsync)
             .WithName("GetUsageData")
@@ -46,12 +46,13 @@ public static class DataEndpoints
         return Results.Ok(data);
     }
 
+    [Authorize(AuthenticationSchemes = "JwtSchema")]
     private static async Task<IResult> UploadUsageData(
         [FromServices] IUsageDataService usageDataService,
         [FromBody] List<UsageDto> usageData,
         [FromQuery] int deviceId)
     {
         var result = await usageDataService.UploadUsageData(usageData, deviceId);
-        return Results.Ok(result);
+        return Results.Ok(new {result});
     }
 }

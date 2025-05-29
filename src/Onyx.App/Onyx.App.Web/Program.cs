@@ -120,10 +120,13 @@ builder.Services.AddAuthentication()
         {
             ValidateIssuer = false,
             ValidateAudience = false,
-            ValidateLifetime = true,
+            ValidateLifetime = false,
             ClockSkew = TimeSpan.Zero,
             ValidateActor = false,
-            ValidateIssuerSigningKey = false
+            ValidateIssuerSigningKey = false,
+            ValidateTokenReplay = false,
+            ValidateSignatureLast = false,
+            ValidateWithLKG = false
         };
 
         options.MapInboundClaims = true;

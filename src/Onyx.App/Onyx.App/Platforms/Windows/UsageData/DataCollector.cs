@@ -1,23 +1,60 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Components.Authorization;
+using Onyx.App.Services.Api;
 using Onyx.App.Shared.Services.Usage;
+using Onyx.Data.ApiSchema;
 
 namespace Onyx.App.UsageData;
 
 public class DataCollector
 {
+    private UsageApi m_Api;
+    private AuthenticationStateProvider m_AuthStateProvider;
+
     public List<Stats> Stats { get; set; } = new();
 
-    public DataCollector()
+    public DataCollector(IServiceProvider serviceProvider)
     {
+        using var scope = serviceProvider.CreateScope();
+        m_Api = scope.ServiceProvider.GetRequiredService<UsageApi>();
+        m_AuthStateProvider = scope.ServiceProvider.GetRequiredService<AuthenticationStateProvider>();
+
         new Thread(() =>
         {
             while (true)
             {
                 FetchData();
+                SyncData().Wait();
                 Thread.Sleep(1000);
             }
         }).Start();
+    }
+
+    private async Task SyncData()
+    {
+        var state = await m_AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = state.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+        var userName = state.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name);
+        
+        if (userId is null)
+            return;
+
+        Console.WriteLine(userId);
+        Console.WriteLine(userName);
+        
+        await m_Api.UploadDataAsync(1, Stats.Select(s => new UsageDto()
+        {
+            Action = s.Name,
+            DeviceName = "Workstation",
+            UserId = userId.Value,
+            DeviceId = 0,
+            UserName = userId.Value,
+            Date = (DateTime)s.IntervalStart!,
+            IconUrl = "",
+            TimeSpan = s.TimeInForeground
+        }).ToList());
     }
 
     [DllImport("user32.dll")]

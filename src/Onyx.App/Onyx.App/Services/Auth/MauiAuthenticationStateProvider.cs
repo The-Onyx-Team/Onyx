@@ -47,6 +47,7 @@ public class MauiAuthenticationStateProvider(AuthenticationService authService) 
     private static ClaimsIdentity GetUserClaimsIdentity(UserSession session)
     {
         var identity = new ClaimsIdentity([
+            new Claim(ClaimTypes.NameIdentifier, session.Id ?? string.Empty),
             new Claim(ClaimTypes.Name, session.Name ?? string.Empty),
             new Claim(ClaimTypes.Email, session.Email ?? string.Empty),
             new Claim(ClaimTypes.Role, session.Role ?? string.Empty),
