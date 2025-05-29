@@ -1,9 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Onyx.App.Shared.Services.Usage;
-using Onyx.Data.ApiSchema;
-
-namespace Onyx.App.Web.Api;
+﻿namespace Onyx.App.Web.Api;
 
 public static class DataEndpoints
 {

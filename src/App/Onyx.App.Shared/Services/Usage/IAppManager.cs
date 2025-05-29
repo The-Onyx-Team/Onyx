@@ -1,5 +1,3 @@
-using Onyx.Data.ApiSchema;
-
 namespace Onyx.App.Shared.Services.Usage;
 
 public interface IAppManager

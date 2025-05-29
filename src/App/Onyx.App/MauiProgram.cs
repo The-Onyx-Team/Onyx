@@ -1,9 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.LifecycleEvents;
-#if WINDOWS
-using Microsoft.UI.Windowing;
-#endif
 using MudBlazor.Services;
 using Onyx.App.Services;
 using Onyx.App.Services.Api;

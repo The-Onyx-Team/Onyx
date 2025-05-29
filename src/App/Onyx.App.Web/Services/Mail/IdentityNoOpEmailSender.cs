@@ -1,8 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
-using Onyx.Data.DataBaseSchema.Identity;
-
-namespace Onyx.App.Web.Services.Mail;
+﻿namespace Onyx.App.Web.Services.Mail;
 
 public sealed class IdentityNoOpEmailSender : IEmailSender<ApplicationUser>
 {

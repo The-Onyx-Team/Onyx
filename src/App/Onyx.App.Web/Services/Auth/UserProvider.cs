@@ -1,8 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Onyx.App.Shared.Services.Auth;
-using Onyx.Data.DataBaseSchema.Identity;
-
-namespace Onyx.App.Web.Services.Auth;
+﻿namespace Onyx.App.Web.Services.Auth;
 
 public class UserProvider(IHttpContextAccessor contextAccessor, UserManager<ApplicationUser> userManager) : IUserProvider
 {

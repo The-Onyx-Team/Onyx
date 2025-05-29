@@ -1,6 +1,4 @@
-﻿using System.Security.Claims;
-
-namespace Onyx.App.Services.Auth;
+﻿namespace Onyx.App.Services.Auth;
 
 public static class ClaimsPrincipalExtensions
 {

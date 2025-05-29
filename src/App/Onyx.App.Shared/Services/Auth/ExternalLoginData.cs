@@ -1,6 +1,4 @@
-﻿using System.Security.Claims;
-
-namespace Onyx.App.Shared.Services.Auth;
+﻿namespace Onyx.App.Shared.Services.Auth;
 
 public class ExternalLoginData
 {

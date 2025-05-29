@@ -1,6 +1,3 @@
-using Microsoft.AspNetCore.Mvc;
-using Onyx.App.Shared.Services.Usage;
-
 namespace Onyx.App.Web.Api;
 
 public static class DeviceEndpoints

@@ -1,6 +1,3 @@
-using Blazored.LocalStorage;
-using Onyx.App.Shared.Services;
-
 namespace Onyx.App.Web.Services;
 
 public class WebStorage(ILocalStorageService storage, IHttpContextAccessor contextAccessor) : IStorage

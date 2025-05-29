@@ -1,11 +1,3 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Cryptography;
-using JetBrains.Annotations;
-using Microsoft.IdentityModel.Tokens;
-using Onyx.App.Web.Services.Auth;
-using Shouldly;
-using Xunit;
-
 namespace UnitTests.Services.Auth;
 
 [TestSubject(typeof(JwtTools))]

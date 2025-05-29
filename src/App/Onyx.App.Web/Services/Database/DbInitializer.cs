@@ -1,11 +1,4 @@
-﻿using System.Diagnostics;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Onyx.Data.DataBaseSchema;
-using Onyx.Data.DataBaseSchema.Identity;
-using Onyx.Data.DataBaseSchema.TableEntities;
-
-namespace Onyx.App.Web.Services.Database;
+﻿namespace Onyx.App.Web.Services.Database;
 
 public class DbInitializer(
     IWebHostEnvironment env,

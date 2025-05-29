@@ -1,8 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Net.Mime;
-
-namespace Onyx.Data.DataBaseSchema.TableEntities;
+﻿namespace Onyx.Data.DataBaseSchema.TableEntities;
 
 [Table("Usage")]
 public class Usage

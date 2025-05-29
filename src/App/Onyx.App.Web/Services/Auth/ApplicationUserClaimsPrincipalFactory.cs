@@ -1,9 +1,4 @@
-﻿using System.Security.Claims;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Options;
-using Onyx.Data.DataBaseSchema.Identity;
-
-namespace Onyx.App.Web.Services.Auth;
+﻿namespace Onyx.App.Web.Services.Auth;
 
 public class ApplicationUserClaimsPrincipalFactory(
     UserManager<ApplicationUser> userManager,

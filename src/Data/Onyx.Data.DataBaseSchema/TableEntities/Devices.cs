@@ -1,6 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Onyx.Data.DataBaseSchema.Identity;
+﻿using Onyx.Data.DataBaseSchema.Identity;
 
 namespace Onyx.Data.DataBaseSchema.TableEntities;
 

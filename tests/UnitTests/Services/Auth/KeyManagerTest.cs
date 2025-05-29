@@ -1,9 +1,3 @@
-using System.Security.Cryptography;
-using JetBrains.Annotations;
-using Onyx.App.Web.Services.Auth;
-using Shouldly;
-using Xunit;
-
 namespace UnitTests.Services.Auth;
 
 [TestSubject(typeof(KeyManager))]

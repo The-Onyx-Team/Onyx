@@ -1,9 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
-using Onyx.Data.DataBaseSchema.Identity;
-using Onyx.Data.DataBaseSchema.TableEntities;
-
-namespace Onyx.Data.DataBaseSchema;
+﻿namespace Onyx.Data.DataBaseSchema;
 
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
     : IdentityDbContext<ApplicationUser, ApplicationRole, string>(options)

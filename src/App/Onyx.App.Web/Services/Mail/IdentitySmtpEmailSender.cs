@@ -1,9 +1,3 @@
-using System.Net.Mail;
-using System.Net.Mime;
-using System.Text;
-using Microsoft.AspNetCore.Identity;
-using Onyx.Data.DataBaseSchema.Identity;
-
 namespace Onyx.App.Web.Services.Mail;
 
 public class IdentitySmtpEmailSender(SmtpClient smtpClient) : IEmailSender<ApplicationUser>

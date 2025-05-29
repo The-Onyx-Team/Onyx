@@ -1,9 +1,3 @@
-using Microsoft.EntityFrameworkCore;
-using Onyx.App.Shared.Services.Usage;
-using Onyx.Data.ApiSchema;
-using Onyx.Data.DataBaseSchema;
-using Onyx.Data.DataBaseSchema.TableEntities;
-
 namespace Onyx.App.Web.Services.Data;
 
 public class UsageDataService(ApplicationDbContext dbContext, IHttpContextAccessor contextAccessor)

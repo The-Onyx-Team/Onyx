@@ -1,13 +1,3 @@
-using System.Security.Claims;
-using System.Text;
-using System.Text.Encodings.Web;
-using Microsoft.AspNetCore.Antiforgery;
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.JSInterop;
-using Onyx.App.Shared.Services.Auth;
-using Onyx.Data.DataBaseSchema.Identity;
 using AuthenticationScheme = Onyx.App.Shared.Services.Auth.AuthenticationScheme;
 
 namespace Onyx.App.Web.Services.Auth;

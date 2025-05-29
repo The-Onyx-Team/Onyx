@@ -1,6 +1,4 @@
-﻿using Onyx.App.Shared.Services.Usage;
-
-namespace Onyx.App.UsageData;
+﻿namespace Onyx.App.UsageData;
 
 public class UsageStatsService : IStatsService
 {

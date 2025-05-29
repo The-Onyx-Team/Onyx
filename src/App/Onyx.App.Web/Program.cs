@@ -1,28 +1,4 @@
-﻿using System.IO.Abstractions;
-using System.Net.Mail;
-using Blazored.LocalStorage;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.IdentityModel.Tokens;
-using MudBlazor.Services;
-using Onyx.App.Shared.Services;
-using Onyx.App.Shared.Services.Auth;
-using Onyx.App.Shared.Services.Usage;
-using Onyx.App.Web.Api;
-using Onyx.App.Web.Components;
-using Onyx.App.Web.Services;
-using Onyx.App.Web.Services.Auth;
-using Onyx.App.Web.Services.Data;
-using Onyx.App.Web.Services.Database;
-using Onyx.App.Web.Services.Mail;
-using Onyx.Data.DataBaseSchema;
-using Onyx.Data.DataBaseSchema.Identity;
-using ServiceDefaults;
-
-// Load Key
+﻿// Load Key
 
 await KeyManager.CreateKeyIfNotExists("key.rsa");
 var rsa = await KeyManager.LoadKey("key.rsa");

@@ -1,24 +1,3 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using JetBrains.Annotations;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
-using Moq;
-using Onyx.App.Web.Api;
-using Onyx.App.Web.Services.Auth;
-using Onyx.Data.ApiSchema;
-using Onyx.Data.DataBaseSchema.Identity;
-using Shouldly;
-using Xunit;
-using SignInResult = Microsoft.AspNetCore.Identity.SignInResult;
-
 namespace UnitTests.Api;
 
 [TestSubject(typeof(AuthEndpoints))]
