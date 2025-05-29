@@ -1,0 +1,18 @@
+﻿<Solution>
+  <Folder Name="/App/">
+    <Project Path="src\App\Onyx.App.Shared\Onyx.App.Shared.csproj" Type="Classic C#" />
+    <Project Path="src\App\Onyx.App.Web\Onyx.App.Web.csproj" Type="Classic C#" />
+    <Project Path="src\App\Onyx.App\Onyx.App.csproj" Type="Classic C#" />
+  </Folder>
+  <Folder Name="/Data/">
+    <Project Path="src\Data\Onyx.Data.ApiSchema\Onyx.Data.ApiSchema.csproj" Type="Classic C#" />
+    <Project Path="src\Data\Onyx.Data.DataBaseSchema\Onyx.Data.DataBaseSchema.csproj" Type="Classic C#" />
+  </Folder>
+  <Folder Name="/Hosting/">
+    <Project Path="src\Hosting\AppHost\AppHost.csproj" Type="Classic C#" />
+    <Project Path="src\Hosting\ServiceDefaults\ServiceDefaults.csproj" Type="Classic C#" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="tests\UnitTests\UnitTests.csproj" Type="Classic C#" />
+  </Folder>
+</Solution>

@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Onyx.Data.SQLite.Migrations
+namespace Onyx.Data.DataBaseSchema.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialMigration : Migration
+    public partial class InitMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -70,7 +70,7 @@ namespace Onyx.Data.SQLite.Migrations
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     Name = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    IconBitmap = table.Column<byte[]>(type: "BLOB", nullable: true),
+                    IconBitmap = table.Column<byte[]>(type: "BLOB", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -262,7 +262,7 @@ namespace Onyx.Data.SQLite.Migrations
                 columns: table => new
                 {
                     UserId = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    GroupId = table.Column<int>(type: "INTEGER", maxLength: 50, nullable: false)
+                    GroupId = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {

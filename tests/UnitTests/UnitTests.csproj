@@ -31,7 +31,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Onyx.App\Onyx.App.Web\Onyx.App.Web.csproj" />
+    <ProjectReference Include="..\..\src\App\Onyx.App.Web\Onyx.App.Web.csproj" />
+    <ProjectReference Include="..\..\src\Data\Onyx.Data.ApiSchema\Onyx.Data.ApiSchema.csproj" />
+    <ProjectReference Include="..\..\src\Data\Onyx.Data.DataBaseSchema\Onyx.Data.DataBaseSchema.csproj" />
   </ItemGroup>
 
 </Project>

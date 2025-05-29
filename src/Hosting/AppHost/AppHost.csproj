@@ -17,7 +17,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\Onyx.App\Onyx.App.Web\Onyx.App.Web.csproj" />
+      <ProjectReference Include="..\..\App\Onyx.App.Web\Onyx.App.Web.csproj" />
     </ItemGroup>
 
 </Project>

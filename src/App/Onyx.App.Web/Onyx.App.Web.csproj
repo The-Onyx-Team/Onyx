@@ -9,9 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Data\Onyx.Data.ApiSchema\Onyx.Data.ApiSchema.csproj" />
+    <ProjectReference Include="..\..\Data\Onyx.Data.DataBaseSchema\Onyx.Data.DataBaseSchema.csproj" />
     <ProjectReference Include="..\..\Hosting\ServiceDefaults\ServiceDefaults.csproj" />
-    <ProjectReference Include="..\..\Onyx.Data\Onyx.Data.SQLite\Onyx.Data.SQLite.csproj" />
-    <ProjectReference Include="..\..\Onyx.Data\Onyx.Data.SqlServer\Onyx.Data.SqlServer.csproj" />
     <ProjectReference Include="..\Onyx.App.Shared\Onyx.App.Shared.csproj" />
   </ItemGroup>
 

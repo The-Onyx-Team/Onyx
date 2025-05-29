@@ -29,7 +29,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Onyx.Data\Onyx.Data.ApiSchema\Onyx.Data.ApiSchema.csproj" />
+    <ProjectReference Include="..\..\Data\Onyx.Data.ApiSchema\Onyx.Data.ApiSchema.csproj" />
   </ItemGroup>
 
 </Project>

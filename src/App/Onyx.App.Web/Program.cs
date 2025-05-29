@@ -21,7 +21,6 @@ using Onyx.App.Web.Services.Mail;
 using Onyx.Data.DataBaseSchema;
 using Onyx.Data.DataBaseSchema.Identity;
 using ServiceDefaults;
-using static Onyx.App.Web.Services.Database.DatabaseProvider;
 
 // Load Key
 
@@ -57,50 +56,14 @@ builder.Services.TryAddScoped<IStorage, WebStorage>();
 
 // Database
 
-var sqlServerConnectionString = config.GetConnectionString(SqlServer.Name);
-var sqliteConnectionString = config.GetConnectionString(SQLite.Name);
-var provider = config.GetValue("provider", SQLite.Name);
+builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
+{
+    options.UseSqlite(
+        config.GetConnectionString("Data Source=app.db")!,
+        x => x.MigrationsAssembly(typeof(ApplicationDbContext).Assembly)
+    );
+});
 
-if (provider == SqlServer.Name && sqlServerConnectionString is not null)
-{
-    builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
-    {
-        options.UseSqlServer(
-            sqlServerConnectionString,
-            x =>
-            {
-                x.EnableRetryOnFailure();
-                x.MigrationsAssembly(SqlServer.Assembly);
-            });
-    });
-}
-else if (provider == SQLite.Name && sqliteConnectionString is not null)
-{
-    builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
-    {
-        options.UseSqlite(
-            config.GetConnectionString(SQLite.Name)!,
-            x => x.MigrationsAssembly(SQLite.Assembly)
-        );
-    });
-}
-else if (provider == SqlServer.Name && config.GetConnectionString("db") is not null)
-{
-    builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
-    {
-        options.UseSqlServer(
-            config.GetConnectionString("db"),
-            x =>
-            {
-                x.MigrationsAssembly(SqlServer.Assembly);
-                x.EnableRetryOnFailure();
-            });
-    });
-}
-else
-{
-    throw new InvalidOperationException("No valid database provider was found.");
-}
 
 builder.Services.AddSingleton<DbInitializer>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<DbInitializer>());
