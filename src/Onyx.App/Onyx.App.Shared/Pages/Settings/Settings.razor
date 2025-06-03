@@ -13,17 +13,8 @@
         }
     </MudExpansionPanel>
     <MudExpansionPanel Text="Register new device" MaxHeight="500">
-        <MudForm @ref="form" @bind-IsValid="@success" @bind-Errors="@errors">
-            
-        </MudForm>
     </MudExpansionPanel>
     <MudExpansionPanel Text="Device Name" MaxHeight="1000">
-        <MudSelect>
-            @foreach (var device in _MyDevices)
-            {
-                <MudSelectItem>@device.Name</MudSelectItem>
-            }
-        </MudSelect>
     </MudExpansionPanel>
 </MudExpansionPanels>
 
