@@ -11,10 +11,7 @@ using Onyx.App.Services.Auth;
 using Onyx.App.Shared.Services;
 using Onyx.App.Shared.Services.Auth;
 using Onyx.App.Shared.Services.Usage;
-#if ANDROID
-using Onyx.App.Services;
 using Onyx.App.UsageData;
-#endif
 
 namespace Onyx.App
 {
