@@ -1,44 +1,31 @@
 @page "/settings"
 @using Onyx.Data.DataBaseSchema.TableEntities
+@inject ISnackbar Snackbar
 
 @layout AppLayout
-<h3>Settings</h3>
+<AuthorizeView>
+    <Authorized>
+        <MudExpansionPanels>
+            <MudExpansionPanel Text="Sync Time" MaxHeight="500"  Expanded="true" Style="width:100vw;">
+                <MudSlider @bind-Value="value" Min="1" Max="120" Color="Color.Info">Value: @value.ToString() min</MudSlider>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SendNewSyncTime">Change Now!</MudButton>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+    </Authorized>
+</AuthorizeView>
 
 
-<MudExpansionPanels>
-    <MudExpansionPanel Text="Registered devices" MaxHeight="150" Expanded="true">
-        @foreach (var device in _MyDevices)
-        {
-            <MudElement>@device.Name</MudElement>
-        }
-    </MudExpansionPanel>
-    <MudExpansionPanel Text="Register new device" MaxHeight="500">
-    </MudExpansionPanel>
-    <MudExpansionPanel Text="Device Name" MaxHeight="1000">
-    </MudExpansionPanel>
-</MudExpansionPanels>
-
-
-@code {
-    private Device NewDevice;
-    private List<Device> _MyDevices;
+@code { 
+    public double value;
+    //Backend missing
+    protected override async Task OnInitializedAsync()
+    {
+        value = 1; // get value aus DB
+    }
     
-    protected override Task OnInitializedAsync()
+    public async Task SendNewSyncTime()
     {
-        NewDevice = new Device();   
-        return base.OnInitializedAsync();
-    }
-
-    private async Task AddDevice()
-    {
-        return;
-    } 
-    private async Task RemoveDevice()
-    {
-        return;
-    }
-    private async Task RenameDevice()
-    {
-        return;
+        //API anschluss --> übergabe value*1000 (ms)
+        Snackbar.Add("Sync time changed", Severity.Success);
     }
 }
