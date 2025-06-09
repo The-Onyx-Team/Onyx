@@ -3,14 +3,15 @@
 @using Onyx.Data.ApiSchema
 @layout AppLayout
 @inject IDeviceManager DeviceManager
-@inject IUsageDataService UsageData
+@inject IUsageDataService UsageManager
 
 <MudContainer xmlns="http://www.w3.org/1999/html" Style="padding: 2vw">
     <MudGrid>
         <MudItem xs="12" sm="6" md="4">
             <MudDatePicker Label="Filter"
                            Editable="true"
-                           @bind-Date="m_Date"
+                           Date="m_Date"
+                           DateChanged="OnDateChanged"
                            Mask="@(new DateMask("dd.MM.yyyy"))"
                            DateFormat="dd.MM.yyyy"
                            Placeholder="de-AT Date"
@@ -18,13 +19,13 @@
                            Style="width: 100%;" />
         </MudItem>
         <MudItem xs="12" sm="6" md="4">
-            <MudSelect T="DeviceDto" Label="Pick Device"
+            <MudSelect T="DeviceDto" Label="Device"
                        @bind-Value="SelectedDevice"
                        Variant="Variant.Filled"
                        Style="width: 100%;">
                 <MudSelectItem Value="@(default(DeviceDto))">None</MudSelectItem>
 
-                @if (m_Devices is not null && m_Devices.Status == TaskStatus.RanToCompletion)
+                @if (m_Devices is not null)
                 {
                     @foreach (var device in m_Devices.Result)
                     {
@@ -38,45 +39,53 @@
 
     <br/>
 
-    @if (m_DeviceSelected == false)
+    @if (!m_DeviceSelected && _usageRestriction != null)
     {
         <MudText Typo="Typo.h6">Device Usage Distribution</MudText>
-        <br/>
+        <br />
         <MudGrid Gutter="3">
             @foreach (var usage in _usageRestriction)
             {
-            <MudItem xs="12" sm="6" md="3">
-                <MudPaper Elevation="2" Class="pa-4">
-                    <MudText Typo="Typo.subtitle2">@usage.Title</MudText>
-                    <MudText Typo="Typo.body1">@usage.Value</MudText>
-                    <MudProgressLinear Color="@usage.Color" Value="@usage.Progress"/>
-                </MudPaper>
-            </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Elevation="2" Class="pa-4">
+                        <MudText Typo="Typo.subtitle2">@usage.Title</MudText>
+                        <MudText Typo="Typo.body1">@usage.Value</MudText>
+                        <MudProgressLinear Color="@usage.Color" Value="@usage.Progress" />
+                    </MudPaper>
+                </MudItem>
             }
         </MudGrid>
+        <MudDivider Class="my-4" />
     }
 
-    <MudDivider Class="my-4"/>
     
+
+    <MudText Typo="Typo.h6">Reports</MudText>
+    <br/>
     <MudGrid Gutter="3">
+
         <MudItem xs="12" md="6">
             <MudPaper Elevation="3" Class="pa-4 mud-theme-dark">
-                <MudText Typo="Typo.h6">Day's usage</MudText>
+                <MudText Typo="Typo.h6">Usage</MudText>
                 <br/>
                 <MudPaper Class="doc-section-component-container">
-                    <MudChart ChartType="ChartType.Line"
-                              ChartSeries="@_monthlyAppData"
-                              XAxisLabels="@_xAxisMonths"
-                              ChartOptions="@(new() { ChartPalette = ["#9D4D27", "#C58848", "#494C3B"] })"
+                    <MudChart ChartType="ChartType.StackedBar"
+                              ChartSeries="@_weeklyAppData"
+                              LegendPosition="Position.Bottom"
+                              XAxisLabels="@_xAxisDays"
                               Width="auto"
-                              Height="38vh"/>
+                              Height="38vh"
+                              AxisChartOptions="_axisChartOptions"
+                              ChartOptions="@(new() { ChartPalette = ["#9D4D27", "#C58848", "#494C3B"] })"
+                              style="pointer-events: none;">
+                    </MudChart>
                 </MudPaper>
             </MudPaper>
         </MudItem>
         
         <MudItem xs="12" md="6">
             <MudPaper Elevation="3" Class="pa-4 mud-theme-dark">
-                <MudText Typo="Typo.h6">Day's Top Categories</MudText>
+                <MudText Typo="Typo.h6">Top Categories</MudText>
                 <br/>
                 <MudTable Items="_appRanking">
                     <HeaderContent>
@@ -93,7 +102,7 @@
 
         <MudItem xs="12" md="6">
             <MudPaper Elevation="3" Class="pa-4 mud-theme-dark">
-                <MudText Typo="Typo.h6">Day's Usage Distribution</MudText>
+                <MudText Typo="Typo.h6">Usage Distribution</MudText>
                 <br/>
                 <MudPaper Class="pa-4">
                     <MudChart ChartType="ChartType.Donut"
@@ -101,6 +110,7 @@
                               Height="25vh"
                               InputData="@_todaysAppData"
                               InputLabels="@_labels"
+                              style="pointer-events: none;"
                               ChartOptions="@(new() { ChartPalette = ["#9D4D27", "#C58848", "#494C3B"] })">
                     </MudChart>
                 </MudPaper>
@@ -112,15 +122,13 @@
                 <MudText Typo="Typo.h6">Progress</MudText>
                 <br/>
                 <MudPaper Class="doc-section-component-container">
-                    <MudChart ChartType="ChartType.StackedBar"
-                              ChartSeries="@_weeklyAppData"
-                              LegendPosition="Position.Bottom"
-                              XAxisLabels="@_xAxisDays"
+                    <MudChart ChartType="ChartType.Line"
+                              ChartSeries="@_monthlyAppData"
+                              XAxisLabels="@_xAxisMonths"
+                              ChartOptions="@(new() { ChartPalette = ["#9D4D27", "#C58848", "#494C3B"] })"
                               Width="auto"
-                              Height="30vh"
-                              AxisChartOptions="_axisChartOptions"
-                              ChartOptions="@(new() { ChartPalette = ["#9D4D27", "#C58848", "#494C3B"] })">
-                    </MudChart>
+                              style="pointer-events: none;"
+                              Height="30vh"/>
                 </MudPaper>
             </MudPaper>
         </MudItem>
@@ -132,20 +140,17 @@
 
 @code {
     private DateTime? m_Date = DateTime.Today;
-    private bool m_DeviceSelected = false;
+    
+    private bool m_DeviceSelected;
     private Task<List<DeviceDto>>? m_Devices;
     private DeviceDto? m_SelectedDevice;
+
+    private Task<List<UsageDto>>? m_Usage;
 
     protected override async Task OnInitializedAsync()
     {
         m_Devices = DeviceManager.GetDevices();
-        var devices = await m_Devices;
-
-        if (devices?.Any() == true)
-        {
-            m_SelectedDevice = devices.First();
-            m_DeviceSelected = true;
-        }
+        await LoadUsageAsync();
     }
 
     private DeviceDto? SelectedDevice
@@ -157,9 +162,45 @@
             m_DeviceSelected = value is not null;
         }
     }
+    
+    private async Task OnDateChanged(DateTime? newDate)
+    {
+        if (newDate.HasValue)
+        {
+            m_Date = newDate.Value;
+            await LoadUsageAsync();
+        }
+    }
 
+    
 
+    private Task LoadUsageAsync()
+    {
+        var date = m_Date ?? DateTime.Today;
+        var start = date.Date;
+        DateTime end;
+        if (date.Date == DateTime.Today)
+            end = DateTime.Now;
+        else
+            end = date.Date.AddDays(1).AddTicks(-1);
 
+        m_Usage = UsageManager.GetUsageDataAsync(start, end);
+        
+        return m_Usage;
+    }
+
+    //hä
+    private async Task OnDeviceChanged(DeviceDto? device)
+    {
+        m_SelectedDevice = device;
+        m_DeviceSelected = device != null;
+        await LoadUsageAsync();
+    }
+    
+    
+    
+    
+    
     readonly List<Metric> _usageRestriction =
     [
         new("Instagram", "1h 30min (40%)", 40, Color.Secondary),
