@@ -18,15 +18,15 @@
             </div>
         }
     </div>
-    <div id="app-box">
-        <MudAppBar Class="app-bar">
+    <div id="app-box" style="width: 100%">
+        <MudAppBar Class="app-bar" Color="Color.Primary">
             <MudText>Onyx App</MudText>
             <MudSpacer/>
             <MudToggleIconButton @bind-Toggled="@MainLayout.IsDarkMode"
                                  Icon="@Icons.Material.Filled.LightMode"
                                  ToggledIcon="@Icons.Material.Filled.DarkMode"
                                  Class="mud-theme-primary"
-                                 ToggledColor="@Color.Success"
+                                 ToggledColor="@Color.Tertiary"
                                  title="@(MainLayout.IsDarkMode ? "On" : "Off")"/>
             <form action="Account/Logout" method="post">
                 <AntiforgeryToken/>
