@@ -74,6 +74,9 @@ namespace Onyx.App
 
             builder.Services.AddSingleton<IStatsService, UsageStatsService>();
             builder.Services.AddSingleton<IStatsHelper, StatsHelper>();
+            
+            // Platform Service
+            builder.Services.AddScoped<IPlatformService, MauiPlatformService>();
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();

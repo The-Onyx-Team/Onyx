@@ -72,12 +72,15 @@ public class UsageDataService(ApplicationDbContext dbContext, IHttpContextAccess
 
     public async Task<bool> UploadUsageData(List<UsageDto> usageData, int appId)
     {
+        Console.WriteLine("User");
         var user = contextAccessor.HttpContext?.User.FindFirst(SubClaim);
 
         if (user is null)
         {
             throw new UnauthorizedAccessException("User not found");
         }
+
+        Console.WriteLine("Device");
 
         var device = dbContext.Devices
             .FirstOrDefault(d => d.UserId == user.Value && d.Name == usageData.First().DeviceName);
@@ -86,6 +89,8 @@ public class UsageDataService(ApplicationDbContext dbContext, IHttpContextAccess
         {
             throw new KeyNotFoundException("Device not found");
         }
+
+        Console.WriteLine("Usage");
 
         foreach (var newUsage in usageData.Select(usage => new Usage
                  {
@@ -98,6 +103,8 @@ public class UsageDataService(ApplicationDbContext dbContext, IHttpContextAccess
         {
             dbContext.Usages.Add(newUsage);
         }
+
+        Console.WriteLine("Save");
 
         await dbContext.SaveChangesAsync();
 

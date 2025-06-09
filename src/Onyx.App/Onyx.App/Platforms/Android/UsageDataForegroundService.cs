@@ -4,6 +4,8 @@ using Android.Content;
 using Android.Content.PM;
 using Android.OS;
 using AndroidX.Core.App;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Maui;
 using Onyx.App.Shared.Services.Usage;
 
 namespace Onyx.App;

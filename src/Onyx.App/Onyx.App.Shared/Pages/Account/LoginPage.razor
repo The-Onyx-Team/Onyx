@@ -1,16 +1,21 @@
 @page "/account/login"
-@inject IUserManager UserManager
-@inject NavigationManager NavigationManager
-@inject ISnackbar Snackbar
 
 @layout AuthNavLayout
 
+@inject IUserManager UserManager
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IPlatformService PlatformService
+
 <PageTitle>Login</PageTitle>
 
-<MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
-               Style="position: absolute; top: 2vh; left: 1vw;"
-               Href="/"
-               Color="Color.Primary"/>
+@if (!PlatformService.IsMaui())
+{
+    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                   Style="position: absolute; top: 2vh; left: 1vw;"
+                   Href="/"
+                   Color="Color.Primary"/>
+}
 
 <MudText Typo="Typo.h4"
          Class="mb-3">Login</MudText>
@@ -38,8 +43,11 @@
     </MudButton>
 </EditForm>
 
-<MudText Align="Align.Center">Or login using</MudText>
-<ExternalLoginPicker/>
+@if (!PlatformService.IsMaui())
+{
+    <MudText Align="Align.Center">Or login using</MudText>
+    <ExternalLoginPicker/>
+}
 
 <MudText Class="mt-5" Align="Align.Center">No account?
     <MudLink Color="Color.Primary" Underline="Underline.Always"
@@ -57,7 +65,7 @@
         {
             Snackbar.Add("Logged in successfully", Severity.Success);
             await Task.Delay(1000);
-            NavigationManager.NavigateTo("/");
+            NavigationManager.NavigateTo("/home");
         }
         else
         {

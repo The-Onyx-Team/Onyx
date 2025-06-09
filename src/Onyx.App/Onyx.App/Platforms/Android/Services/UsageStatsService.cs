@@ -1,6 +1,7 @@
 ﻿using Android.Content;
 using Android.Provider;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.DependencyInjection;
 using Onyx.App.Services.Api;
 using Onyx.App.Services.Auth;
 using Onyx.App.Shared.Services.Usage;
@@ -35,11 +36,9 @@ public class UsageStatsService(IServiceProvider provider) : IStatsService
         m_HttpClientWrapper.SetBaseUrl(ServerConnectionHelper.BaseUrl);
         
         var result = await m_HttpClientWrapper.PostAsync<bool>(
-            "/api/data/usage/upload",
+            "/api/data/usage/upload?deviceId=1",
             data!
         );
-
-        Console.WriteLine(result.ToString());
 
         return result is { IsT0: true, AsT0: true };
     }

@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -114,24 +115,29 @@ public class HttpClientWrapper
             var json = JsonSerializer.Serialize(request, requestType, s_JsonSerializerOptions);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            Console.WriteLine($"1.: {await content.ReadAsStringAsync()}");
+            
             var response = await m_HttpClient.PostAsync(endpoint, content);
 
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"3.: {errorContent}");
                 return !string.IsNullOrWhiteSpace(errorContent) ? 
                     new HttpError($"{errorContent}", (int)response.StatusCode) :
                     new HttpError($"HTTP Error: {response.ReasonPhrase}", (int)response.StatusCode);
             }
 
-            var responseContent = await response.Content.ReadAsStringAsync();
+            var responseContent = await response.Content.ReadFromJsonAsync<T>();
+
+            Console.WriteLine($"4.: {responseContent}");
 
             try
             {
-                var result = JsonSerializer.Deserialize<T>(responseContent, s_JsonSerializerOptions);
-                if (result is null)
-                    return new ParsingError("Deserialization returned null");
-                return result;
+                //var result = JsonSerializer.Deserialize<T>(responseContent, s_JsonSerializerOptions);
+                //if (result is null)
+                 //   return new ParsingError("Deserialization returned null");
+                 return responseContent;
             }
             catch (Exception ex)
             {
