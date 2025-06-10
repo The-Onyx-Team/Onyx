@@ -3,4 +3,6 @@
 public interface IStatsService
 {
     void OpenUsageAccessSettings();
+
+    Task<bool> UploadData();
 }

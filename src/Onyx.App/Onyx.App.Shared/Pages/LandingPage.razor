@@ -2,6 +2,8 @@
 
 @layout LandingPageLayout
 
+@inject IPlatformService PlatformService
+
 <style>
     .container {
         scroll-snap-type: y mandatory;
@@ -45,40 +47,54 @@
     }
 </style>
 
-<AuthorizeView>
-    <Authorized>
-        <RedirectToHome />
-    </Authorized>
-    <NotAuthorized>
-        <div class="container mud-width-full">
-            <div class="section">
-                <div style="height: 100%;
+@if (PlatformService.IsMaui())
+{
+    <AuthorizeView>
+        <Authorized>
+            <RedirectToHome/>
+        </Authorized>
+        <NotAuthorized>
+            <RedirectToLogin/>
+        </NotAuthorized>
+    </AuthorizeView>
+}
+else
+{
+    <AuthorizeView>
+        <Authorized>
+            <RedirectToHome />
+        </Authorized>
+        <NotAuthorized>
+            <div class="container mud-width-full">
+                <div class="section">
+                    <div style="height: 100%;
                          z-index: -1000 !important; 
                          background-image: url('img/LoginBackground.png'); 
                          background-position: center; 
                          background-repeat: no-repeat; 
                          background-size: cover;"
-                     class="ma-0 pa-0 mud-width-full">
+                         class="ma-0 pa-0 mud-width-full">
+                    </div>
+                    <h3>LandingPage</h3>
+                    <p>
+                        Welcome to the Onyx App! Please <a href="/account/login">log in</a> to continue.
+                    </p>
                 </div>
-                <h3>LandingPage</h3>
-                <p>
-                    Welcome to the Onyx App! Please <a href="/account/login">log in</a> to continue.
-                </p>
-            </div>
-            <div class="section blocked">
-                <div class="mr-5">
-                    <MudText Color="Color.Secondary" Typo="Typo.h3">Get your screen time ready in one place!</MudText>
-                    <MudText Typo="Typo.body1">This is the newest way of keeping track of the screen time of all your devices to manage your important time!</MudText>
+                <div class="section blocked">
+                    <div class="mr-5">
+                        <MudText Color="Color.Secondary" Typo="Typo.h3">Get your screen time ready in one place!</MudText>
+                        <MudText Typo="Typo.body1">This is the newest way of keeping track of the screen time of all your devices to manage your important time!</MudText>
+                    </div>
+                    <MudContainer Class="present-image1"/>
                 </div>
-                <MudContainer Class="present-image1"/>
-            </div>
-            <div class="section blocked">
-                <MudContainer Class="present-image2"/>
-                <div class="ml-5">
-                    <MudText Color="Color.Secondary" Typo="Typo.h3">Get your screen time ready in one place!</MudText>
-                    <MudText Typo="Typo.body1">This is the newest way of keeping track of the screen time of all your devices to manage your important time!</MudText>
+                <div class="section blocked">
+                    <MudContainer Class="present-image2"/>
+                    <div class="ml-5">
+                        <MudText Color="Color.Secondary" Typo="Typo.h3">Get your screen time ready in one place!</MudText>
+                        <MudText Typo="Typo.body1">This is the newest way of keeping track of the screen time of all your devices to manage your important time!</MudText>
+                    </div>
                 </div>
             </div>
-        </div>
-    </NotAuthorized>
-</AuthorizeView>
+        </NotAuthorized>
+    </AuthorizeView>   
+}

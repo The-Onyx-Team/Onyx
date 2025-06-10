@@ -82,6 +82,10 @@
         },
     ];
 
-    private Task Logout() => UserManager.LogoutAsync();
+    private async Task Logout()
+    {
+        await UserManager.LogoutAsync();
+        NavigationManager.NavigateTo("/account/login", forceLoad: true);
+    }
 }
 

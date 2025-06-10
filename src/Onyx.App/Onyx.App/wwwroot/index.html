@@ -11,13 +11,30 @@
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet"/>
     <link rel="stylesheet" href="_content/Onyx.App.Shared/app.css"/>
     <link rel="icon" href="data:,"/>
+    <style>
+        .loader {
+            border: 8px solid rgba(255,255,255,0.2);
+            border-top: 8px solid #3A3A3A;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 40px auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 
-<body>
+<body style="padding: 0; margin: 0;">
 
 <div class="status-bar-safe-area"></div>
 
-<div id="app">Loading...</div>
+<div style="height: 100vh;" id="app">
+    <div class="loader"/>
+</div>
 
 <script src="_framework/blazor.webview.js" autostart="false"></script>
 <script src="_content/MudBlazor/MudBlazor.min.js"></script>

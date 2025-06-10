@@ -51,7 +51,8 @@ public static class DataEndpoints
         [FromBody] List<UsageDto> usageData,
         [FromQuery] int deviceId)
     {
+        Console.WriteLine($"Usage Data: {usageData}");
         var result = await usageDataService.UploadUsageData(usageData, deviceId);
         return Results.Ok(result);
-    }
+    }   
 }

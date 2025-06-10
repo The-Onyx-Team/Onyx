@@ -61,6 +61,14 @@ var sqlServerConnectionString = config.GetConnectionString(SqlServer.Name);
 var sqliteConnectionString = config.GetConnectionString(SQLite.Name);
 var provider = config.GetValue("provider", SQLite.Name);
 
+builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
+{
+    options.UseSqlite(
+        config.GetConnectionString(SQLite.Name)!,
+        x => x.MigrationsAssembly(SQLite.Assembly)
+    );
+});
+
 if (provider == SqlServer.Name && sqlServerConnectionString is not null)
 {
     builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
@@ -98,8 +106,8 @@ else if (provider == SqlServer.Name && config.GetConnectionString("db") is not n
     });
 }
 else
-{
-    throw new InvalidOperationException("No valid database provider was found.");
+{   
+    //throw new InvalidOperationException("No valid database provider was found.");
 }
 
 builder.Services.AddSingleton<DbInitializer>();
@@ -184,6 +192,9 @@ builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddScoped<IUserManager, UserManager>();
 builder.Services.AddScoped<IUserProvider, UserProvider>();
+
+// Platform Service
+builder.Services.AddScoped<IPlatformService, WebPlatformService>();
 
 // e-mail
 

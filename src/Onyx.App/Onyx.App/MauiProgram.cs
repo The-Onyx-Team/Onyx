@@ -71,10 +71,23 @@ namespace Onyx.App
 
             builder.Services.AddSingleton<IStatsService, UsageStatsService>();
             builder.Services.AddSingleton<IStatsHelper, StatsHelper>();
+            
+            // Platform Service
+            builder.Services.AddScoped<IPlatformService, MauiPlatformService>();
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
             builder.Logging.AddDebug();
+#endif
+            
+#if ANDROID
+            if (!AndroidServiceManager.IsRunning)
+            {
+                AndroidServiceManager.StartService();
+                Console.WriteLine("Service is starting...");
+            }
+            else
+                Console.WriteLine("Service is running...");
 #endif
 
             return builder.Build();
