@@ -3,15 +3,18 @@
 @inject IUserManager UserManager
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
-@inject NavigationManager NavManager
 @layout AuthNavLayout
+@inject IPlatformService PlatformService
 
 <PageTitle>Login</PageTitle>
 
-<MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
-               Style="position: absolute; top: 2vh; left: 1vw;"
-               Href="/"
-               Color="Color.Primary"/>
+@if (!PlatformService.IsMaui())
+{
+    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                   Style="position: absolute; top: 2vh; left: 1vw;"
+                   Href="/"
+                   Color="Color.Primary"/>
+}
 
 <MudText Typo="Typo.h4"
          Class="mb-3">Login</MudText>
@@ -39,8 +42,11 @@
     </MudButton>
 </EditForm>
 
-<MudText Align="Align.Center">Or login using</MudText>
-<ExternalLoginPicker/>
+@if (!PlatformService.IsMaui())
+{
+    <MudText Align="Align.Center">Or login using</MudText>
+    <ExternalLoginPicker/>
+}
 
 <MudText Class="mt-5" Align="Align.Center">No account?
     <MudLink Color="Color.Primary" Underline="Underline.Always"
@@ -55,7 +61,7 @@
 
     protected override  async Task OnInitializedAsync()
     {
-        MyUri = NavManager.ToAbsoluteUri(NavManager.Uri);
+        MyUri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
         if (QueryHelpers.ParseQuery(MyUri.Query).TryGetValue("error", out var _initialCount))
         {
             UriParam = _initialCount;
@@ -72,6 +78,7 @@
             Snackbar.Add("Logged in successfully", Severity.Success);
             //Console.WriteLine("Logged in successfully------------------------------------------------------");
             await Task.Delay(500);
+#
         }
         else
         {
