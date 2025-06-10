@@ -4,7 +4,7 @@
 @inject IUserManager UserManager
 
 
-<div id="app-container">
+<div id="app-container" style="overflow: hidden;">
     <div id="nav">
         @foreach (var item in NavItems)
         {
@@ -71,7 +71,7 @@
         {
             Icon = Icons.Material.Filled.AccountCircle,
             DisplayName = "Profile",
-            Url = "/account/manage",
+            Url = "/account/manage/profile",
             ExtraStyle = "margin-top: auto"
         },
         new()

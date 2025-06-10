@@ -1,0 +1,21 @@
+@page "/Account/Manage/ChangePhoneNumber"
+
+<MudContainer Fluid="true" MaxWidth="MaxWidth.ExtraLarge" Class="mt-4" Style="overflow: hidden;">
+    <MudText Typo="Typo.h3">Change Phone Number</MudText>
+    <br/>
+    <MudCard Class="mt-4">
+        <MudCardContent>
+            <MudTextField T="string" Mask="@(new PatternMask("0000 0000000"))" Label="New phone number" Variant="Variant.Text" FullWidth="true" InputType="InputType.Telephone" />
+            <MudTextField T="string" Label="Verification Code" Variant="Variant.Text" FullWidth="true" />
+        </MudCardContent>
+        <MudCardActions Class="justify-end">
+            <MudButton Color="Color.Primary" Variant="Variant.Filled">Save changes</MudButton>
+            <MudButton Variant="Variant.Text" Class="ml-2">Cancel</MudButton>
+        </MudCardActions>
+    </MudCard>
+</MudContainer>
+
+
+@code {
+    
+}

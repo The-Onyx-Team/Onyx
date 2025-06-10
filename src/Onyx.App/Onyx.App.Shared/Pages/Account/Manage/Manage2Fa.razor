@@ -2,21 +2,40 @@
 @inject IUserProvider UserProvider
 @inject UrlEncoder UrlEncoder
 
-@if (m_User is null)
-{
-    <p>Loading...</p>
-}
-else
-{
-    <p>Welcome @m_User.Name</p>
-    <div>
-        <svg xmlns="http://www.w3.org/2000/svg" height="500" width="500" stroke="none"
-             version="1.1" viewBox="0 0 50 50">
-            <rect width="300" height="300" fill="#ffffff"/>
-            <path d="@m_SvgGraphicsPath" fill="#000000"/>
-        </svg>
-    </div>
-}
+<MudContainer Fluid="true" MaxWidth="MaxWidth.False" Class="mt-4">
+    @if (m_User is null)
+    {
+    <MudText Typo="Typo.body1">Loading...</MudText>
+    }
+    else
+    {
+    <MudText Typo="Typo.h4" Class="mb-1">Set up two-factor authentication</MudText>
+    <MudText Typo="Typo.subtitle1" Class="mb-4">
+        Protect your account by adding an extra layer of security.
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="12" md="10" lg="6">
+            <MudCard Class="mt-1 px-4 py-4" Style="min-width: 25vw;" Outlined="true" Justify="Justify.Center">
+                <MudCardContent>
+                    <MudText Typo="Typo.h5" Class="mb-2">Welcome @m_User.Name</MudText>
+                    <MudText Typo="Typo.body1" Class="mb-4">
+                        Scan the QR code below with your authenticator app.
+                    </MudText>
+                    <div style="display: flex; justify-content: center; margin-bottom: 24px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" height="200" width="200" stroke="none"
+                             version="1.1" viewBox="0 0 50 50">
+                            <path d="@m_SvgGraphicsPath" fill="#0E0E0E" />
+                        </svg>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+    }
+</MudContainer>
+
+
 
 @code {
     private User? m_User;
@@ -27,10 +46,9 @@ else
     protected override async Task OnInitializedAsync()
     {
         m_User = await UserProvider.GetRequiredUserAsync();
-
         var token = await UserProvider.GetAuthenticatorKeyAsync();
-        var path = GenerateQrCodeUri(m_User.Email ?? m_User.Name ?? "user", token);
 
+        var path = GenerateQrCodeUri(m_User.Email ?? m_User.Name ?? "user", token);
         var qr = QrCode.EncodeText(path, QrCode.Ecc.Medium);
         m_SvgGraphicsPath = qr.ToGraphicsPath();
     }
@@ -38,11 +56,10 @@ else
     private string GenerateQrCodeUri(string email, string unformattedKey)
     {
         return string.Format(
-            CultureInfo.InvariantCulture,
-            AuthenticatorUriFormat,
-            UrlEncoder.Encode("Onyx App"),
-            UrlEncoder.Encode(email),
-            unformattedKey);
+        CultureInfo.InvariantCulture,
+        AuthenticatorUriFormat,
+        UrlEncoder.Encode("Onyx App"),
+        UrlEncoder.Encode(email),
+        unformattedKey);
     }
-
 }
