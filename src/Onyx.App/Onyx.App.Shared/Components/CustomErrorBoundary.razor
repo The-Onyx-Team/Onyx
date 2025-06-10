@@ -1,4 +1,6 @@
 @inject ISnackbar SnackbarService
+@inject NavigationManager NavigationManager
+
 @inherits ErrorBoundary
 
 @if (CurrentException != null)
@@ -6,5 +8,15 @@
     const string errorMessage = "An unexpected error occurred. Please try again or check the logs to learn more.";
     SnackbarService.Add(errorMessage, Severity.Error);
 }
+else
+{
+    @ChildContent
+}
 
-@ChildContent
+@code {
+    protected override Task OnErrorAsync(Exception exception)
+    {
+        NavigationManager.NavigateTo("/error", forceLoad: true);
+        return Task.CompletedTask;
+    }
+}

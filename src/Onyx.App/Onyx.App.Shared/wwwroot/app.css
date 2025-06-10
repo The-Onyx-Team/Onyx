@@ -1,6 +1,68 @@
 
 /* General */
 
+.logo-container {
+    height: 10%;
+    width: 100%;
+    color: #FFFFFF;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+}
+
+.logo {
+    max-width: 60px;
+    min-width: 30px;
+    width: 50%;
+    height: auto;
+}
+
+.content {
+    height: 100%;
+}
+
+/* Hide unified appbar on small screens */
+.appbar-full {
+    display: flex;
+}
+.appbar-top,
+.appbar-bottom {
+    display: none;
+}
+
+@media (max-width: 600px) {
+    .appbar-full {
+        display: none;
+    }
+
+    .appbar-top,
+    .appbar-bottom {
+        display: flex;
+        position: fixed;
+        width: 100%;
+        z-index: 1100;
+    }
+
+    .appbar-top {
+        top: 0;
+    }
+
+    .appbar-bottom {
+        bottom: 0;
+        justify-content: flex-end;
+    }
+
+    body {
+        padding-top: 64px; /* Adjust to avoid overlap */
+        padding-bottom: 64px; /* Adjust to avoid overlap */
+    }
+}
+
 html, body {
     height: 100dvh;
     overflow: hidden;
@@ -79,7 +141,8 @@ html, body {
     }
 
     .app-bar {
-        display: none;
+        margin-left: 0;
+        padding-right: 0;
     }
 }
 

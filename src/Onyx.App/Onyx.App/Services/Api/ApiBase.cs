@@ -8,13 +8,15 @@ public abstract class ApiBase<T> where T : ApiBase<T>
 {
     protected readonly HttpClientWrapper m_HttpClientWrapper;
     protected readonly ILogger<T> m_Logger;
+    
+    protected record Empty;
 
     // ReSharper disable once ContextualLoggerProblem
     protected ApiBase(HttpClientWrapper httpClientWrapper, ILogger<T> logger)
     {
         m_HttpClientWrapper = httpClientWrapper;
         m_Logger = logger;
-        m_HttpClientWrapper.SetBaseUrl("http://localhost:5262"); // TODO
+        m_HttpClientWrapper.SetBaseUrl(ServerConnectionHelper.BaseUrl);
     }
 
     public void SetAuthToken(string token) => m_HttpClientWrapper.SetAuthToken(token);

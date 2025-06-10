@@ -23,7 +23,7 @@ public class UserManager(
     IEmailSender<ApplicationUser> emailSender,
     IHttpContextAccessor httpContextAccessor) : IUserManager
 {
-    public async Task<RegisterResult> RegisterAsync(string name, string email, string password, string redirectUri)
+    public async Task<RegisterResult> RegisterAsync(string name, string email, string password)
     {
         var user = new ApplicationUser
         {
@@ -39,22 +39,42 @@ public class UserManager(
                 Success = false,
                 Message = string.Join(", ", result.Errors.Select(x => x.Description))
             };
+        
+        var userId = await userManager.GetUserIdAsync(user);
+        var code = await userManager.GenerateEmailConfirmationTokenAsync(user);
 
-        var token = antiforgery.GetAndStoreTokens(httpContextAccessor.HttpContext!).RequestToken;
-
-        var data = new Dictionary<string, string>
-        {
-            { "__RequestVerificationToken", token! },
-            { "redirect", redirectUri },
-            { "email", email },
-            { "password", password }
-        };
-
-        await jsRuntime.InvokeVoidAsync("postRedirect", "/account/login", data);
-
+        Console.WriteLine(code);
+        
+        var callbackUrl = navigationManager.GetUriWithQueryParameters(
+            navigationManager.ToAbsoluteUri("/account/confirmEmail").AbsoluteUri,
+            new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code });
+        await emailSender.SendConfirmationLinkAsync(user, email,
+            HtmlEncoder.Default.Encode(callbackUrl));
+        
         return new RegisterResult()
         {
             Success = true
+        };
+    }
+
+    public async Task<RegisterResult> ConfirmEmailAsync(string id, string token)
+    {
+        var user = await userManager.FindByIdAsync(id);
+
+        Console.WriteLine(token);
+        
+        if (user != null)
+        {
+            var result = await userManager.ConfirmEmailAsync(user, token);
+            if (result.Succeeded)
+                return new RegisterResult()
+                {
+                    Success = true
+                };
+        }
+        return new RegisterResult()
+        {
+            Success = false
         };
     }
 
@@ -75,6 +95,58 @@ public class UserManager(
         return new LoginResult()
         {
             Success = true
+        };
+    }
+
+    public async Task<ResetPasswordResult> ResetPasswordAsync(string email)
+    {
+        var user = await userManager.FindByEmailAsync(email);
+
+        if (user != null)
+        {
+            await userManager.RemovePasswordAsync(user);
+            
+            var code = await userManager.GeneratePasswordResetTokenAsync(user);
+            
+            var callbackUrl = navigationManager.GetUriWithQueryParameters(
+                navigationManager.ToAbsoluteUri("/account/resetPasswordWithEmail").AbsoluteUri,
+                new Dictionary<string, object?> { ["userId"] = user.Id, ["code"] = code });
+            await emailSender.SendPasswordResetLinkAsync(user, email, 
+                HtmlEncoder.Default.Encode(callbackUrl));
+            
+            return new ResetPasswordResult()
+            {
+                Success = true
+            };
+        }
+        
+        return new ResetPasswordResult()
+        {
+            Success = false
+        };
+    }
+    
+    public async Task<ResetPasswordResult> SetPasswordAsync(string id, string password)
+    {
+        var user = await userManager.FindByIdAsync(id);
+
+        if (user != null)
+        {
+            var result = await userManager.AddPasswordAsync(user, password);
+            if (!result.Succeeded)
+                return new ResetPasswordResult()
+                {
+                    Success = false
+                };
+            return new ResetPasswordResult()
+            {
+                Success = true
+            };
+        }
+        
+        return new ResetPasswordResult()
+        {
+            Success = false
         };
     }
 

@@ -9,14 +9,14 @@ namespace Onyx.App.UsageData;
 
 public class StatsHelper : IStatsHelper
 {
-    public List<Stats>? GetUsageStatsTimeIntervalMilliseconds(long startTime, long endTime)
+    public List<Stats> GetUsageStatsTimeIntervalMilliseconds(long startTime, long endTime)
     {
         var usageStatsManager = (UsageStatsManager)Application.Context.GetSystemService(Context.UsageStatsService)!;
         
         var usageStatsList = usageStatsManager.QueryUsageStats(UsageStatsInterval.Daily, startTime, endTime);
         if (usageStatsList == null || !usageStatsList.Any())
         {
-            return new List<Stats>();
+            return [];
         }
         
         return usageStatsList
@@ -27,7 +27,9 @@ public class StatsHelper : IStatsHelper
                     {
                         Name = GetAppNameFromPackage(u.PackageName),
                         TimeInForeground = TimeSpan.FromMilliseconds(u.TotalTimeInForeground),
+#pragma warning disable CA1416
                         TimeVisible = TimeSpan.FromMilliseconds(u.TotalTimeVisible),
+#pragma warning restore CA1416
                         IntervalStart = DateTimeOffset.FromUnixTimeMilliseconds(u.FirstTimeStamp).DateTime,
                         IntervalEnd = DateTimeOffset.FromUnixTimeMilliseconds(u.LastTimeStamp).DateTime,
                         LastTimeUsed =  DateTimeOffset.FromUnixTimeMilliseconds(u.LastTimeUsed).DateTime,
@@ -48,11 +50,12 @@ public class StatsHelper : IStatsHelper
             var packageManager = Application.Context.PackageManager;
             var applicationInfo = packageManager?.GetApplicationInfo(packageName, 0);
             return (applicationInfo != null
-                ? packageManager.GetApplicationLabel(applicationInfo)
+                ? packageManager?.GetApplicationLabel(applicationInfo)
                 : packageName) ?? string.Empty;
         }
         catch (Exception e)
         {
+            Console.WriteLine(e.Message);
             return packageName;
         }
     }
@@ -64,11 +67,14 @@ public class StatsHelper : IStatsHelper
             var packageManager = Application.Context.PackageManager;
             var applicationInfo = packageManager?.GetApplicationInfo(packageName, 0);
             return (applicationInfo != null
+#pragma warning disable CA1416
                 ? applicationInfo.Category.ToString()
-                : packageName) ?? string.Empty;
+#pragma warning restore CA1416
+                : packageName);
         }
         catch (Exception e)
         {
+            Console.WriteLine(e.Message);
             return packageName;
         }
     }
@@ -83,16 +89,23 @@ public class StatsHelper : IStatsHelper
             {
                 var icon = applicationInfo.LoadIcon(packageManager);
                 if (icon is BitmapDrawable { Bitmap: not null } bitmapDrawable) return BitmapToByteArray(bitmapDrawable.Bitmap);
-                var bitmap = Bitmap.CreateBitmap(icon.IntrinsicWidth, icon.IntrinsicHeight, Bitmap.Config.Argb8888);
-                var canvas = new Canvas(bitmap);
-                icon.SetBounds(0, 0, canvas.Width, canvas.Height);
-                icon.Draw(canvas);
-                return BitmapToByteArray(bitmap);
+                if (icon != null)
+                {
+                    if (Bitmap.Config.Argb8888 != null)
+                    {
+                        var bitmap = Bitmap.CreateBitmap(icon.IntrinsicWidth, icon.IntrinsicHeight, Bitmap.Config.Argb8888);
+                        var canvas = new Canvas(bitmap);
+                        icon.SetBounds(0, 0, canvas.Width, canvas.Height);
+                        icon.Draw(canvas);
+                        return BitmapToByteArray(bitmap);
+                    }
+                }
             }
             return [];
         }
         catch (Exception e)
         {
+            Console.WriteLine(e.Message);
             return [];
         }
     }
@@ -100,7 +113,7 @@ public class StatsHelper : IStatsHelper
     private static byte[] BitmapToByteArray(Bitmap bitmap)
     {
         using var stream = new MemoryStream();
-        bitmap.Compress(Bitmap.CompressFormat.Png, 100, stream);
+        if (Bitmap.CompressFormat.Png != null) bitmap.Compress(Bitmap.CompressFormat.Png, 100, stream);
         return stream.ToArray();
     }
 }

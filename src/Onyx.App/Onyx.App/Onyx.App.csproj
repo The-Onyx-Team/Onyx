@@ -21,7 +21,12 @@
         <EnableDefaultCssItems>false</EnableDefaultCssItems>
         <Nullable>enable</Nullable>
 
-        <OutputPath>$(SolutionDir)/build/app</OutputPath>
+        <AndroidUseFastDeployment>false</AndroidUseFastDeployment>
+        <AndroidEnableBundleAssembly>false</AndroidEnableBundleAssembly>
+        <IncludeAssemblyInApk>true</IncludeAssemblyInApk>
+        
+        <!-- <OutputPath>$(SolutionDir)/build/app</OutputPath> -->
+        <OutputPath>../../build/app</OutputPath>
 
         <ApplicationTitle>Onyx</ApplicationTitle>
         <ApplicationId>com.onyx-team.onyx.app</ApplicationId>
@@ -41,7 +46,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4"/>
+        <MauiIcon Include="Resources\AppIcon\icon.svg" Color="#512BD4" BaseSize="128,128"/>
         <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128"/>
         <MauiImage Include="Resources\Images\*"/>
         <MauiImage Update="Resources\Images\dotnet_bot.svg" BaseSize="168,208"/>
@@ -50,12 +55,14 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.3" />
-        <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.50" />
-        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="9.0.50" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.3" />
-        <PackageReference Include="OneOf" Version="3.0.271" />
-        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1" />
+        <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.3"/>
+        <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.50"/>
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="9.0.50"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.3"/>
+        <PackageReference Include="OneOf" Version="3.0.271"/>
+        <PackageReference Include="System.Drawing.Common" Version="9.0.4" />
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1"/>
+        <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.9.0" />
     </ItemGroup>
 
     <ItemGroup>

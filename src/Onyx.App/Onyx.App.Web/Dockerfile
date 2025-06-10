@@ -1,6 +1,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /app
 
+COPY ./src/Hosting/ServiceDefaults/ServiceDefaults.csproj ./src/Hosting/ServiceDefaults/ServiceDefaults.csproj
+RUN dotnet restore ./src/Hosting/ServiceDefaults/ServiceDefaults.csproj
 COPY ./src/Onyx.Data/Onyx.Data.SQLite/Onyx.Data.SQLite.csproj ./src/Onyx.Data/Onyx.Data.SQLite/Onyx.Data.SQLite.csproj
 RUN dotnet restore ./src/Onyx.Data/Onyx.Data.SQLite/Onyx.Data.SQLite.csproj
 COPY ./src/Onyx.Data/Onyx.Data.SqlServer/Onyx.Data.SqlServer.csproj ./src/Onyx.Data/Onyx.Data.SqlServer/Onyx.Data.SqlServer.csproj
@@ -14,6 +16,7 @@ RUN dotnet restore ./src/Onyx.App/Onyx.App.Shared/Onyx.App.Shared.csproj
 COPY ./src/Onyx.App/Onyx.App.Web/Onyx.App.Web.csproj ./src/Onyx.App/Onyx.App.Web/Onyx.App.Web.csproj
 RUN dotnet restore ./src/Onyx.App/Onyx.App.Web/Onyx.App.Web.csproj --no-cache
 
+COPY ./src/Hosting/ServiceDefaults/. ./src/Hosting/ServiceDefaults/
 COPY ./src/Onyx.Data/Onyx.Data.SQLite/. ./src/Onyx.Data/Onyx.Data.SQLite/
 COPY ./src/Onyx.Data/Onyx.Data.SqlServer/. ./src/Onyx.Data/Onyx.Data.SqlServer/
 COPY ./src/Onyx.Data/Onyx.Data.DataBaseSchema/. ./src/Onyx.Data/Onyx.Data.DataBaseSchema/

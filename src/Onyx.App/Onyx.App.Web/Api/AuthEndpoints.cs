@@ -12,6 +12,7 @@ using Onyx.App.Shared.Pages.Account.Manage;
 using Onyx.App.Web.Services.Auth;
 using Onyx.Data.ApiSchema;
 using Onyx.Data.DataBaseSchema.Identity;
+using Onyx.Data.DataBaseSchema.TableEntities;
 
 namespace Onyx.App.Web.Api;
 
@@ -41,7 +42,7 @@ public static class AuthEndpoints
         authorized.MapDelete("/account", DeleteAccountHandler);
 
         authorized.MapPost("/email/change", RequestEmailChangeHandler);
-        authorized.MapPost("/email/confirm", ConfirmEmailHandler);
+        authorized.MapGet("/email/confirm", ConfirmEmailHandler);
 
         authorized.MapPost("/2fa/enable", Enable2FaHandler);
         authorized.MapPost("/2fa/disable", Disable2FaHandler);
@@ -140,10 +141,10 @@ public static class AuthEndpoints
         [FromServices] KeyAccessor keyAccessor)
     {
         var user = await userManager.FindByEmailAsync(dto.Email);
-        if (user == null) return Results.Unauthorized();
+        if (user == null) return Results.BadRequest("Invalid email or password");
 
         if (!await userManager.CheckPasswordAsync(user, dto.Password))
-            return Results.Unauthorized();
+            return Results.BadRequest("Invalid email or password");
 
         var token = JwtTools.GenerateToken(keyAccessor.ApplicationKey,
             user.Id, user.Email ?? user.Id, TimeSpan.FromDays(2));
@@ -164,11 +165,14 @@ public static class AuthEndpoints
         var user = new ApplicationUser
         {
             UserName = dto.Name,
-            Email = dto.Email
+            Email = dto.Email,
+            Groups = new List<Groups>()
         };
+        
+        user.Groups = new List<Groups>();
 
         var result = await userManager.CreateAsync(user, dto.Password);
-        return !result.Succeeded ? Results.BadRequest(result.Errors) : Results.Ok();
+        return !result.Succeeded ? Results.BadRequest(result.Errors) : Results.Ok(new object());
     }
 
     /// <summary>
@@ -263,14 +267,15 @@ public static class AuthEndpoints
     /// </summary>
     public static async Task<IResult> ConfirmEmailHandler(
         [FromQuery] string userId,
-        [FromQuery] string token,
+        [FromQuery] string code,
         [FromServices] UserManager<ApplicationUser> userManager)
     {
         var user = await userManager.FindByIdAsync(userId);
         if (user == null) return Results.NotFound();
 
-        var result = await userManager.ConfirmEmailAsync(user, token);
-        return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
+        Console.WriteLine(code);
+        var result = await userManager.ConfirmEmailAsync(user, code);
+        return result.Succeeded ? Results.Redirect("/account/confirmEmail") : Results.BadRequest(result.Errors);
     }
 
     /// <summary>
@@ -340,14 +345,14 @@ public static class AuthEndpoints
 
         if (user == null)
         {
-            return Results.Unauthorized();
+            return Results.Redirect("/account/login?error=Invalid login attempt");
         }
 
         var result = await signInManager.PasswordSignInAsync(user, webLoginModel.Password, true, false);
 
         if (!result.Succeeded)
         {
-            return Results.Unauthorized();
+            return Results.Redirect("/account/login?error=Invalid login attempt");
         }
 
         var principal = await claimsFactory.CreateAsync(user);

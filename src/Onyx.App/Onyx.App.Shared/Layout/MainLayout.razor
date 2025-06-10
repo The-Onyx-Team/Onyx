@@ -50,29 +50,47 @@
 
     private readonly MudTheme m_MyCustomTheme = new()
     {
-        PaletteLight = new PaletteLight() //Helles Theme, bitte bei Bedarf Farben austauschen
+        
+        PaletteLight = new PaletteLight()
         {
-                Black = "#E0E0E0",
-                Background = "#F5F1EB",
-                Surface = "#F5F1EB",
-                TextPrimary = "#0E0E0E",
-                Primary =  "#B34704",
-                Secondary = "#E85B09",
-                Tertiary =  "#FF8F32",
-                White = "#F5F1EB",
-                AppbarBackground = "#B34704"
+            Primary = "#9D4D27",       
+            Secondary = "#C58848",     
+            Tertiary = "#494C3B",      
+            Background = "#F6F2E9",    
+            DrawerBackground = "#CBCBBF",
+            DrawerText = "#111213",
+            AppbarBackground = "#C58848",
+            AppbarText = "#111213",
+            TextPrimary = "#111213",  
+            TextSecondary = "#494C3B",  
+            ActionDefault = "#494C3B",
+            ActionDisabled = "#9F9B8A",
+            ActionDisabledBackground = "#CBCBBF"
         },
-        PaletteDark = new PaletteDark() //Dunkles Theme, bitte bei Bedarf Farben austauschen
+        PaletteDark = new PaletteDark()
         {
-            Black = "#E0E0E0",
-            Background = "#3A3A3A",
-            Surface = "#3A3A3A",
-            TextPrimary = "#A1A1A1",
-            Primary = "#E37A37",
-            Secondary = "#F5975E",
-            Tertiary = "#FFC285",
-            White = "#F5F1EB",
-            AppbarBackground = "#E37A37"
-        }
+            Primary = "#9D4D27",        
+            Secondary = "#C58848",      
+            Tertiary = "#F6F2E9",      
+            Background = "#111213",     
+            Surface = "#525453",        
+            DrawerBackground = "#111213",
+            DrawerText = "#F6F2E9",     
+            AppbarBackground = "#C58848",
+            AppbarText = "#111213",
+            TextPrimary = "#F6F2E9",    
+            TextSecondary = "#CBCBBF",  
+            ActionDefault = "#CBCBBF",
+            ActionDisabled = "#494C3B",
+            ActionDisabledBackground = "#9F9B8A",
+            Dark = "#323233"
+        },
+        Typography = new Typography()
+        {
+            H4 = new H4Typography()
+            {
+                FontWeight = "bold"
+            }
+        },
     };
 }

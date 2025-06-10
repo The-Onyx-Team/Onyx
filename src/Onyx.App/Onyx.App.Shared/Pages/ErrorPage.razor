@@ -1,0 +1,22 @@
+@page "/error"
+
+@inject NavigationManager NavigationManager
+
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 70vh;">
+    <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Color="Color.Error" Size="Size.Large" />
+    <MudText Typo="Typo.h4" Class="mt-4 mb-2">Oops! Something went wrong.</MudText>
+    <MudText Typo="Typo.subtitle1" Class="mb-4" Align="Align.Center">
+        We're sorry, but an unexpected error has occurred.<br />
+        Please try again, or contact support if the problem persists.
+    </MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GoHome">
+        <MudIcon Icon="@Icons.Material.Filled.Home" Class="mr-2" /> Go to Home
+    </MudButton>
+</div>
+
+@code {
+    private void GoHome()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+}

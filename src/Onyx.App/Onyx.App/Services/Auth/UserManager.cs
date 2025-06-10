@@ -8,7 +8,7 @@ namespace Onyx.App.Services.Auth;
 
 public class UserManager(AuthenticationStateProvider authenticationStateProvider, AuthApi api) : IUserManager
 {
-    public async Task<RegisterResult> RegisterAsync(string name, string email, string password, string redirectUri)
+    public async Task<RegisterResult> RegisterAsync(string name, string email, string password)
     {
         var result = await api.RegisterAsync(name, email, password);
 
@@ -30,6 +30,11 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
             Success = false,
             Message = result.Message,
         };
+    }
+
+    public Task<RegisterResult> ConfirmEmailAsync(string id, string token)
+    {
+        throw new NotImplementedException();
     }
 
     public async Task<LoginResult> LoginAsync(string email, string password, string redirectUri)
@@ -83,6 +88,16 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
                 Message = "Failed to parse JWT Token"
             };
         }
+    }
+
+    public Task<ResetPasswordResult> ResetPasswordAsync(string email)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<ResetPasswordResult> SetPasswordAsync(string id, string password)
+    {
+        throw new NotImplementedException();
     }
 
     public Task LogoutAsync()

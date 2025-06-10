@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -19,7 +20,7 @@ public class HttpClientWrapper
     private readonly HttpClient m_HttpClient;
     private readonly ILogger<HttpClientWrapper> m_Logger;
     private readonly AuthenticationStateProvider m_AuthenticationStateProvider;
-    
+
     private static readonly JsonSerializerOptions s_JsonSerializerOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -71,7 +72,10 @@ public class HttpClientWrapper
 
             if (!response.IsSuccessStatusCode)
             {
-                return new HttpError($"HTTP Error: {response.ReasonPhrase}", (int)response.StatusCode);
+                var errorContent = await response.Content.ReadAsStringAsync();
+                return !string.IsNullOrWhiteSpace(errorContent) ? 
+                    new HttpError($"{errorContent}", (int)response.StatusCode) :
+                    new HttpError($"HTTP Error: {response.ReasonPhrase}", (int)response.StatusCode);
             }
 
             var content = await response.Content.ReadAsStringAsync();
@@ -98,8 +102,9 @@ public class HttpClientWrapper
 
     public Task<OneOf<T, HttpError, NetworkError, ParsingError>> PostAsync<T>(string endpoint, object request) =>
         PostAsync<T>(endpoint, request, request.GetType());
-    
-    public Task<OneOf<TResponse, HttpError, NetworkError, ParsingError>> PostAsync<TRequest, TResponse>(string endpoint, object request) =>
+
+    public Task<OneOf<TResponse, HttpError, NetworkError, ParsingError>> PostAsync<TRequest, TResponse>(string endpoint,
+        object request) =>
         PostAsync<TResponse>(endpoint, request, typeof(TRequest));
 
     private async Task<OneOf<T, HttpError, NetworkError, ParsingError>> PostAsync<T>(
@@ -110,21 +115,29 @@ public class HttpClientWrapper
             var json = JsonSerializer.Serialize(request, requestType, s_JsonSerializerOptions);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            Console.WriteLine($"1.: {await content.ReadAsStringAsync()}");
+            
             var response = await m_HttpClient.PostAsync(endpoint, content);
 
             if (!response.IsSuccessStatusCode)
             {
-                return new HttpError($"HTTP Error: {response.ReasonPhrase}", (int)response.StatusCode);
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"3.: {errorContent}");
+                return !string.IsNullOrWhiteSpace(errorContent) ? 
+                    new HttpError($"{errorContent}", (int)response.StatusCode) :
+                    new HttpError($"HTTP Error: {response.ReasonPhrase}", (int)response.StatusCode);
             }
 
-            var responseContent = await response.Content.ReadAsStringAsync();
+            var responseContent = await response.Content.ReadFromJsonAsync<T>();
+
+            Console.WriteLine($"4.: {responseContent}");
 
             try
             {
-                var result = JsonSerializer.Deserialize<T>(responseContent, s_JsonSerializerOptions);
-                if (result is null)
-                    return new ParsingError("Deserialization returned null");
-                return result;
+                //var result = JsonSerializer.Deserialize<T>(responseContent, s_JsonSerializerOptions);
+                //if (result is null)
+                 //   return new ParsingError("Deserialization returned null");
+                 return responseContent;
             }
             catch (Exception ex)
             {

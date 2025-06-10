@@ -1,0 +1,102 @@
+@page "/account/login"
+@using Microsoft.AspNetCore.WebUtilities
+@inject IUserManager UserManager
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@layout AuthNavLayout
+@inject IPlatformService PlatformService
+
+<PageTitle>Login</PageTitle>
+
+@if (!PlatformService.IsMaui())
+{
+    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                   Style="position: absolute; top: 2vh; left: 1vw;"
+                   Href="/"
+                   Color="Color.Primary"/>
+}
+
+<MudText Typo="Typo.h4"
+         Class="mb-3">Login</MudText>
+<EditForm Model="m_LoginModel" OnValidSubmit="Submit"
+          FormName="LoginForm">
+    <DataAnnotationsValidator/>
+    <ValidationSummary/>
+
+    <MudTextField Class="mb-3" Label="Email" Variant="Variant.Outlined"
+                  @bind-Value="m_LoginModel.Email"
+                  AdornmentColor="Color.Primary"
+                  InputType="InputType.Email"/>
+    <MudTextField Class="" Label="Password" Variant="Variant.Outlined"
+                  @bind-Value="m_LoginModel.Password"
+                  AdornmentColor="Color.Primary"
+                  InputType="InputType.Password"/>
+    <MudLink Class="mb-3 d-flex justify-end" Href="/account/resetPassword"
+             Underline="Underline.Always"
+             Color="Color.Primary">Forgot Password?</MudLink>
+    <MudButton ButtonType="ButtonType.Submit"
+               Variant="Variant.Filled"
+               Class="rounded mud-button-full-width mb-3"
+               Style="background-color: black">
+        Login
+    </MudButton>
+</EditForm>
+
+@if (!PlatformService.IsMaui())
+{
+    <MudText Align="Align.Center">Or login using</MudText>
+    <ExternalLoginPicker/>
+}
+
+<MudText Class="mt-5" Align="Align.Center">No account?
+    <MudLink Color="Color.Primary" Underline="Underline.Always"
+             Href="/account/register">Sign up</MudLink>
+</MudText>
+
+@code {
+    private readonly LoginModel m_LoginModel = new();
+    private Uri MyUri;
+    private string UriParam;
+    
+
+    protected override  async Task OnInitializedAsync()
+    {
+        MyUri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        if (QueryHelpers.ParseQuery(MyUri.Query).TryGetValue("error", out var _initialCount))
+        {
+            UriParam = _initialCount;
+            Snackbar.Add(_initialCount, Severity.Error);
+            Console.WriteLine("Error: " + _initialCount);
+        }
+    }
+    
+    private async Task Submit()
+    {
+        var result = await UserManager.LoginAsync(m_LoginModel.Email, m_LoginModel.Password, "/");
+        /*if (result.Success)
+        {
+            Snackbar.Add("Logged in successfully", Severity.Success);
+            //Console.WriteLine("Logged in successfully------------------------------------------------------");
+            await Task.Delay(500);
+#
+        }
+        else
+        {
+            await Task.Delay(1000);
+            Snackbar.Add("Failed to log in", Severity.Error);
+            Console.WriteLine("Error: " + result.Message);
+        }*/
+        
+    }
+
+    public class LoginModel
+    {
+        [EmailAddress]
+        [Required]
+        public string Email { get; set; } = "";
+        
+        [Required]
+        public string Password { get; set; } = "";
+    }
+
+}
