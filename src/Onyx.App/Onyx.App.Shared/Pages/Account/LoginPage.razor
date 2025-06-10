@@ -1,10 +1,9 @@
 @page "/account/login"
-
-@layout AuthNavLayout
-
+@using Microsoft.AspNetCore.WebUtilities
 @inject IUserManager UserManager
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
+@layout AuthNavLayout
 @inject IPlatformService PlatformService
 
 <PageTitle>Login</PageTitle>
@@ -56,23 +55,38 @@
 
 @code {
     private readonly LoginModel m_LoginModel = new();
+    private Uri MyUri;
+    private string UriParam;
+    
 
+    protected override  async Task OnInitializedAsync()
+    {
+        MyUri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        if (QueryHelpers.ParseQuery(MyUri.Query).TryGetValue("error", out var _initialCount))
+        {
+            UriParam = _initialCount;
+            Snackbar.Add(_initialCount, Severity.Error);
+            Console.WriteLine("Error: " + _initialCount);
+        }
+    }
+    
     private async Task Submit()
     {
-        
         var result = await UserManager.LoginAsync(m_LoginModel.Email, m_LoginModel.Password, "/");
-        if (result.Success)
+        /*if (result.Success)
         {
             Snackbar.Add("Logged in successfully", Severity.Success);
-            await Task.Delay(1000);
-            NavigationManager.NavigateTo("/home");
+            //Console.WriteLine("Logged in successfully------------------------------------------------------");
+            await Task.Delay(500);
+#
         }
         else
         {
             await Task.Delay(1000);
             Snackbar.Add("Failed to log in", Severity.Error);
             Console.WriteLine("Error: " + result.Message);
-        }
+        }*/
+        
     }
 
     public class LoginModel
