@@ -7,7 +7,7 @@ on:
     branches: [ "master", "dev" ]
   workflow_dispatch:
 env:
-  DOTNETVERSION: 9.0.x
+  DOTNETVERSION: 10.0.x
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -21,7 +21,9 @@ jobs:
     - name: Setup .NET SDK
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '${{env.DOTNETVERSION}}'
+        dotnet-version: |
+          9.0.x
+          ${{env.DOTNETVERSION}}
 
     - name: Install MAUI Workloads (macOS)
       if: matrix.os == 'macos-latest'
