@@ -259,7 +259,6 @@ namespace Onyx.Data.SQLite.Migrations
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.GroupHasUser", b =>
                 {
                     b.Property<int>("GroupId")
-                        .HasMaxLength(50)
                         .HasColumnType("INTEGER")
                         .HasColumnName("GroupId");
 
@@ -308,6 +307,9 @@ namespace Onyx.Data.SQLite.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("Id");
 
+                    b.Property<byte[]>("IconBitmap")
+                        .HasColumnType("BLOB");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -334,7 +336,7 @@ namespace Onyx.Data.SQLite.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("CategoryId");
 
-                    b.Property<DateOnly>("Date")
+                    b.Property<DateTime>("Date")
                         .HasColumnType("TEXT")
                         .HasColumnName("Date");
 
@@ -463,7 +465,7 @@ namespace Onyx.Data.SQLite.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.Device", "Devices")
+                    b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.Device", "Device")
                         .WithMany("Usages")
                         .HasForeignKey("DeviceId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -473,7 +475,7 @@ namespace Onyx.Data.SQLite.Migrations
 
                     b.Navigation("Category");
 
-                    b.Navigation("Devices");
+                    b.Navigation("Device");
                 });
 
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", b =>
