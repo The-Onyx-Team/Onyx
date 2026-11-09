@@ -1,17 +1,18 @@
 ﻿using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.LifecycleEvents;
-#if WINDOWS
-using Microsoft.UI.Windowing;
-#endif
 using MudBlazor.Services;
 using Onyx.App.Services;
 using Onyx.App.Services.Api;
 using Onyx.App.Services.Auth;
+using Onyx.App.Services.Collection;
 using Onyx.App.Shared.Services;
 using Onyx.App.Shared.Services.Auth;
 using Onyx.App.Shared.Services.Usage;
+#if ANDROID || WINDOWS
 using Onyx.App.UsageData;
+#endif
+using Onyx.Collector.Core;
 
 namespace Onyx.App
 {
@@ -23,39 +24,6 @@ namespace Onyx.App
             builder
                 .UseMauiApp<App>()
                 .ConfigureFonts(fonts => { fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular"); });
-
-            #if WINDOWS
-            builder.ConfigureLifecycleEvents(lifecycle =>
-            {
-                lifecycle.AddWindows(lifecycleBuilder => lifecycleBuilder.OnWindowCreated(window =>
-                {
-                    window.ExtendsContentIntoTitleBar = true;
-                    var handle = WinRT.Interop.WindowNative.GetWindowHandle(window);
-                    var id = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(handle);
-                    var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(id);
-
-                    appWindow.Closing += async (s, e) =>
-                    {
-                        e.Cancel = true;
-                        var result = await Application.Current?.MainPage?.DisplayAlert(
-                            "App close",
-                            "Do you really want to quit?",
-                            "Close",
-                            "Minimize to system tray")!;
-
-                        if (result)
-                        {
-                            Application.Current?.Quit();
-                        }
-
-                        appWindow.Hide();
-                    };
-                }));
-            });
-
-            var dataCollector = new DataCollector();
-            builder.Services.AddSingleton(dataCollector);
-            #endif
 
             builder.Services.AddHttpClient<HttpClientWrapper>();
             builder.Services.AddScoped<AuthApi>();
@@ -69,28 +37,110 @@ namespace Onyx.App
             builder.Services.AddAuthorizationCore();
             builder.Services.AddSingleton<IUserManager, UserManager>();
 
-            builder.Services.AddSingleton<IStatsService, UsageStatsService>();
-            builder.Services.AddSingleton<IStatsHelper, StatsHelper>();
-            
+            // Authenticated API access shared by the dashboard and the collectors. It uses the session the login
+            // stores and refreshes its tokens itself.
+            builder.Services.AddSingleton<ICredentialStore, MauiCredentialStore>();
+            builder.Services.AddSingleton(sp => new OnyxApiClient(
+                new HttpClient { BaseAddress = new Uri(ServerConnectionHelper.BaseUrl), Timeout = TimeSpan.FromSeconds(60) },
+                sp.GetRequiredService<ICredentialStore>(),
+                sp.GetRequiredService<ILogger<OnyxApiClient>>()));
+
+            builder.Services.AddScoped<IDeviceManager, ApiDeviceManager>();
+            builder.Services.AddScoped<IUsageDataService, ApiUsageDataService>();
+            builder.Services.AddScoped<IAppManager, ApiAppManager>();
+            builder.Services.AddScoped<Onyx.App.Shared.Services.Dashboard.ClientTimeZone>();
+
             // Platform Service
             builder.Services.AddScoped<IPlatformService, MauiPlatformService>();
+
+#if ANDROID
+            builder.Services.AddSingleton<AndroidUsageReader>();
+            builder.Services.AddSingleton<AndroidUsageSync>();
+            builder.Services.AddSingleton<IStatsService, AndroidStatsService>();
+#elif WINDOWS
+            builder.Services.AddSingleton<WindowsCollector>();
+            builder.Services.AddSingleton<IStatsService>(sp => sp.GetRequiredService<WindowsCollector>());
+            ConfigureWindows(builder);
+#else
+            builder.Services.AddSingleton<IStatsService, UnsupportedStatsService>();
+#endif
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
             builder.Logging.AddDebug();
 #endif
-            
-#if ANDROID
-            if (!AndroidServiceManager.IsRunning)
-            {
-                AndroidServiceManager.StartService();
-                Console.WriteLine("Service is starting...");
-            }
-            else
-                Console.WriteLine("Service is running...");
+
+            var app = builder.Build();
+
+#if WINDOWS
+            app.Services.GetRequiredService<WindowsCollector>().Start();
 #endif
 
-            return builder.Build();
+            return app;
         }
+
+#if WINDOWS
+        /// <summary>
+        /// Closing the window asks whether to quit or keep collecting in the tray. The app also registers itself to
+        /// start hidden at sign-in, since usage is only collected while it runs.
+        /// </summary>
+        private static void ConfigureWindows(MauiAppBuilder builder)
+        {
+            builder.ConfigureLifecycleEvents(lifecycle =>
+            {
+                lifecycle.AddWindows(windows => windows.OnWindowCreated(window =>
+                {
+                    window.ExtendsContentIntoTitleBar = true;
+                    var handle = WinRT.Interop.WindowNative.GetWindowHandle(window);
+                    var id = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(handle);
+                    var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(id);
+
+                    async void Quit()
+                    {
+                        WinUI.TrayIcon.Remove();
+                        if (IPlatformApplication.Current?.Services.GetService<WindowsCollector>() is { } collector)
+                            await collector.StopAsync();
+                        Application.Current?.Quit();
+                    }
+
+                    void Show() => window.DispatcherQueue.TryEnqueue(() =>
+                    {
+                        appWindow.Show();
+                        window.Activate();
+                    });
+
+                    WinUI.TrayIcon.Create(Show, Quit);
+                    WinUI.Autostart.Register();
+
+                    if (WinUI.Autostart.StartedMinimized)
+                        appWindow.Hide();
+
+                    appWindow.Closing += async (_, e) =>
+                    {
+                        e.Cancel = true;
+                        var page = Application.Current?.Windows.FirstOrDefault()?.Page;
+                        var quit = page is not null && await page.DisplayAlertAsync(
+                            "Close Onyx",
+                            "Onyx only records app usage while it is running. Keep it running in the notification area?",
+                            "Quit", "Keep running");
+
+                        if (quit)
+                            Quit();
+                        else
+                            appWindow.Hide();
+                    };
+                }));
+            });
+        }
+#endif
+    }
+
+    /// <summary>Platforms without a collector (iOS, Mac Catalyst).</summary>
+    internal sealed class UnsupportedStatsService : IStatsService
+    {
+        private static readonly CollectionStatus s_Status = new(false, false, null, null, 0);
+        public CollectionStatus GetStatus() => s_Status;
+        public void OpenUsageAccessSettings() { }
+        public Task<CollectionStatus> SyncNowAsync() => Task.FromResult(s_Status);
     }
 }

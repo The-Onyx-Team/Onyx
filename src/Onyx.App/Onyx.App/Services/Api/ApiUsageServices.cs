@@ -1,0 +1,40 @@
+using Onyx.App.Shared.Services.Usage;
+using Onyx.Collector.Core;
+using Onyx.Data.ApiSchema;
+
+namespace Onyx.App.Services.Api;
+
+// API-backed implementations of the services the shared dashboard uses. The web host implements the same
+// interfaces against the database.
+
+public class ApiDeviceManager(OnyxApiClient client) : IDeviceManager
+{
+    public Task<List<DeviceDto>> GetDevices() => client.GetDevicesAsync();
+
+    public Task<DeviceDto> RegisterDeviceAsync(string deviceName, string? platform) =>
+        client.RegisterDeviceAsync(deviceName, platform);
+
+    public Task UnregisterDeviceAsync(int deviceId) => client.DeleteDeviceAsync(deviceId);
+}
+
+public class ApiUsageDataService(OnyxApiClient client) : IUsageDataService
+{
+    public Task<List<UsageDto>> GetUsageDataAsync(DateTime startTime, DateTime endTime, int? deviceId = null) =>
+        client.GetUsageAsync(startTime, endTime, deviceId);
+
+    /// <remarks>The app's collectors upload through <see cref="OnyxApiClient.UploadUsageAsync"/>, which also
+    /// handles device registration; the UI never uploads.</remarks>
+    public Task<UsageUploadResultDto> UploadUsageAsync(int deviceId, IReadOnlyList<UsageEntryDto> entries) =>
+        throw new NotSupportedException("Uploads go through the platform collector");
+}
+
+public class ApiAppManager(OnyxApiClient client) : IAppManager
+{
+    public Task<List<AppDto>> GetAppsAsync() => client.GetAppsAsync();
+
+    public async Task<bool> SetIconAsync(string appIdentifier, byte[] iconPng)
+    {
+        await client.UploadIconAsync(appIdentifier, iconPng);
+        return true;
+    }
+}

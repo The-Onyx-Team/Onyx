@@ -1,14 +1,14 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+<Project Sdk="Microsoft.NET.Sdk.Razor">
 
     <PropertyGroup>
         <TargetFrameworks>
-            net9.0-android
+            net10.0-android
         </TargetFrameworks>
         <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">
-            $(TargetFrameworks);net9.0-windows10.0.19041.0
+            $(TargetFrameworks);net10.0-windows10.0.19041.0
         </TargetFrameworks>
         <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('osx'))">
-            net9.0-ios;net9.0-maccatalyst
+            net10.0-ios;net10.0-maccatalyst
         </TargetFrameworks>
 
         <RuntimeIdentifiers Condition="$([MSBuild]::IsOSPlatform('osx'))">maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers>
@@ -55,17 +55,30 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.3"/>
-        <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.50"/>
-        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="9.0.50"/>
-        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.3"/>
+        <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.14"/>
+        <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)"/>
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.14"/>
         <PackageReference Include="OneOf" Version="3.0.271"/>
-        <PackageReference Include="System.Drawing.Common" Version="9.0.4" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1"/>
         <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.9.0" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\Onyx.App.Shared\Onyx.App.Shared.csproj"/>
+        <ProjectReference Include="..\..\Onyx.Collector\Onyx.Collector.Core\Onyx.Collector.Core.csproj"/>
+    </ItemGroup>
+
+    <!-- Android: periodic background sync. -->
+    <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+        <PackageReference Include="Xamarin.AndroidX.Work.Runtime" Version="2.10.2.1"/>
+    </ItemGroup>
+
+    <!-- Windows: notification-area icon, so the app can keep collecting while its window is closed. -->
+    <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+        <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1"/>
+        <!-- Icon extraction (IconExtractor). Windows only: on Android it drags in System.Private.Windows.Core,
+             which fails AOT compilation in Release builds. -->
+        <PackageReference Include="System.Drawing.Common" Version="10.0.14"/>
     </ItemGroup>
 </Project>

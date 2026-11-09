@@ -11,7 +11,7 @@ public static class AlertService
 
             if (page != null)
             {
-                await page.DisplayAlert(title, message, "Close");
+                await page.DisplayAlertAsync(title, message, "Close");
             }
         });
     }

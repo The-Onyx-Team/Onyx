@@ -1,0 +1,17 @@
+[Unit]
+Description=Onyx usage collector
+Documentation=https://the-onyx-team.github.io/Onyx/
+# Needs the graphical session (WAYLAND_DISPLAY / DISPLAY, compositor IPC sockets).
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/onyx-agent run
+Restart=on-failure
+RestartSec=30
+# Exit codes for "not configured" and "unsupported session": restarting won't help.
+RestartPreventExitStatus=69 78
+
+[Install]
+WantedBy=graphical-session.target

@@ -1,5 +1,4 @@
-﻿using System.Web;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using OneOf;
 
 namespace Onyx.App.Services.Api;
@@ -93,18 +92,12 @@ public abstract class ApiBase<T> where T : ApiBase<T>
 
     private static string BuildUrl(string endpoint, (string key, string value)[]? parameters = null)
     {
-        var uriBuilder = new UriBuilder(new Uri(endpoint));
-        var query = HttpUtility.ParseQueryString(uriBuilder.Query);
+        // Endpoints are relative to the HttpClient's base address; new Uri(endpoint) would throw for them.
+        if (parameters is null || parameters.Length == 0)
+            return endpoint;
 
-        if (parameters != null)
-        {
-            foreach (var (key, value) in parameters)
-            {
-                query[key] = value;
-            }
-        }
-
-        uriBuilder.Query = query.ToString();
-        return uriBuilder.ToString();
+        var query = string.Join("&", parameters.Select(p =>
+            $"{Uri.EscapeDataString(p.key)}={Uri.EscapeDataString(p.value)}"));
+        return endpoint + (endpoint.Contains('?') ? "&" : "?") + query;
     }
 }

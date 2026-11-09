@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- Headless usage collector for Linux desktops (onyx-agent). Runs as a systemd user service and uploads
+         to the Onyx server; the web dashboard is the UI. -->
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <AssemblyName>onyx-agent</AssemblyName>
+        <RootNamespace>Onyx.Collector.Linux</RootNamespace>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <Version>1.0.0</Version>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.14" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Onyx.Collector.Core\Onyx.Collector.Core.csproj" />
+    </ItemGroup>
+
+</Project>

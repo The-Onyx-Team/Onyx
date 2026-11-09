@@ -1,13 +1,18 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
 using Onyx.App.Services.Api;
+using Onyx.App.Services.Collection;
+using Onyx.Collector.Core;
 using Onyx.App.Shared.Services.Auth;
 
 namespace Onyx.App.Services.Auth;
 
-public class UserManager(AuthenticationStateProvider authenticationStateProvider, AuthApi api) : IUserManager
+public class UserManager(AuthenticationStateProvider authenticationStateProvider, AuthApi api, OnyxApiClient apiClient)
+    : IUserManager
 {
+    private const string LastUserIdKey = "onyx_last_user_id";
+
     public async Task<RegisterResult> RegisterAsync(string name, string email, string password)
     {
         var result = await api.RegisterAsync(name, email, password);
@@ -32,10 +37,9 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
         };
     }
 
-    public Task<RegisterResult> ConfirmEmailAsync(string id, string token)
-    {
-        throw new NotImplementedException();
-    }
+    /// <remarks>Confirmation links from emails open in the browser, on the web app.</remarks>
+    public Task<RegisterResult> ConfirmEmailAsync(string id, string token) =>
+        Task.FromResult(new RegisterResult { Success = false, Message = "Open the link from the email in your browser." });
 
     public async Task<LoginResult> LoginAsync(string email, string password, string redirectUri)
     {
@@ -56,8 +60,16 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
         {
             var keyHandler = new JwtSecurityTokenHandler();
             var token = keyHandler.ReadJwtToken(result.Token);
-            var userId = token.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)?.Value;
-            var userName = token.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Name)?.Value;
+            // ReadJwtToken does not map claim types, so the short JWT names ("nameid", "unique_name") are used.
+            var userId = token.Claims.FirstOrDefault(x => x.Type is "nameid" or ClaimTypes.NameIdentifier)?.Value;
+            var userName = token.Claims.FirstOrDefault(x => x.Type is "unique_name" or ClaimTypes.Name)?.Value;
+
+            // A different account must not upload under the previous account's device.
+            if (Preferences.Default.Get(LastUserIdKey, (string?)null) != userId)
+            {
+                MauiCredentialStore.ForgetDevice();
+                Preferences.Default.Set(LastUserIdKey, userId);
+            }
             var role = token.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Role)?.Value;
             var phone = token.Claims.FirstOrDefault(x => x.Type == ClaimTypes.MobilePhone)?.Value;
             var amr = token.Claims.FirstOrDefault(x => x.Type == "amr")?.Value;
@@ -90,14 +102,27 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
         }
     }
 
-    public Task<ResetPasswordResult> ResetPasswordAsync(string email)
-    {
-        throw new NotImplementedException();
-    }
+    public async Task<ResetPasswordResult> ResetPasswordAsync(string email) =>
+        new() { Success = await api.ForgotPasswordAsync(email) };
 
-    public Task<ResetPasswordResult> SetPasswordAsync(string id, string password)
+    /// <remarks>Reset links from emails open in the browser, on the web app.</remarks>
+    public Task<ResetPasswordResult> SetPasswordAsync(string id, string code, string password) =>
+        Task.FromResult(new ResetPasswordResult { Success = false });
+
+    public async Task<bool> DeleteAccountAsync()
     {
-        throw new NotImplementedException();
+        try
+        {
+            await apiClient.DeleteAccountAsync();
+        }
+        catch (Exception e) when (e is HttpRequestException or NotSignedInException)
+        {
+            return false;
+        }
+
+        MauiCredentialStore.ForgetDevice();
+        await LogoutAsync();
+        return true;
     }
 
     public Task LogoutAsync()
@@ -105,21 +130,18 @@ public class UserManager(AuthenticationStateProvider authenticationStateProvider
         return (authenticationStateProvider as MauiAuthenticationStateProvider)!.UpdateAuthenticationStateAsync(null);
     }
 
-    public Task<ExternalLoginData> GetExternalLoginDataAsync()
-    {
-        throw new NotImplementedException();
-    }
+    // External logins (Google, Microsoft, GitHub) are browser redirects handled by the web app. The app lists no
+    // external schemes (GetExternalAuthenticationSchemas), so its pages never call these.
 
-    public Task HandleExternalLoginAsync(ExternalLoginData externalLoginInfo, string? returnUrl, EmailInputModel input)
-    {
-        throw new NotImplementedException();
-    }
+    public Task<ExternalLoginData> GetExternalLoginDataAsync() =>
+        throw new NotSupportedException("External logins are only available on the web dashboard");
+
+    public Task HandleExternalLoginAsync(ExternalLoginData externalLoginInfo, string? returnUrl, EmailInputModel input) =>
+        throw new NotSupportedException("External logins are only available on the web dashboard");
 
     public Task HandleNewExternalLoginAsync(ExternalLoginData? externalLoginInfo, EmailInputModel input,
-        string? returnUrl)
-    {
-        throw new NotImplementedException();
-    }
+        string? returnUrl) =>
+        throw new NotSupportedException("External logins are only available on the web dashboard");
 
     public Task<IEnumerable<AuthenticationScheme>> GetExternalAuthenticationSchemas()
     {
