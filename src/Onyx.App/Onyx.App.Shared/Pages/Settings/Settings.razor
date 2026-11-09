@@ -1,31 +1,65 @@
 @page "/settings"
-@using Onyx.Data.DataBaseSchema.TableEntities
+@inject IUserManager UserManager
+@inject IPlatformService PlatformService
+@inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
 
 @layout AppLayout
+
+<PageTitle>Settings</PageTitle>
+
 <AuthorizeView>
     <Authorized>
-        <MudExpansionPanels>
-            <MudExpansionPanel Text="Sync Time" MaxHeight="500"  Expanded="true" Style="width:100vw;">
-                <MudSlider @bind-Value="value" Min="1" Max="120" Color="Color.Info">Value: @value.ToString() min</MudSlider>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SendNewSyncTime">Change Now!</MudButton>
-            </MudExpansionPanel>
-        </MudExpansionPanels>
+        <MudContainer MaxWidth="MaxWidth.Medium" Class="py-6">
+            <MudPaper Class="pa-4 mb-6" Elevation="1">
+                <MudText Typo="Typo.h6">Data collection</MudText>
+                <MudText Class="mt-2">
+                    Android uploads in the background about every 30 minutes when online. Windows and the Linux agent
+                    record continuously while running and upload every 5 minutes; anything recorded offline is sent later.
+                    The <MudLink Href="/devices">Devices</MudLink> page shows each device's last upload and can upload this device now.
+                </MudText>
+                <MudText Class="mt-2">
+                    What is collected: see the <MudLink Href="/privacy">privacy notice</MudLink>.
+                </MudText>
+            </MudPaper>
+
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.h6" Color="Color.Error">Delete account</MudText>
+                <MudText Class="mt-2 mb-3">
+                    Deletes your account, all registered devices and all usage data. This cannot be undone.
+                </MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="m_Deleting" OnClick="DeleteAccountAsync">
+                    @(m_Deleting ? "Deleting..." : "Delete my account")
+                </MudButton>
+            </MudPaper>
+        </MudContainer>
     </Authorized>
 </AuthorizeView>
 
+@code {
+    private bool m_Deleting;
 
-@code { 
-    public double value;
-    //Backend missing
-    protected override async Task OnInitializedAsync()
+    private async Task DeleteAccountAsync()
     {
-        value = 1; // get value aus DB
-    }
-    
-    public async Task SendNewSyncTime()
-    {
-        //API anschluss --> übergabe value*1000 (ms)
-        Snackbar.Add("Sync time changed", Severity.Success);
+        var confirmed = await DialogService.ShowMessageBox("Delete account",
+            "Delete your account with all devices and usage data? This cannot be undone.",
+            yesText: "Delete everything", cancelText: "Cancel");
+        if (confirmed != true)
+            return;
+
+        m_Deleting = true;
+        var deleted = await UserManager.DeleteAccountAsync();
+        m_Deleting = false;
+
+        if (!deleted)
+        {
+            Snackbar.Add("The account could not be deleted. Please try again.", Severity.Error);
+            return;
+        }
+
+        // The web implementation already navigated to the sign-out endpoint.
+        if (PlatformService.IsMaui())
+            NavigationManager.NavigateTo("/account/login", forceLoad: true);
     }
 }

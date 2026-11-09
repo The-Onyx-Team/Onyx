@@ -1,0 +1,138 @@
+using Onyx.Data.ApiSchema;
+
+namespace Onyx.App.Shared.Services.Dashboard;
+
+public enum DashboardRange
+{
+    Day,
+    Week,
+    Month
+}
+
+public record AppTotal(int AppId, string Name, string? Category, TimeSpan Time, double Share);
+
+public record NamedTotal(string Name, TimeSpan Time, double Share);
+
+/// <summary>A chart series: one value (hours) per period.</summary>
+public record SeriesData(string Name, double[] Hours);
+
+/// <summary>
+/// Aggregates hourly usage buckets for the dashboard in the viewer's time zone.
+/// </summary>
+public sealed class UsageSummary
+{
+    /// <summary>Apps beyond this rank are combined into "Other" in the chart.</summary>
+    public const int ChartApps = 5;
+
+    public required DateTime LocalStart { get; init; }
+    public required DateTime LocalEnd { get; init; }
+    public required DashboardRange Range { get; init; }
+    public TimeSpan Total { get; private init; }
+    public IReadOnlyList<AppTotal> Apps { get; private init; } = [];
+    public IReadOnlyList<NamedTotal> Categories { get; private init; } = [];
+    public IReadOnlyList<NamedTotal> Devices { get; private init; } = [];
+    public string[] PeriodLabels { get; private init; } = [];
+    public IReadOnlyList<SeriesData> Series { get; private init; } = [];
+
+    /// <summary>Local start and end (exclusive) of the period containing <paramref name="anchor"/>.</summary>
+    public static (DateTime Start, DateTime End) Period(DateTime anchor, DashboardRange range)
+    {
+        var day = anchor.Date;
+        return range switch
+        {
+            DashboardRange.Day => (day, day.AddDays(1)),
+            // Weeks start on Monday.
+            DashboardRange.Week => (day.AddDays(-(((int)day.DayOfWeek + 6) % 7)), day.AddDays(-(((int)day.DayOfWeek + 6) % 7) + 7)),
+            _ => (new DateTime(day.Year, day.Month, 1), new DateTime(day.Year, day.Month, 1).AddMonths(1))
+        };
+    }
+
+    /// <summary>UTC range to query for a local period. Hour buckets are UTC; zones with a half-hour offset
+    /// get the overlapping buckets.</summary>
+    public static (DateTime Start, DateTime End) ToUtc(DateTime localStart, DateTime localEnd, TimeZoneInfo zone) =>
+        (TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(localStart, DateTimeKind.Unspecified), zone),
+            TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(localEnd, DateTimeKind.Unspecified), zone));
+
+    public static UsageSummary Create(IReadOnlyList<UsageDto> usage, DateTime localStart, DateTime localEnd,
+        DashboardRange range, TimeZoneInfo zone)
+    {
+        var rows = usage
+            .Select(u => (Usage: u, Local: TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(u.Date, DateTimeKind.Utc), zone)))
+            .Where(r => r.Local >= localStart && r.Local < localEnd)
+            .ToList();
+
+        var total = Sum(rows.Select(r => r.Usage.TimeSpan));
+        double ShareOf(TimeSpan t) => total > TimeSpan.Zero ? t / total : 0;
+
+        var apps = rows
+            .GroupBy(r => r.Usage.AppId)
+            .Select(g => new { First = g.First().Usage, Time = Sum(g.Select(r => r.Usage.TimeSpan)) })
+            .OrderByDescending(a => a.Time)
+            .Select(a => new AppTotal(a.First.AppId, a.First.AppName, a.First.Category, a.Time, ShareOf(a.Time)))
+            .ToList();
+
+        var categories = rows
+            .GroupBy(r => r.Usage.Category ?? "Uncategorized")
+            .Select(g => new NamedTotal(g.Key, Sum(g.Select(r => r.Usage.TimeSpan)), 0))
+            .OrderByDescending(c => c.Time)
+            .Select(c => c with { Share = ShareOf(c.Time) })
+            .ToList();
+
+        var devices = rows
+            .GroupBy(r => r.Usage.DeviceName)
+            .Select(g => new NamedTotal(g.Key, Sum(g.Select(r => r.Usage.TimeSpan)), 0))
+            .OrderByDescending(d => d.Time)
+            .Select(d => d with { Share = ShareOf(d.Time) })
+            .ToList();
+
+        // Day view: one column per hour. Week and month: one column per day.
+        var byHour = range == DashboardRange.Day;
+        var periods = byHour ? 24 : (int)(localEnd - localStart).TotalDays;
+        int PeriodOf(DateTime local) => byHour ? local.Hour : (int)(local.Date - localStart.Date).TotalDays;
+
+        var labels = Enumerable.Range(0, periods)
+            .Select(i => byHour
+                ? i % 3 == 0 ? $"{i:00}" : ""
+                : range == DashboardRange.Week
+                    ? localStart.AddDays(i).ToString("ddd")
+                    : (i % 5 == 0 ? localStart.AddDays(i).ToString("dd") : ""))
+            .ToArray();
+
+        var chartApps = apps.Take(ChartApps).Select(a => a.AppId).ToHashSet();
+        var series = apps.Take(ChartApps)
+            .Select(a => new SeriesData(a.Name, new double[periods]))
+            .ToList();
+        var other = new SeriesData("Other", new double[periods]);
+        var seriesByApp = apps.Take(ChartApps).Zip(series).ToDictionary(p => p.First.AppId, p => p.Second);
+
+        foreach (var (u, local) in rows)
+        {
+            var period = PeriodOf(local);
+            if (period < 0 || period >= periods)
+                continue;
+            var target = chartApps.Contains(u.AppId) ? seriesByApp[u.AppId] : other;
+            target.Hours[period] += u.TimeSpan.TotalHours;
+        }
+
+        if (other.Hours.Any(h => h > 0))
+            series.Add(other);
+
+        return new UsageSummary
+        {
+            LocalStart = localStart,
+            LocalEnd = localEnd,
+            Range = range,
+            Total = total,
+            Apps = apps,
+            Categories = categories,
+            Devices = devices,
+            PeriodLabels = labels,
+            Series = series
+        };
+    }
+
+    public static string Format(TimeSpan time) =>
+        time.TotalHours >= 1 ? $"{(int)time.TotalHours} h {time.Minutes} min" : $"{Math.Max(time.Minutes, time > TimeSpan.Zero ? 1 : 0)} min";
+
+    private static TimeSpan Sum(IEnumerable<TimeSpan> times) => times.Aggregate(TimeSpan.Zero, (a, b) => a + b);
+}

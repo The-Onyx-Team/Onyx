@@ -1,224 +1,284 @@
 @page "/home"
+@using Onyx.App.Shared.Services.Dashboard
 @using Onyx.App.Shared.Services.Usage
 @using Onyx.Data.ApiSchema
 @layout AppLayout
 @inject IDeviceManager DeviceManager
-@inject IUsageDataService UsageManager
+@inject IUsageDataService UsageService
+@inject IAppManager AppManager
+@inject ClientTimeZone ClientTimeZone
 
-<MudContainer xmlns="http://www.w3.org/1999/html" Style="padding: 2vw">
-    <MudGrid>
-        <MudItem xs="12" sm="6" md="4">
-            <MudDatePicker Label="Filter"
-                           Editable="true"
-                           Date="m_Date"
-                           DateChanged="OnDateChanged"
-                           Mask="@(new DateMask("dd.MM.yyyy"))"
-                           DateFormat="dd.MM.yyyy"
-                           Placeholder="de-AT Date"
-                           Variant="Variant.Filled"
-                           Style="width: 100%;" />
+<PageTitle>Dashboard</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+    <MudGrid Spacing="2" Class="mb-2">
+        <MudItem xs="12" sm="4" md="3">
+            <MudToggleGroup T="DashboardRange" Value="m_Range" ValueChanged="OnRangeChanged" Color="Color.Primary"
+                            SelectedClass="mud-theme-primary" Outlined="true" Delimiters="true" Size="Size.Small">
+                <MudToggleItem Value="DashboardRange.Day" Text="Day"/>
+                <MudToggleItem Value="DashboardRange.Week" Text="Week"/>
+                <MudToggleItem Value="DashboardRange.Month" Text="Month"/>
+            </MudToggleGroup>
         </MudItem>
-        <MudItem xs="12" sm="6" md="4">
-            <MudSelect T="DeviceDto" Label="Device"
-                       @bind-Value="SelectedDevice"
-                       Variant="Variant.Filled"
-                       Style="width: 100%;">
-                <MudSelectItem Value="@(default(DeviceDto))">None</MudSelectItem>
-
-                @if (m_Devices is not null)
+        <MudItem xs="12" sm="4" md="3">
+            <MudDatePicker Label="Date" Date="m_Anchor" DateChanged="OnDateChanged" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" DateFormat="dd.MM.yyyy" MaxDate="m_Today"/>
+        </MudItem>
+        <MudItem xs="12" sm="4" md="3">
+            <MudSelect T="int?" Label="Device" Value="m_DeviceId" ValueChanged="OnDeviceChanged"
+                       Variant="Variant.Outlined" Margin="Margin.Dense">
+                <MudSelectItem T="int?" Value="null">All devices</MudSelectItem>
+                @foreach (var device in m_Devices)
                 {
-                    @foreach (var device in m_Devices.Result)
-                    {
-                        <MudSelectItem Value="device">@device.Name</MudSelectItem>
-                    }
+                    <MudSelectItem T="int?" Value="device.Id">@device.Name</MudSelectItem>
                 }
             </MudSelect>
         </MudItem>
     </MudGrid>
-    
 
-    <br/>
-
-    @if (!m_DeviceSelected && m_Devices != null)
+    @if (m_Error is not null)
     {
-        <MudText Typo="Typo.h6">Device Usage Distribution</MudText>
-        <br />
-        <MudGrid Gutter="3">
-            @foreach (var device in m_Devices.Result)
-            {
-                <MudItem xs="12" sm="6" md="3">
-                    <MudPaper Elevation="2" Class="pa-4">
-                        <MudText Typo="Typo.subtitle2">@device.Name</MudText>
-                        <MudText Typo="Typo.body1">33%</MudText>
-                        <MudProgressLinear Color="Color.Tertiary" Value="33" />
-                    </MudPaper>
-                </MudItem>
-            }
-        </MudGrid>
-        <MudDivider Class="my-4" />
+        <MudAlert Severity="Severity.Error" Class="mb-4">@m_Error</MudAlert>
     }
 
-    
+    @if (m_Summary is null)
+    {
+        <MudProgressLinear Indeterminate="true"/>
+    }
+    else if (m_Summary.Total == TimeSpan.Zero)
+    {
+        <MudPaper Class="pa-6" Elevation="1">
+            <MudText Typo="Typo.h6">No usage recorded for @PeriodText</MudText>
+            @if (m_Devices.Count == 0)
+            {
+                <MudText Class="mt-2">
+                    Data appears here once a device uploads it. Install Onyx on your phone or computer and sign in.
+                    <MudLink Href="/downloads">Downloads</MudLink>
+                </MudText>
+            }
+        </MudPaper>
+    }
+    else
+    {
+        <MudGrid Spacing="3">
+            <MudItem xs="12" sm="4">
+                <MudPaper Class="pa-4" Elevation="1">
+                    <MudText Typo="Typo.caption">Screen time, @PeriodText</MudText>
+                    <MudText Typo="Typo.h4">@UsageSummary.Format(m_Summary.Total)</MudText>
+                    @if (m_Summary.Range != DashboardRange.Day)
+                    {
+                        <MudText Typo="Typo.body2">@UsageSummary.Format(m_Summary.Total / ElapsedDays) per day on average</MudText>
+                    }
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Class="pa-4" Elevation="1">
+                    <MudText Typo="Typo.caption">Most used</MudText>
+                    <MudText Typo="Typo.h5">@m_Summary.Apps[0].Name</MudText>
+                    <MudText Typo="Typo.body2">@UsageSummary.Format(m_Summary.Apps[0].Time) (@m_Summary.Apps[0].Share.ToString("P0"))</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Class="pa-4" Elevation="1">
+                    <MudText Typo="Typo.caption">Apps used</MudText>
+                    <MudText Typo="Typo.h4">@m_Summary.Apps.Count</MudText>
+                    <MudText Typo="Typo.body2">on @m_Summary.Devices.Count device(s)</MudText>
+                </MudPaper>
+            </MudItem>
 
-    <MudText Typo="Typo.h6">Reports</MudText>
-    <br/>
-    <MudGrid Gutter="3">
-
-        <MudItem xs="12" md="6">
-            <MudPaper Elevation="3" Class="pa-4 mud-theme-dark">
-                <MudText Typo="Typo.h6">Usage</MudText>
-                <br/>
-                <MudPaper Class="doc-section-component-container">
+            <MudItem xs="12" md="8">
+                <MudPaper Class="pa-4" Elevation="1">
+                    <MudText Typo="Typo.h6">@(m_Summary.Range == DashboardRange.Day ? "By hour (minutes)" : "By day (hours)")</MudText>
                     <MudChart ChartType="ChartType.StackedBar"
-                              ChartSeries="@_weeklyAppData"
+                              ChartSeries="@m_ChartSeries"
+                              XAxisLabels="@m_Summary.PeriodLabels"
                               LegendPosition="Position.Bottom"
-                              XAxisLabels="@_xAxisDays"
-                              Width="auto"
-                              Height="38vh"
-                              AxisChartOptions="_axisChartOptions"
-                              ChartOptions="@(new() { ChartPalette = ["#9D4D27", "#C58848", "#494C3B"] })"
-                              style="pointer-events: none;">
-                    </MudChart>
+                              Width="100%" Height="320px"
+                              ChartOptions="@m_ChartOptions"
+                              AxisChartOptions="@(new AxisChartOptions { StackedBarWidthRatio = 0.6 })"/>
                 </MudPaper>
-            </MudPaper>
-        </MudItem>
-        
-        <MudItem xs="12" md="6">
-            <MudPaper Elevation="3" Class="pa-4 mud-theme-dark">
-                <MudText Typo="Typo.h6">Top Categories</MudText>
-                <br/>
-                <MudTable Items="_appRanking">
-                    <HeaderContent>
-                        <MudTh>Rank</MudTh>
-                        <MudTh>App</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="Rank">@context.Key</MudTd>
-                        <MudTd DataLabel="App Name">@context.Value</MudTd>
-                    </RowTemplate>
-                </MudTable>
-            </MudPaper>
-        </MudItem>
+            </MudItem>
 
-        <MudItem xs="12" md="6">
-            <MudPaper Elevation="3" Class="pa-4 mud-theme-dark">
-                <MudText Typo="Typo.h6">Usage Distribution</MudText>
-                <br/>
-                <MudPaper Class="pa-4">
+            <MudItem xs="12" md="4">
+                <MudPaper Class="pa-4" Elevation="1">
+                    <MudText Typo="Typo.h6">Categories</MudText>
                     <MudChart ChartType="ChartType.Donut"
-                              Width="auto"
-                              Height="25vh"
-                              InputData="@_todaysAppData"
-                              InputLabels="@_labels"
-                              style="pointer-events: none;"
-                              ChartOptions="@(new() { ChartPalette = ["#9D4D27", "#C58848", "#494C3B"] })">
-                    </MudChart>
+                              InputData="@m_Summary.Categories.Select(c => c.Time.TotalHours).ToArray()"
+                              InputLabels="@m_Summary.Categories.Select(c => $"{c.Name} ({c.Share:P0})").ToArray()"
+                              LegendPosition="Position.Bottom"
+                              Width="100%" Height="260px"/>
                 </MudPaper>
-            </MudPaper>
-        </MudItem>
+            </MudItem>
 
-        <MudItem xs="12" md="6">
-            <MudPaper Elevation="3" Class="pa-4 mud-theme-dark">
-                <MudText Typo="Typo.h6">Progress</MudText>
-                <br/>
-                <MudPaper Class="doc-section-component-container">
-                    <MudChart ChartType="ChartType.Line"
-                              ChartSeries="@_monthlyAppData"
-                              XAxisLabels="@_xAxisMonths"
-                              ChartOptions="@(new() { ChartPalette = ["#9D4D27", "#C58848", "#494C3B"] })"
-                              Width="auto"
-                              style="pointer-events: none;"
-                              Height="30vh"/>
+            <MudItem xs="12" md="8">
+                <MudPaper Class="pa-4" Elevation="1">
+                    <MudText Typo="Typo.h6" Class="mb-2">Apps</MudText>
+                    <MudTable Items="m_Summary.Apps" Dense="true" Hover="true" Elevation="0" RowsPerPage="10">
+                        <HeaderContent>
+                            <MudTh></MudTh>
+                            <MudTh>App</MudTh>
+                            <MudTh>Category</MudTh>
+                            <MudTh Style="text-align: right">Time</MudTh>
+                            <MudTh Style="width: 30%">Share</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd Style="width: 40px">
+                                @if (m_Icons.TryGetValue(context.AppId, out var icon))
+                                {
+                                    <img src="@icon" alt="" width="24" height="24"/>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="App">@context.Name</MudTd>
+                            <MudTd DataLabel="Category">@(context.Category ?? "-")</MudTd>
+                            <MudTd DataLabel="Time" Style="text-align: right">@UsageSummary.Format(context.Time)</MudTd>
+                            <MudTd DataLabel="Share">
+                                <MudProgressLinear Color="Color.Primary" Value="@(context.Share * 100)"/>
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager HideRowsPerPage="true"/>
+                        </PagerContent>
+                    </MudTable>
                 </MudPaper>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
-    
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudPaper Class="pa-4" Elevation="1">
+                    <MudText Typo="Typo.h6" Class="mb-2">Devices</MudText>
+                    @foreach (var device in m_Summary.Devices)
+                    {
+                        <div class="mb-3">
+                            <MudText Typo="Typo.body2">@device.Name: @UsageSummary.Format(device.Time) (@device.Share.ToString("P0"))</MudText>
+                            <MudProgressLinear Color="Color.Tertiary" Value="@(device.Share * 100)"/>
+                        </div>
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
 </MudContainer>
 
-
-
 @code {
-    private DateTime? m_Date = DateTime.Today;
-    
-    private bool m_DeviceSelected;
-    private Task<List<DeviceDto>>? m_Devices;
-    private DeviceDto? m_SelectedDevice;
+    private DashboardRange m_Range = DashboardRange.Day;
+    private DateTime? m_Anchor;
+    private DateTime m_Today = DateTime.Today;
+    private int? m_DeviceId;
+    private TimeZoneInfo m_Zone = TimeZoneInfo.Local;
 
-    private Task<List<UsageDto>>? m_Usage;
+    private List<DeviceDto> m_Devices = [];
+    private UsageSummary? m_Summary;
+    private List<ChartSeries> m_ChartSeries = [];
+    private ChartOptions m_ChartOptions = new();
+    private Dictionary<int, string> m_Icons = new();
+    private string? m_Error;
 
-    protected override async Task OnInitializedAsync()
+    /// <summary>Days of the period up to today, for the daily average of a period that is still running.</summary>
+    private int ElapsedDays => m_Summary is null
+        ? 1
+        : Math.Clamp((int)(m_Today - m_Summary.LocalStart).TotalDays + 1, 1, m_Summary.PeriodLabels.Length);
+
+    private string PeriodText => m_Summary is null
+        ? ""
+        : m_Summary.Range switch
+        {
+            DashboardRange.Day => m_Summary.LocalStart == m_Today ? "today" : m_Summary.LocalStart.ToString("dddd, dd.MM.yyyy"),
+            DashboardRange.Week => $"the week of {m_Summary.LocalStart:dd.MM.}",
+            _ => m_Summary.LocalStart.ToString("MMMM yyyy")
+        };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        m_Devices = DeviceManager.GetDevices();
-        await LoadUsageAsync();
+        if (!firstRender)
+            return;
+
+        // The time zone comes from the browser, which needs JS interop, so loading starts after the first render.
+        m_Zone = await ClientTimeZone.GetAsync();
+        m_Today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, m_Zone).Date;
+        m_Anchor = m_Today;
+
+        try
+        {
+            m_Devices = await DeviceManager.GetDevices();
+        }
+        catch (Exception e)
+        {
+            m_Error = $"Could not load devices: {e.Message}";
+        }
+
+        await LoadAsync();
+        await LoadIconsAsync();
     }
 
-    private DeviceDto? SelectedDevice
+    private async Task OnRangeChanged(DashboardRange range)
     {
-        get => m_SelectedDevice;
-        set
+        m_Range = range;
+        await LoadAsync();
+    }
+
+    private async Task OnDateChanged(DateTime? date)
+    {
+        m_Anchor = date ?? m_Today;
+        await LoadAsync();
+    }
+
+    private async Task OnDeviceChanged(int? deviceId)
+    {
+        m_DeviceId = deviceId;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var (localStart, localEnd) = UsageSummary.Period(m_Anchor ?? m_Today, m_Range);
+        var (utcStart, utcEnd) = UsageSummary.ToUtc(localStart, localEnd, m_Zone);
+
+        try
         {
-            m_SelectedDevice = value;
-            m_DeviceSelected = value is not null;
+            // One hour of margin on both ends for zones with a non-whole-hour offset.
+            var usage = await UsageService.GetUsageDataAsync(utcStart.AddHours(-1), utcEnd.AddHours(1), m_DeviceId);
+            m_Summary = UsageSummary.Create(usage, localStart, localEnd, m_Range, m_Zone);
+            // Hours of a single day are short, so the day view counts minutes. MudBlazor's tick step is an integer.
+            var scale = m_Range == DashboardRange.Day ? 60 : 1;
+            m_ChartSeries = m_Summary.Series
+                .Select(s => new ChartSeries { Name = s.Name, Data = s.Hours.Select(h => Math.Round(h * scale, 1)).ToArray() })
+                .ToList();
+            var highest = m_ChartSeries.Count == 0
+                ? 0
+                : Enumerable.Range(0, m_Summary.PeriodLabels.Length).Max(i => m_ChartSeries.Sum(c => c.Data[i]));
+            m_ChartOptions = new ChartOptions { YAxisTicks = NiceStep(highest), YAxisLines = true };
+            m_Error = null;
+        }
+        catch (Exception e)
+        {
+            m_Error = $"Could not load usage: {e.Message}";
+            m_Summary = UsageSummary.Create([], localStart, localEnd, m_Range, m_Zone);
+        }
+
+        StateHasChanged();
+    }
+
+    /// <summary>Tick step giving about four to eight grid lines.</summary>
+    private static int NiceStep(double highest)
+    {
+        foreach (var step in new[] { 1, 2, 5, 10, 15, 20, 30, 60, 120 })
+            if (highest / step <= 8)
+                return step;
+        return 240;
+    }
+
+    private async Task LoadIconsAsync()
+    {
+        try
+        {
+            var apps = await AppManager.GetAppsAsync();
+            m_Icons = apps
+                .Where(a => a.IconBitmap.Length > 0)
+                .ToDictionary(a => a.Id, a => $"data:image/png;base64,{Convert.ToBase64String(a.IconBitmap)}");
+            StateHasChanged();
+        }
+        catch (Exception)
+        {
+            // Icons are decoration; the dashboard works without them.
         }
     }
-    
-    private async Task OnDateChanged(DateTime? newDate)
-    {
-        if (newDate.HasValue)
-        {
-            m_Date = newDate.Value;
-            await LoadUsageAsync();
-        }
-    }
-    
-    private Task LoadUsageAsync()
-    {
-        var date = m_Date ?? DateTime.Today;
-        var start = date.Date;
-        DateTime end;
-        if (date.Date == DateTime.Today)
-            end = DateTime.Now;
-        else
-            end = date.Date.AddDays(1).AddTicks(-1);
-
-        m_Usage = UsageManager.GetUsageDataAsync(start, end);
-        
-        return m_Usage;
-    }
-    
-    //bar
-    private readonly AxisChartOptions _axisChartOptions = new() { StackedBarWidthRatio = 0.5};
-
-
-    private readonly List<ChartSeries> _weeklyAppData =
-    [
-        new() { Name = "Instagram", Data = [40, 20, 25, 27, 46, 60, 48] },
-        new() { Name = "TikTok", Data = [19, 24, 35, 13, 28, 15, 13] },
-        new() { Name = "YouTube", Data = [8, 6, 11, 13, 4, 16, 10] }
-    ];
-    private readonly string[] _xAxisDays = { "Mo, 05.05.", "Di, 06.05.", "Mi, 07.05.", "Do, 08.05.", "Fr, 09.05.", "Sa, 10.05.", "So, 11.05."};
-    
-    //Donut
-    private readonly double[] _todaysAppData = { 50, 25, 20};
-    private readonly string[] _labels = { "Instagram", "TikTok", "YouTube" };
-    
-    //Line
-    private readonly List<ChartSeries> _monthlyAppData =
-    [
-        new() { Name = "Instagram", Data = [40, 20, 25, 27, 46, 60, 48] },
-        new() { Name = "TikTok", Data = [19, 24, 35, 13, 28, 15, 13] },
-        new() { Name = "YouTube", Data = [8, 6, 11, 13, 4, 16, 10] }
-    ];
-    private readonly string[] _xAxisMonths = { "Jan", "Feb", "Mar", "Apr", "May", "June", "July"};
-    
-    //List
-    Dictionary<string, string> _appRanking = new Dictionary<string, string>
-    {
-        { "1.", "Instagram" },
-        { "2.", "WhatsApp" },
-        { "3.", "TikTok" },
-        { "4.", "YouTube" },
-        { "5.", "Snapchat" }
-    };
 }

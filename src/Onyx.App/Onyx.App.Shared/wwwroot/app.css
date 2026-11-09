@@ -57,7 +57,9 @@
         justify-content: flex-end;
     }
 
-    body {
+    /* Only the landing page layout has these fixed bars; the app layout positions its own navigation, and the
+       padding would push its bottom navigation off screen. */
+    body:has(.appbar-top) {
         padding-top: 64px; /* Adjust to avoid overlap */
         padding-bottom: 64px; /* Adjust to avoid overlap */
     }

@@ -1,9 +1,59 @@
-﻿@page "/downloads"
-
+@page "/downloads"
 @layout LandingPageLayout
 
+<PageTitle>Downloads</PageTitle>
 
+<MudContainer MaxWidth="MaxWidth.Medium" Class="py-8">
+    <MudText Typo="Typo.h4" Class="mb-2">Get Onyx</MudText>
+    <MudText Class="mb-6">
+        Install Onyx on each device you want to track and sign in with your account. The device registers itself
+        and uploads its app usage; you see everything on the <MudLink Href="/home">dashboard</MudLink>.
+    </MudText>
+
+    <MudGrid Spacing="3">
+        @foreach (var download in s_Downloads)
+        {
+            <MudItem xs="12" sm="6">
+                <MudPaper Class="pa-4" Elevation="2" Style="height: 100%">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+                        <MudIcon Icon="@download.Icon" Size="Size.Large"/>
+                        <MudText Typo="Typo.h6">@download.Platform</MudText>
+                    </MudStack>
+                    <MudText Typo="Typo.body2" Class="mb-3">@download.Description</MudText>
+                    @foreach (var (label, asset) in download.Assets)
+                    {
+                        <MudButton Href="@($"{ReleaseBase}/{asset}")" Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Download" Class="mr-2 mb-2">@label</MudButton>
+                    }
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+
+    <MudText Typo="Typo.body2" Class="mt-6">
+        All releases and checksums: <MudLink Href="https://github.com/The-Onyx-Team/Onyx/releases">GitHub releases</MudLink>.
+        What the apps collect is described in the <MudLink Href="/privacy">privacy notice</MudLink>.
+    </MudText>
+</MudContainer>
 
 @code {
+    private const string ReleaseBase = "https://github.com/The-Onyx-Team/Onyx/releases/latest/download";
 
+    private record Download(string Platform, string Icon, string Description, (string Label, string Asset)[] Assets);
+
+    private static readonly Download[] s_Downloads =
+    [
+        new("Android", Icons.Custom.Brands.Google,
+            "Android 7 or newer. After installing, open the app, sign in and allow usage access when asked. " +
+            "Usage is uploaded in the background about every 30 minutes.",
+            [("APK", "onyx-android.apk")]),
+        new("Windows", Icons.Custom.Brands.Microsoft,
+            "Windows 10 (1809) or newer. Unzip and run Onyx.App.exe. It starts with Windows and keeps collecting " +
+            "from the notification area when its window is closed.",
+            [("x64 (zip)", "onyx-windows-x64.zip")]),
+        new("Linux", Icons.Custom.Brands.Linux,
+            "A small background service (onyx-agent) for Hyprland, Sway and X11 desktops; GNOME and KDE on Wayland " +
+            "are not supported yet. Extract the archive and run ./install.sh.",
+            [("x64", "onyx-agent-linux-x64.tar.gz"), ("arm64", "onyx-agent-linux-arm64.tar.gz")])
+    ];
 }

@@ -1,0 +1,54 @@
+@page "/privacy"
+@layout LandingPageLayout
+
+<PageTitle>Privacy</PageTitle>
+
+@*
+    REVIEW BEFORE PUBLISHING: this describes what the code collects as of this version. The operator's name and
+    contact address, the legal basis and the retention period must be filled in by whoever runs the server, and
+    the text should be checked by someone qualified (GDPR, Google Play and Microsoft Store requirements).
+*@
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="py-8">
+    <MudText Typo="Typo.h4" Class="mb-4">Privacy notice</MudText>
+
+    <MudText Typo="Typo.h6" Class="mt-4">What Onyx collects</MudText>
+    <MudText Class="mb-2">The Onyx apps record which apps you use and for how long, so you can see it on your dashboard. For each device they upload:</MudText>
+    <ul class="mb-3" style="padding-left: 1.5rem">
+        <li>the name and platform of the device (for example "Pixel 9", Android), chosen when it registers;</li>
+        <li>for every hour: which apps were in the foreground and for how many minutes;</li>
+        <li>for each app: its identifier (package or program name), display name, category reported by the system, and icon.</li>
+    </ul>
+    <MudText Class="mb-2">
+        Onyx does <b>not</b> record what you do inside apps: no window titles, web addresses, messages, keystrokes,
+        screenshots or location. Time while the device is locked or idle for five minutes is not counted on
+        computers; on Android, Onyx reads the usage history the system keeps.
+    </MudText>
+    <MudText Class="mb-2">
+        For your account Onyx stores your user name, email address and a hash of your password (never the password
+        itself), and, if you use them, phone number and two-factor settings.
+    </MudText>
+
+    <MudText Typo="Typo.h6" Class="mt-4">Permissions</MudText>
+    <MudText Class="mb-2">
+        On Android, Onyx needs "usage access", which you grant in the system settings, to read which apps were used.
+        It reads the list of installed launcher apps to show their names and icons.
+    </MudText>
+
+    <MudText Typo="Typo.h6" Class="mt-4">Who can see it</MudText>
+    <MudText Class="mb-2">
+        Your usage data is visible to you when signed in, and stored on the Onyx server operated by
+        <b>[operator name and contact address]</b>. It is not sold or shared with third parties. App icons are
+        stored once per app and shared between accounts; they contain no personal data.
+    </MudText>
+
+    <MudText Typo="Typo.h6" Class="mt-4">Deleting your data</MudText>
+    <MudText Class="mb-2">
+        Removing a device on the Devices page deletes all usage it uploaded. Deleting your account in the profile
+        settings deletes the account, all devices and all usage data. Uninstalling the app stops collection; data
+        already uploaded stays until you delete it.
+    </MudText>
+
+    <MudText Typo="Typo.h6" Class="mt-4">Contact</MudText>
+    <MudText>Questions and requests about your data: <b>[contact email]</b>.</MudText>
+</MudContainer>

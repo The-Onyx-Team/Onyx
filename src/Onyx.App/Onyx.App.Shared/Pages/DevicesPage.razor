@@ -1,0 +1,143 @@
+@page "/devices"
+@page "/data"
+@using Onyx.App.Shared.Services.Usage
+@using Onyx.Data.ApiSchema
+@layout AppLayout
+@inject IDeviceManager DeviceManager
+@inject IStatsService StatsService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Devices</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="py-6">
+    @if (m_Status.Supported)
+    {
+        <MudPaper Class="pa-4 mb-6" Elevation="2">
+            <MudText Typo="Typo.h6">This device</MudText>
+
+            @if (!m_Status.HasPermission)
+            {
+                <MudAlert Severity="Severity.Warning" Class="my-3">
+                    Onyx needs usage access to see which apps you use. Android asks for it in the system settings.
+                </MudAlert>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OpenSettings">Grant usage access</MudButton>
+            }
+            else
+            {
+                <MudText Class="mt-2">
+                    Last upload: @(m_Status.LastUpload is { } last ? last.ToLocalTime().ToString("g") : "not yet")
+                </MudText>
+                @if (m_Status.PendingBuckets > 0)
+                {
+                    <MudText Typo="Typo.body2">@m_Status.PendingBuckets hour(s) waiting to be uploaded</MudText>
+                }
+                @if (m_Status.LastError is { } error)
+                {
+                    <MudAlert Severity="Severity.Error" Class="my-2">@error</MudAlert>
+                }
+                <MudButton Class="mt-3" Variant="Variant.Outlined" Disabled="m_Syncing" OnClick="SyncNow">
+                    @(m_Syncing ? "Uploading..." : "Upload now")
+                </MudButton>
+            }
+        </MudPaper>
+    }
+
+    <MudText Typo="Typo.h6" Class="mb-2">Your devices</MudText>
+
+    @if (m_Devices is null)
+    {
+        <MudProgressLinear Indeterminate="true"/>
+    }
+    else if (m_Devices.Count == 0)
+    {
+        <MudText>
+            No devices yet. Install the Onyx app on your phone or computer and sign in; it registers itself.
+            <MudLink Href="/downloads">Downloads</MudLink>
+        </MudText>
+    }
+    else
+    {
+        <MudTable Items="m_Devices" Dense="true" Hover="true" Elevation="1">
+            <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>Platform</MudTh>
+                <MudTh>Last upload</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Name">@context.Name</MudTd>
+                <MudTd DataLabel="Platform">@(context.Platform ?? "-")</MudTd>
+                <MudTd DataLabel="Last upload">@(context.LastSeen is { } seen ? seen.ToLocalTime().ToString("g") : "never")</MudTd>
+                <MudTd>
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                   title="Remove device and its data" OnClick="@(() => RemoveAsync(context))"/>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudContainer>
+
+@code {
+    private CollectionStatus m_Status = new(false, false, null, null, 0);
+    private List<DeviceDto>? m_Devices;
+    private bool m_Syncing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        m_Status = StatsService.GetStatus();
+        await LoadDevicesAsync();
+    }
+
+    private async Task LoadDevicesAsync()
+    {
+        try
+        {
+            m_Devices = await DeviceManager.GetDevices();
+        }
+        catch (Exception e)
+        {
+            m_Devices = [];
+            Snackbar.Add($"Could not load devices: {e.Message}", Severity.Error);
+        }
+    }
+
+    private void OpenSettings()
+    {
+        StatsService.OpenUsageAccessSettings();
+    }
+
+    private async Task SyncNow()
+    {
+        m_Syncing = true;
+        try
+        {
+            m_Status = await StatsService.SyncNowAsync();
+            await LoadDevicesAsync();
+        }
+        finally
+        {
+            m_Syncing = false;
+        }
+    }
+
+    private async Task RemoveAsync(DeviceDto device)
+    {
+        var confirmed = await DialogService.ShowMessageBox("Remove device",
+            $"Remove \"{device.Name}\" and all usage data it uploaded? This cannot be undone. " +
+            "If the app is still installed there, it will register the device again on its next upload.",
+            yesText: "Remove", cancelText: "Cancel");
+        if (confirmed != true)
+            return;
+
+        try
+        {
+            await DeviceManager.UnregisterDeviceAsync(device.Id);
+            m_Devices?.Remove(device);
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"Could not remove the device: {e.Message}", Severity.Error);
+        }
+    }
+}
