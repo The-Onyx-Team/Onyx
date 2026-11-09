@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Onyx.Data.DataBaseSchema.Identity;
@@ -36,11 +36,29 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .WithMany(a => a.Usages)
             .HasForeignKey(a => a.DeviceId);
 
+        // One row per device, app and hourly bucket: re-uploading a bucket replaces it instead of adding to it.
+        builder.Entity<Usage>()
+            .HasIndex(a => new { a.DeviceId, a.AppId, a.Date })
+            .IsUnique();
+
+        //RegisteredApps Table config
+        builder.Entity<RegisteredApp>()
+            .HasIndex(a => a.Identifier)
+            .IsUnique();
+
+        builder.Entity<RegisteredApp>()
+            .HasOne(a => a.Category)
+            .WithMany()
+            .HasForeignKey(a => a.CategoryId);
+
         //Groups Table config
+        // No cascade from the admin: users already cascade to memberships, and SQL Server rejects a second
+        // cascade path. AccountDeletion removes a user's groups before deleting the user.
         builder.Entity<Groups>()
             .HasOne(a => a.Admin)
             .WithMany(a => a.Groups)
-            .HasForeignKey(a => a.AdminId);
+            .HasForeignKey(a => a.AdminId)
+            .OnDelete(DeleteBehavior.NoAction);
 
         //GroupHasUsers Table config
         builder.Entity<GroupHasUser>()

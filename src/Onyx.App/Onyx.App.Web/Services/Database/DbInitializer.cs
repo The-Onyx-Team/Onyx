@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Onyx.Data.DataBaseSchema;
@@ -65,110 +65,74 @@ public class DbInitializer(
 
             var user = await m_UserManager.FindByNameAsync("admin");
 
-            m_DbContext.Devices.Add(new Device()
-            {
-                Name = "Admin Device 1",
-                UserId = user!.Id,
-            });
-            m_DbContext.Devices.Add(new Device()
-            {
-                Name = "Admin Device 2",
-                UserId = user!.Id,
-            });
-            m_DbContext.Devices.Add(new Device()
-            {
-                Name = "Admin Device 3",
-                UserId = user!.Id,
-            });
-
-            m_DbContext.RegisteredApps.Add(new RegisteredApp()
-            {
-                Name = "Test App 1"
-            });
-            m_DbContext.RegisteredApps.Add(new RegisteredApp()
-            {
-                Name = "Test App 2"
-            });
-            m_DbContext.RegisteredApps.Add(new RegisteredApp()
-            {
-                Name = "Test App 3"
-            });
-
-            m_DbContext.Categories.AddRange([
-                new Category()
-                {
-                    Name = "Test Category 1"
-                },
-                new Category()
-                {
-                    Name = "Test Category 2"
-                },
-                new Category()
-                {
-                    Name = "Test Category 3"
-                }
-            ]);
-
-            m_DbContext.Usages.AddRange([
-                new Usage
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Date = DateTime.Now.AddDays(-1),
-                    Duration = TimeSpan.FromHours(1),
-                    DeviceId = 1,
-                    AppId = 1,
-                    CategoryId = 1,
-                },
-                new Usage
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Date = DateTime.Now.AddDays(-2),
-                    Duration = TimeSpan.FromHours(2),
-                    DeviceId = 1,
-                    AppId = 2,
-                    CategoryId = 2,
-                },
-                new Usage
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Date = DateTime.Now.AddDays(-3),
-                    Duration = TimeSpan.FromHours(3),
-                    DeviceId = 1,
-                    AppId = 3,
-                    CategoryId = 3,
-                },
-                new Usage
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Date = DateTime.Now.AddDays(-1),
-                    Duration = TimeSpan.FromHours(4),
-                    DeviceId = 2,
-                    AppId = 1,
-                    CategoryId = 1,
-                },
-                new Usage
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Date = DateTime.Now.AddDays(-2),
-                    Duration = TimeSpan.FromHours(5),
-                    DeviceId = 2,
-                    AppId = 2,
-                    CategoryId = 2,
-                },
-                new Usage
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Date = DateTime.Now.AddDays(-3),
-                    Duration = TimeSpan.FromHours(6),
-                    DeviceId = 2,
-                    AppId = 3,
-                    CategoryId = 3,
-                },
-            ]);
-            
+            SeedUsage(user!.Id);
             await m_DbContext.SaveChangesAsync(cancellationToken);
         }
 
         await m_DbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Two weeks of plausible hourly usage on two devices, so the dashboard has something to show in development.
+    /// Deterministic, so screenshots and manual checks are reproducible.
+    /// </summary>
+    private void SeedUsage(string userId)
+    {
+        var phone = new Device { Name = "Pixel 9", Platform = "Android", UserId = userId, LastSeen = DateTime.UtcNow };
+        var laptop = new Device { Name = "Laptop", Platform = "Linux", UserId = userId, LastSeen = DateTime.UtcNow };
+        m_DbContext.Devices.AddRange(phone, laptop);
+
+        var social = new Category { Name = "Social" };
+        var video = new Category { Name = "Video" };
+        var development = new Category { Name = "Development" };
+        var network = new Category { Name = "Network" };
+        m_DbContext.Categories.AddRange(social, video, development, network);
+
+        RegisteredApp App(string identifier, string name, Category category)
+        {
+            var app = new RegisteredApp { Identifier = identifier, Name = name, Category = category };
+            m_DbContext.RegisteredApps.Add(app);
+            return app;
+        }
+
+        (Device Device, RegisteredApp App, int[] Hours, int Minutes)[] habits =
+        [
+            (phone, App("android:com.whatsapp", "WhatsApp", social), [7, 12, 18, 21], 14),
+            (phone, App("android:com.instagram.android", "Instagram", social), [8, 13, 20, 22], 22),
+            (phone, App("android:com.google.android.youtube", "YouTube", video), [19, 21, 22], 35),
+            (laptop, App("linux:code", "Visual Studio Code", development), [9, 10, 11, 14, 15, 16], 48),
+            (laptop, App("linux:firefox", "Firefox", network), [9, 11, 13, 15, 17, 20], 26),
+            (laptop, App("linux:spotify", "Spotify", video), [10, 14, 16], 40)
+        ];
+
+        var random = new Random(42);
+        var today = DateTime.UtcNow.Date;
+        for (var day = 13; day >= 0; day--)
+        {
+            var date = today.AddDays(-day);
+            var weekend = date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+
+            foreach (var (device, app, hours, minutes) in habits)
+            {
+                // Less laptop on weekends, more phone.
+                var factor = weekend ? (device == laptop ? 0.3 : 1.4) : 1.0;
+                foreach (var hour in hours)
+                {
+                    var bucket = date.AddHours(hour);
+                    if (bucket > DateTime.UtcNow)
+                        continue;
+
+                    var duration = Math.Clamp(minutes * factor * (0.5 + random.NextDouble()), 1, 60);
+                    m_DbContext.Usages.Add(new Usage
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        Device = device,
+                        App = app,
+                        Date = bucket,
+                        Duration = TimeSpan.FromMinutes(Math.Round(duration))
+                    });
+                }
+            }
+        }
     }
 }

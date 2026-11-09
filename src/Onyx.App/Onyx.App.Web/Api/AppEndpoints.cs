@@ -8,22 +8,33 @@ public static class AppEndpoints
 {
     public static RouteGroupBuilder MapAppEndpoints(this IEndpointRouteBuilder routes)
     {
-        var group = routes.MapGroup("/api/app");
+        // Apps are created implicitly by usage uploads; clients only list them and fill in missing icons.
+        var group = routes.MapGroup("/api/app")
+            .WithTags("Apps API")
+            .RequireAuthorization(Program.ApiPolicy);
 
-        group.MapPost("/", RegisterAppAsync);
-        group.MapGet("/", GetAppsAsync);
+        group.MapGet("/", GetAppsAsync).Produces<List<AppDto>>();
+        group.MapPut("/icon", SetIconAsync);
 
         return group;
     }
 
-    private static async Task<IResult> RegisterAppAsync(
-        [FromBody] AppDto app,
+    public static async Task<IResult> GetAppsAsync([FromServices] IAppManager appManager) =>
+        Results.Ok(await appManager.GetAppsAsync());
+
+    public static async Task<IResult> SetIconAsync(
+        [FromBody] AppIconDto dto,
         [FromServices] IAppManager appManager)
     {
-        var id = await appManager.RegisterAppAsync(app.Name, app.IconBitmap);
-        return TypedResults.Ok(id);
+        try
+        {
+            return await appManager.SetIconAsync(dto.AppIdentifier, dto.IconPng)
+                ? Results.NoContent()
+                : Results.Conflict("Unknown app or icon already set");
+        }
+        catch (ArgumentException e)
+        {
+            return Results.BadRequest(e.Message);
+        }
     }
-
-    private static async Task<IResult> GetAppsAsync([FromServices] IAppManager appManager) => 
-        Results.Ok(await appManager.GetAppsAsync());
 }

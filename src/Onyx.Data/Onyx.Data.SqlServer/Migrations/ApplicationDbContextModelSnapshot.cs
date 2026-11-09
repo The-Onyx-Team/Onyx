@@ -17,7 +17,7 @@ namespace Onyx.Data.SqlServer.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.3")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -249,16 +249,25 @@ namespace Onyx.Data.SqlServer.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime?>("LastSeen")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("LastSeen");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("Name");
 
-                    b.Property<string>("UserId")
-                        .IsRequired()
+                    b.Property<string>("Platform")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)")
+                        .HasColumnName("Platform");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)")
                         .HasColumnName("UserId");
 
                     b.HasKey("Id");
@@ -271,13 +280,12 @@ namespace Onyx.Data.SqlServer.Migrations
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.GroupHasUser", b =>
                 {
                     b.Property<int>("GroupId")
-                        .HasMaxLength(50)
                         .HasColumnType("int")
                         .HasColumnName("GroupId");
 
                     b.Property<string>("UserId")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)")
                         .HasColumnName("UserId");
 
                     b.HasKey("GroupId", "UserId");
@@ -298,8 +306,8 @@ namespace Onyx.Data.SqlServer.Migrations
 
                     b.Property<string>("AdminId")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)")
                         .HasColumnName("AdminId");
 
                     b.Property<string>("Name")
@@ -324,13 +332,31 @@ namespace Onyx.Data.SqlServer.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("int")
+                        .HasColumnName("CategoryId");
+
+                    b.Property<byte[]>("IconBitmap")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("Identifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("Identifier");
+
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
                         .HasColumnName("Name");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("Identifier")
+                        .IsUnique()
+                        .HasFilter("[Identifier] IS NOT NULL");
 
                     b.ToTable("RegisteredApps");
                 });
@@ -346,12 +372,12 @@ namespace Onyx.Data.SqlServer.Migrations
                         .HasColumnType("int")
                         .HasColumnName("AppId");
 
-                    b.Property<int>("CategoryId")
+                    b.Property<int?>("CategoryId")
                         .HasColumnType("int")
                         .HasColumnName("CategoryId");
 
-                    b.Property<DateOnly>("Date")
-                        .HasColumnType("date")
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2")
                         .HasColumnName("Date");
 
                     b.Property<int>("DeviceId")
@@ -368,7 +394,8 @@ namespace Onyx.Data.SqlServer.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("DeviceId");
+                    b.HasIndex("DeviceId", "AppId", "Date")
+                        .IsUnique();
 
                     b.ToTable("Usage");
                 });
@@ -459,10 +486,19 @@ namespace Onyx.Data.SqlServer.Migrations
                     b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "Admin")
                         .WithMany("Groups")
                         .HasForeignKey("AdminId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Admin");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.RegisteredApp", b =>
+                {
+                    b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId");
+
+                    b.Navigation("Category");
                 });
 
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Usage", b =>
@@ -475,11 +511,9 @@ namespace Onyx.Data.SqlServer.Migrations
 
                     b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.Category", "Category")
                         .WithMany("Usages")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("CategoryId");
 
-                    b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.Device", "Devices")
+                    b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.Device", "Device")
                         .WithMany("Usages")
                         .HasForeignKey("DeviceId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -489,7 +523,7 @@ namespace Onyx.Data.SqlServer.Migrations
 
                     b.Navigation("Category");
 
-                    b.Navigation("Devices");
+                    b.Navigation("Device");
                 });
 
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", b =>

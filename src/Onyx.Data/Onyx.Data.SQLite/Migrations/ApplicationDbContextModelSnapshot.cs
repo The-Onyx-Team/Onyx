@@ -15,7 +15,7 @@ namespace Onyx.Data.SQLite.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.3");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
@@ -234,15 +234,24 @@ namespace Onyx.Data.SQLite.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("Id");
 
+                    b.Property<DateTime?>("LastSeen")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("LastSeen");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("TEXT")
                         .HasColumnName("Name");
 
+                    b.Property<string>("Platform")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Platform");
+
                     b.Property<string>("UserId")
                         .IsRequired()
-                        .HasMaxLength(50)
+                        .HasMaxLength(450)
                         .HasColumnType("TEXT")
                         .HasColumnName("UserId");
 
@@ -260,7 +269,7 @@ namespace Onyx.Data.SQLite.Migrations
                         .HasColumnName("GroupId");
 
                     b.Property<string>("UserId")
-                        .HasMaxLength(50)
+                        .HasMaxLength(450)
                         .HasColumnType("TEXT")
                         .HasColumnName("UserId");
 
@@ -280,7 +289,7 @@ namespace Onyx.Data.SQLite.Migrations
 
                     b.Property<string>("AdminId")
                         .IsRequired()
-                        .HasMaxLength(50)
+                        .HasMaxLength(450)
                         .HasColumnType("TEXT")
                         .HasColumnName("AdminId");
 
@@ -304,16 +313,30 @@ namespace Onyx.Data.SQLite.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("Id");
 
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("CategoryId");
+
                     b.Property<byte[]>("IconBitmap")
                         .HasColumnType("BLOB");
 
+                    b.Property<string>("Identifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Identifier");
+
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(50)
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT")
                         .HasColumnName("Name");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("Identifier")
+                        .IsUnique();
 
                     b.ToTable("RegisteredApps");
                 });
@@ -329,7 +352,7 @@ namespace Onyx.Data.SQLite.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("AppId");
 
-                    b.Property<int>("CategoryId")
+                    b.Property<int?>("CategoryId")
                         .HasColumnType("INTEGER")
                         .HasColumnName("CategoryId");
 
@@ -351,7 +374,8 @@ namespace Onyx.Data.SQLite.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("DeviceId");
+                    b.HasIndex("DeviceId", "AppId", "Date")
+                        .IsUnique();
 
                     b.ToTable("Usage");
                 });
@@ -442,10 +466,19 @@ namespace Onyx.Data.SQLite.Migrations
                     b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "Admin")
                         .WithMany("Groups")
                         .HasForeignKey("AdminId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Admin");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.RegisteredApp", b =>
+                {
+                    b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId");
+
+                    b.Navigation("Category");
                 });
 
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Usage", b =>
@@ -458,9 +491,7 @@ namespace Onyx.Data.SQLite.Migrations
 
                     b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.Category", "Category")
                         .WithMany("Usages")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("CategoryId");
 
                     b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.Device", "Device")
                         .WithMany("Usages")

@@ -13,7 +13,7 @@ public class Groups
     [Column("Name"), DataType(DataType.Text), Required, StringLength(500)]
     public string? Name { get; set; }
 
-    [Column("AdminId"), Required, StringLength(50)]
+    [Column("AdminId"), Required, StringLength(450)] // same length as AspNetUsers.Id
     public string? AdminId { get; set; }
 
     public ApplicationUser? Admin { get; set; }
