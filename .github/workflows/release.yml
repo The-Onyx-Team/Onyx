@@ -1,0 +1,149 @@
+name: Release
+
+# Builds the device apps for a version tag and publishes them as a GitHub release. The web app's downloads page
+# links to these asset names under /releases/latest/download/, so keep them stable.
+#
+#   git tag v1.2.0 && git push origin v1.2.0
+#
+# Repository secrets used:
+#   ANDROID_KEYSTORE_BASE64   base64 of the upload keystore (keytool -genkeypair ... -keystore onyx.keystore)
+#   ANDROID_KEYSTORE_PASSWORD keystore password
+#   ANDROID_KEY_ALIAS         key alias in the keystore
+#   ANDROID_KEY_PASSWORD      key password
+# Without them the Android job fails instead of publishing an unsigned or debug-signed APK.
+
+on:
+  push:
+    tags: [ "v*" ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build, e.g. 1.2.0 (no release is created for manual runs)"
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: 10.0.x
+  VERSION: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
+
+jobs:
+  linux-agent:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rid: [ linux-x64, linux-arm64 ]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Publish
+        run: |
+          version="${VERSION#v}"
+          dotnet publish src/Onyx.Collector/Onyx.Collector.Linux -c Release -r ${{ matrix.rid }} --self-contained \
+            -p:PublishSingleFile=true -p:DebugType=none -p:Version="$version" -o out/onyx-agent
+          cp packaging/linux/onyx-agent.service packaging/linux/install.sh packaging/linux/README.md out/onyx-agent/
+          tar -C out -czf onyx-agent-${{ matrix.rid }}.tar.gz onyx-agent
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: onyx-agent-${{ matrix.rid }}
+          path: onyx-agent-${{ matrix.rid }}.tar.gz
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Install MAUI Android workload
+        run: dotnet workload install maui-android
+
+      - name: Restore keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 is not set; refusing to publish an unsigned build"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/onyx.keystore"
+
+      - name: Publish signed APK and AAB
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          version="${VERSION#v}"
+          dotnet publish src/Onyx.App/Onyx.App/Onyx.App.csproj -f net10.0-android -c Release -o out/android \
+            -p:ApplicationDisplayVersion="$version" -p:ApplicationVersion=${{ github.run_number }} \
+            -p:AndroidPackageFormats="aab%3Bapk" \
+            -p:AndroidKeyStore=true \
+            -p:AndroidSigningKeyStore="$RUNNER_TEMP/onyx.keystore" \
+            -p:AndroidSigningStorePass=env:KEYSTORE_PASSWORD \
+            -p:AndroidSigningKeyAlias="$KEY_ALIAS" \
+            -p:AndroidSigningKeyPass=env:KEY_PASSWORD
+          cp out/android/*-Signed.apk onyx-android.apk
+          cp out/android/*-Signed.aab onyx-android.aab
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: onyx-android
+          path: onyx-android.apk
+
+      # For uploading to the Play Console (internal / closed testing track). Not attached to the release.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: onyx-android-play-bundle
+          path: onyx-android.aab
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Install MAUI Windows workload
+        run: dotnet workload install maui-windows
+
+      - name: Publish (unpackaged, self-contained)
+        shell: pwsh
+        run: |
+          $version = $env:VERSION.TrimStart('v')
+          dotnet publish src/Onyx.App/Onyx.App/Onyx.App.csproj -f net10.0-windows10.0.19041.0 -c Release `
+            -r win-x64 --self-contained -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true `
+            -p:ApplicationDisplayVersion=$version -p:ApplicationVersion=${{ github.run_number }} -o out/windows
+          Compress-Archive -Path out/windows/* -DestinationPath onyx-windows-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: onyx-windows-x64
+          path: onyx-windows-x64.zip
+
+  release:
+    if: github.event_name == 'push'
+    needs: [ linux-agent, android, windows ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+          pattern: onyx-{agent-*,android,windows-*}
+
+      - name: Checksums
+        working-directory: assets
+        run: sha256sum * > SHA256SUMS
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" assets/* --repo "$GITHUB_REPOSITORY" --title "Onyx $GITHUB_REF_NAME" --generate-notes

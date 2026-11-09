@@ -81,14 +81,15 @@ public static class Extensions
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        if (app.Environment.IsDevelopment())
+        // Liveness only says "the process answers" and is safe to expose; container health checks use it.
+        app.MapHealthChecks("/alive", new HealthCheckOptions
         {
+            Predicate = r => r.Tags.Contains("live")
+        });
+
+        // The full report lists dependencies and their state, so only in development.
+        if (app.Environment.IsDevelopment())
             app.MapHealthChecks("/health");
-            app.MapHealthChecks("/alive", new HealthCheckOptions
-            {
-                Predicate = r => r.Tags.Contains("live")
-            });
-        }
 
         return app;
     }
