@@ -8,3 +8,4 @@ public record UpdateProfileDto(string UserName, string? PhoneNumber);
 public record ChangePasswordDto(string CurrentPassword, string NewPassword);
 public record ChangeEmailDto(string NewEmail);
 public record RefreshTokenDto(string Token);
+public record ForgotPasswordDto(string Email);

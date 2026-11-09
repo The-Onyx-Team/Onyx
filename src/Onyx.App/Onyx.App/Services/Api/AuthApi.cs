@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Onyx.App.Shared.Services.Auth;
 using Onyx.Data.ApiSchema;
 
@@ -18,6 +18,13 @@ public class AuthApi(HttpClientWrapper httpClientWrapper, ILogger<AuthApi> logge
             error => null,
             error => HandleNetworkError<LoginResultDto>(error, endpoint),
             error => HandleParsingError<LoginResultDto>(error, endpoint));
+    }
+
+    public async Task<bool> ForgotPasswordAsync(string email)
+    {
+        const string endpoint = "/api/auth/forgot-password";
+        var result = await m_HttpClientWrapper.PostAsync<Empty>(endpoint, new ForgotPasswordDto(email));
+        return result.IsT0;
     }
 
     public async Task<RegisterResultDto?> RegisterAsync(string name, string email, string password)

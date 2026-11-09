@@ -38,6 +38,7 @@ public class JwtToolsTest
         jwtToken.Claims.First(c => c.Type == JwtTools.NameIdentifierKey).Value.ShouldBe(m_UserId);
         jwtToken.Claims.First(c => c.Type == JwtTools.NameKey).Value.ShouldBe(m_UserName);
         jwtToken.ValidTo.Day.ShouldBe(DateTime.UtcNow.Add(expiration).Date.Day);
+        jwtToken.Claims.First(c => c.Type == JwtTools.TokenUseKey).Value.ShouldBe(JwtTools.AccessTokenUse);
     }
 
     [Fact]
@@ -54,5 +55,6 @@ public class JwtToolsTest
         jwtToken.Claims.First(c => c.Type == JwtTools.NameIdentifierKey).Value.ShouldBe(m_UserId);
         jwtToken.Claims.First(c => c.Type == JwtTools.NameKey).Value.ShouldBe(m_UserName);
         jwtToken.ValidTo.Day.ShouldBe(DateTime.UtcNow.AddMonths(1).Date.Day);
+        jwtToken.Claims.First(c => c.Type == JwtTools.TokenUseKey).Value.ShouldBe(JwtTools.RefreshTokenUse);
     }
 }

@@ -12,6 +12,10 @@ public class KeyManager
         var rsaKey = RSA.Create();
         var privateKey = rsaKey.ExportRSAPrivateKey();
         await File.WriteAllBytesAsync(path, privateKey);
+
+        // Private signing key: readable by the app's user only.
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
     }
     
     public static async Task<RSA> LoadKey(string path)

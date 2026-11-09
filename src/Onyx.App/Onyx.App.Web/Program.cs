@@ -1,5 +1,7 @@
-﻿using System.IO.Abstractions;
+using System.IO.Abstractions;
 using System.Net.Mail;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -23,15 +25,35 @@ using Onyx.Data.DataBaseSchema.Identity;
 using ServiceDefaults;
 using static Onyx.App.Web.Services.Database.DatabaseProvider;
 
-// Load Key
-
-await KeyManager.CreateKeyIfNotExists("key.rsa");
-var rsa = await KeyManager.LoadKey("key.rsa");
-var key = new RsaSecurityKey(rsa);
+// Container health check: the runtime image has no curl, so the app checks itself ("dotnet Onyx.App.Web.dll
+// --healthcheck", see the Dockerfile) and exits 0 when its liveness endpoint answers.
+if (args.Contains("--healthcheck"))
+{
+    using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(4) };
+    try
+    {
+        var url = Environment.GetEnvironmentVariable("HEALTHCHECK_URL") ?? "http://localhost:8080/alive";
+        return (await http.GetAsync(url)).IsSuccessStatusCode ? 0 : 1;
+    }
+    catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+    {
+        return 1;
+    }
+}
 
 // Base
 var builder = WebApplication.CreateBuilder(args);
 var config = builder.Configuration;
+
+// Keys: the JWT signing key and the data-protection keys must survive restarts and redeploys, otherwise every
+// user is logged out. "KeyDirectory" lets a container point this at a mounted volume.
+
+var keyDirectory = config.GetValue("KeyDirectory", ".")!;
+Directory.CreateDirectory(keyDirectory);
+var keyPath = Path.Combine(keyDirectory, "key.rsa");
+await KeyManager.CreateKeyIfNotExists(keyPath);
+var rsa = await KeyManager.LoadKey(keyPath);
+var key = new RsaSecurityKey(rsa);
 
 builder.AddServiceDefaults();
 
@@ -44,7 +66,7 @@ builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
 
 builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo("./keys"))
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(keyDirectory, "keys")))
     .SetApplicationName("OnyxApp");
 
 builder.Services.AddSingleton(new KeyAccessor(key));
@@ -57,57 +79,35 @@ builder.Services.TryAddScoped<IStorage, WebStorage>();
 
 // Database
 
-var sqlServerConnectionString = config.GetConnectionString(SqlServer.Name);
-var sqliteConnectionString = config.GetConnectionString(SQLite.Name);
 var provider = config.GetValue("provider", SQLite.Name);
 
-builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
+if (provider == SqlServer.Name)
 {
-    options.UseSqlite(
-        config.GetConnectionString(SQLite.Name)!,
-        x => x.MigrationsAssembly(SQLite.Assembly)
-    );
-});
+    // "db" is the name Aspire injects the connection string under.
+    // "dotnet ef migrations add" builds the model without connecting, so a placeholder is fine at design time.
+    var connectionString = config.GetConnectionString(SqlServer.Name) ?? config.GetConnectionString("db")
+        ?? (EF.IsDesignTime ? "Server=design-time-placeholder" : null)
+        ?? throw new InvalidOperationException(
+            "provider is SqlServer but neither ConnectionStrings:SqlServer nor ConnectionStrings:db is set.");
 
-if (provider == SqlServer.Name && sqlServerConnectionString is not null)
-{
     builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
-    {
-        options.UseSqlServer(
-            sqlServerConnectionString,
-            x =>
-            {
-                x.EnableRetryOnFailure();
-                x.MigrationsAssembly(SqlServer.Assembly);
-            });
-    });
+        options.UseSqlServer(connectionString, x =>
+        {
+            x.EnableRetryOnFailure();
+            x.MigrationsAssembly(SqlServer.Assembly);
+        }));
 }
-else if (provider == SQLite.Name && sqliteConnectionString is not null)
+else if (provider == SQLite.Name)
 {
+    var connectionString = config.GetConnectionString(SQLite.Name)
+        ?? throw new InvalidOperationException("provider is SQLite but ConnectionStrings:SQLite is not set.");
+
     builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
-    {
-        options.UseSqlite(
-            config.GetConnectionString(SQLite.Name)!,
-            x => x.MigrationsAssembly(SQLite.Assembly)
-        );
-    });
-}
-else if (provider == SqlServer.Name && config.GetConnectionString("db") is not null)
-{
-    builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
-    {
-        options.UseSqlServer(
-            config.GetConnectionString("db"),
-            x =>
-            {
-                x.MigrationsAssembly(SqlServer.Assembly);
-                x.EnableRetryOnFailure();
-            });
-    });
+        options.UseSqlite(connectionString, x => x.MigrationsAssembly(SQLite.Assembly)));
 }
 else
-{   
-    //throw new InvalidOperationException("No valid database provider was found.");
+{
+    throw new InvalidOperationException($"Unknown database provider '{provider}'. Use SQLite or SqlServer.");
 }
 
 builder.Services.AddSingleton<DbInitializer>();
@@ -115,47 +115,60 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<DbInitializer>());
 
 // Auth
 
-builder.Services.AddAuthentication()
+var authentication = builder.Services.AddAuthentication()
     .AddCookie("CookieSchema", options =>
     {
         options.Cookie.Name = "AuthCookie";
         options.Cookie.SameSite = SameSiteMode.None;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     })
-    .AddJwtBearer("JwtSchema", options =>
+    .AddJwtBearer(JwtSchema, options =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = false,
-            ValidateAudience = false,
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero,
-            ValidateActor = false,
-            ValidateIssuerSigningKey = false
-        };
-
+        options.TokenValidationParameters = JwtTools.CreateValidationParameters(key);
         options.MapInboundClaims = true;
-    })
-    .AddGoogleOpenIdConnect(options =>
+    });
+
+// External logins are optional: each provider is only added when its client id and secret are configured.
+// Registering one without credentials makes every request fail with "Options.ClientId must be provided".
+
+if (ExternalLoginCredentials(config, "Google") is { } google)
+{
+    authentication.AddGoogleOpenIdConnect(options =>
     {
-        var googleAuthNSection = config.GetSection("Authentication:Google");
-        options.ClientId = googleAuthNSection["ClientId"];
-        options.ClientSecret = googleAuthNSection["ClientSecret"];
+        options.ClientId = google.Id;
+        options.ClientSecret = google.Secret;
         options.SaveTokens = true;
         options.UsePkce = true;
         options.NonceCookie.SecurePolicy = CookieSecurePolicy.Always;
-    })
-    .AddMicrosoftAccount(options =>
+    });
+}
+
+if (ExternalLoginCredentials(config, "Microsoft") is { } microsoft)
+{
+    authentication.AddMicrosoftAccount(options =>
     {
-        options.ClientId = config["Authentication:Microsoft:ClientId"]!;
-        options.ClientSecret = config["Authentication:Microsoft:ClientSecret"]!;
-    })
-    .AddGitHub(options =>
+        options.ClientId = microsoft.Id;
+        options.ClientSecret = microsoft.Secret;
+    });
+}
+
+if (ExternalLoginCredentials(config, "GitHub") is { } gitHub)
+{
+    authentication.AddGitHub(options =>
     {
-        options.ClientId = config["Authentication:GitHub:ClientId"]!;
-        options.ClientSecret = config["Authentication:GitHub:ClientSecret"]!;
+        options.ClientId = gitHub.Id;
+        options.ClientSecret = gitHub.Secret;
         options.CallbackPath = "/signin-oidc-github";
     });
+}
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(AuthRateLimit, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1) }));
+});
 
 builder.Services.AddAuthorization(options =>
 {
@@ -163,9 +176,12 @@ builder.Services.AddAuthorization(options =>
         .RequireAuthenticatedUser()
         .Build();
 
-    options.AddPolicy("api", x =>
-        x.AddAuthenticationSchemes("JwtSchema")
-            .RequireAuthenticatedUser());
+    // API endpoints only accept access tokens from the JWT scheme. Without an explicit scheme they would fall
+    // back to the Identity cookie and redirect API clients to the login page.
+    options.AddPolicy(ApiPolicy, x =>
+        x.AddAuthenticationSchemes(JwtSchema)
+            .RequireAuthenticatedUser()
+            .RequireClaim(JwtTools.TokenUseKey, JwtTools.AccessTokenUse));
 
     options.AddPolicy("TwoFactorEnabled", x => x.RequireClaim("amr", "mfa"));
 });
@@ -200,7 +216,7 @@ builder.Services.AddScoped<IPlatformService, WebPlatformService>();
 
 var smtpServer = config.GetConnectionString("mail");
 
-if (smtpServer is not null)
+if (!string.IsNullOrWhiteSpace(smtpServer))
 {
     builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentitySmtpEmailSender>();
     builder.Services.AddSingleton<SmtpClient>(sp =>
@@ -215,8 +231,13 @@ else
 
 // Usage Data
 
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddScoped<IUsageDataService, UsageDataService>();
 builder.Services.AddScoped<IDeviceManager, DeviceManager>();
+builder.Services.AddScoped<IAppManager, AppManager>();
+builder.Services.AddSingleton<IStatsService, WebStatsService>();
+builder.Services.AddScoped<Onyx.App.Shared.Services.Dashboard.ClientTimeZone>();
 
 var app = builder.Build();
 
@@ -231,6 +252,7 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
@@ -246,3 +268,18 @@ app.MapRazorComponents<App>()
     .AddAdditionalAssemblies(typeof(Onyx.App.Shared._Imports).Assembly);
 
 app.Run();
+return 0;
+
+static (string Id, string Secret)? ExternalLoginCredentials(IConfiguration config, string provider)
+{
+    var id = config[$"Authentication:{provider}:ClientId"];
+    var secret = config[$"Authentication:{provider}:ClientSecret"];
+    return string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(secret) ? null : (id, secret);
+}
+
+public partial class Program
+{
+    public const string JwtSchema = "JwtSchema";
+    public const string ApiPolicy = "api";
+    public const string AuthRateLimit = "auth";
+}

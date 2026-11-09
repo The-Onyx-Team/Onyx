@@ -11,6 +11,7 @@ using Onyx.App.Shared.Pages.Account;
 using Onyx.App.Shared.Pages.Account.Manage;
 using Onyx.App.Web.Services.Auth;
 using Onyx.Data.ApiSchema;
+using Onyx.Data.DataBaseSchema;
 using Onyx.Data.DataBaseSchema.Identity;
 using Onyx.Data.DataBaseSchema.TableEntities;
 
@@ -24,6 +25,8 @@ public static class AuthEndpoints
         accountGroup.MapPost("/perform-external-login", ExternalLoginHandler);
         accountGroup.MapPost("/login", WebLoginHandler);
         accountGroup.MapPost("/logout", WebLogOutHandler);
+        // Landing page after the web UI deleted the account: clears the now orphaned auth cookie.
+        accountGroup.MapGet("/deleted", WebLogOutHandler);
 
         var manageGroup = accountGroup.MapGroup("/manage").RequireAuthorization();
         manageGroup.MapPost("/link-external-login", LinkExternalLoginHandler);
@@ -31,11 +34,14 @@ public static class AuthEndpoints
 
         var api = routes.MapGroup("/api");
 
-        api.MapPost("/auth/login", LoginHandler);
-        api.MapPost("/auth/refresh", RefreshHandler);
-        api.MapPost("/auth/register", RegisterHandler);
+        // Unauthenticated endpoints are rate limited per client address against password guessing and email spam.
+        var auth = api.MapGroup("/auth").RequireRateLimiting(Program.AuthRateLimit);
+        auth.MapPost("/login", LoginHandler);
+        auth.MapPost("/refresh", RefreshHandler);
+        auth.MapPost("/register", RegisterHandler);
+        auth.MapPost("/forgot-password", ForgotPasswordHandler);
 
-        var authorized = api.MapGroup("/user").RequireAuthorization();
+        var authorized = api.MapGroup("/user").RequireAuthorization(Program.ApiPolicy);
         authorized.MapGet("/profile", GetProfileHandler);
         authorized.MapPut("/profile", UpdateProfileHandler);
         authorized.MapPut("/password", ChangePasswordHandler);
@@ -116,20 +122,29 @@ public static class AuthEndpoints
     {
         try
         {
-            var (user, _) = await JwtTools.ValidateAndGetUserFromToken(dto.Token, userManager);
+            var (user, _) = await JwtTools.ValidateAndGetUserFromToken(dto.Token, userManager,
+                keyAccessor.ApplicationKey);
 
             if (user == null)
                 return Results.Unauthorized();
 
-            var newToken = JwtTools.GenerateToken(keyAccessor.ApplicationKey,
-                user.Id, user.Email ?? user.Id, TimeSpan.FromDays(2));
-
-            return Results.Ok(new { token = newToken });
+            // Rotate the refresh token too, so a device that keeps syncing never has to log in again.
+            return Results.Ok(IssueTokens(user, keyAccessor));
         }
         catch (Exception e)
         {
             return Results.BadRequest(e.GetType().Name);
         }
+    }
+
+    private static LoginResultDto IssueTokens(ApplicationUser user, KeyAccessor keyAccessor)
+    {
+        var userName = user.Email ?? user.Id;
+        var token = JwtTools.GenerateToken(keyAccessor.ApplicationKey, user.Id, userName,
+            JwtTools.AccessTokenLifetime);
+        var refreshToken = JwtTools.GenerateRefreshToken(keyAccessor.ApplicationKey, user.Id, userName,
+            user.SecurityStamp);
+        return new LoginResultDto(token, refreshToken);
     }
 
     /// <summary>
@@ -146,13 +161,7 @@ public static class AuthEndpoints
         if (!await userManager.CheckPasswordAsync(user, dto.Password))
             return Results.BadRequest("Invalid email or password");
 
-        var token = JwtTools.GenerateToken(keyAccessor.ApplicationKey,
-            user.Id, user.Email ?? user.Id, TimeSpan.FromDays(2));
-
-        var refreshToken = JwtTools.GenerateRefreshToken(keyAccessor.ApplicationKey,
-            user.Id, user.Email ?? user.Id);
-
-        return Results.Ok(new LoginResultDto(token, refreshToken));
+        return Results.Ok(IssueTokens(user, keyAccessor));
     }
 
     /// <summary>
@@ -173,6 +182,21 @@ public static class AuthEndpoints
 
         var result = await userManager.CreateAsync(user, dto.Password);
         return !result.Succeeded ? Results.BadRequest(result.Errors) : Results.Ok(new object());
+    }
+
+    /// <summary>
+    /// Sends a password reset link to the address if it has an account. Always answers 200, so the response does
+    /// not reveal which addresses are registered.
+    /// </summary>
+    public static async Task<IResult> ForgotPasswordHandler(
+        [FromBody] ForgotPasswordDto dto,
+        HttpContext context,
+        [FromServices] UserManager<ApplicationUser> userManager,
+        [FromServices] IEmailSender<ApplicationUser> emailSender)
+    {
+        var baseUrl = $"{context.Request.Scheme}://{context.Request.Host}{context.Request.PathBase}/";
+        await PasswordReset.SendLinkAsync(userManager, emailSender, dto.Email, baseUrl);
+        return Results.Ok(new object());
     }
 
     /// <summary>
@@ -234,12 +258,13 @@ public static class AuthEndpoints
     /// </summary>
     public static async Task<IResult> DeleteAccountHandler(
         HttpContext context,
-        [FromServices] UserManager<ApplicationUser> userManager)
+        [FromServices] UserManager<ApplicationUser> userManager,
+        [FromServices] ApplicationDbContext dbContext)
     {
         var user = await userManager.GetUserAsync(context.User);
         if (user == null) return Results.NotFound();
 
-        var result = await userManager.DeleteAsync(user);
+        var result = await AccountDeletion.DeleteAsync(dbContext, userManager, user);
         return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
     }
 

@@ -14,6 +14,9 @@ using Moq;
 using Onyx.App.Web.Api;
 using Onyx.App.Web.Services.Auth;
 using Onyx.Data.ApiSchema;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Onyx.Data.DataBaseSchema;
 using Onyx.Data.DataBaseSchema.Identity;
 using Shouldly;
 using Xunit;
@@ -110,6 +113,16 @@ public class AuthEndpointsTest
         };
     }
 
+    /// <summary>Empty in-memory SQLite database (account deletion runs a bulk delete, which mocks can't do).</summary>
+    private static ApplicationDbContext CreateDbContext()
+    {
+        var connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+        var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(connection).Options);
+        db.Database.EnsureCreated();
+        return db;
+    }
+
     [Fact]
     public async Task RefreshHandler_ShouldReturnUnauthorized_WhenUserIsNull()
     {
@@ -127,8 +140,8 @@ public class AuthEndpointsTest
     public async Task RefreshHandler_ShouldReturnOk_WithNewToken()
     {
         // Arrange
-        var refreshToken =
-            JwtTools.GenerateRefreshToken(m_KeyAccessor.ApplicationKey, m_TestUser.Id, m_TestUser.Email!);
+        var refreshToken = JwtTools.GenerateRefreshToken(m_KeyAccessor.ApplicationKey, m_TestUser.Id,
+            m_TestUser.Email!, m_TestUser.SecurityStamp);
         var request = new RefreshTokenDto(Token: refreshToken);
 
         // Act
@@ -190,6 +203,105 @@ public class AuthEndpointsTest
 
         // Assert
         result.ShouldBeOfType<UnauthorizedHttpResult>();
+    }
+
+    [Fact]
+    public async Task RefreshHandler_ShouldReturnUnauthorized_WhenTokenIsUnsigned()
+    {
+        // Arrange: a forged token with alg "none" for a real user id. The handler used to accept these.
+        static string Encode(string json) => Base64UrlEncoder.Encode(json);
+        var exp = DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds();
+        var forged = Encode("""{"alg":"none","typ":"JWT"}""") + "." +
+                     Encode($$"""{"nameid":"{{m_TestUser.Id}}","unique_name":"{{m_TestUser.Email}}","token_use":"refresh","sstamp":"{{m_TestUser.SecurityStamp}}","exp":{{exp}}}""") + ".";
+
+        // Act
+        var result = await AuthEndpoints.RefreshHandler(new RefreshTokenDto(forged), m_UserManager.Object, m_KeyAccessor);
+
+        // Assert
+        result.ShouldBeOfType<UnauthorizedHttpResult>();
+    }
+
+    [Fact]
+    public async Task RefreshHandler_ShouldReturnUnauthorized_WhenSignedWithAnotherKey()
+    {
+        // Arrange
+        var otherKey = new RsaSecurityKey(RSA.Create());
+        var token = JwtTools.GenerateRefreshToken(otherKey, m_TestUser.Id, m_TestUser.Email!, m_TestUser.SecurityStamp);
+
+        // Act
+        var result = await AuthEndpoints.RefreshHandler(new RefreshTokenDto(token), m_UserManager.Object, m_KeyAccessor);
+
+        // Assert
+        result.ShouldBeOfType<UnauthorizedHttpResult>();
+    }
+
+    [Fact]
+    public async Task RefreshHandler_ShouldReturnUnauthorized_WhenGivenAnAccessToken()
+    {
+        // Arrange
+        var token = JwtTools.GenerateToken(m_KeyAccessor.ApplicationKey, m_TestUser.Id, m_TestUser.Email!,
+            TimeSpan.FromHours(1));
+
+        // Act
+        var result = await AuthEndpoints.RefreshHandler(new RefreshTokenDto(token), m_UserManager.Object, m_KeyAccessor);
+
+        // Assert
+        result.ShouldBeOfType<UnauthorizedHttpResult>();
+    }
+
+    [Fact]
+    public async Task RefreshHandler_ShouldReturnUnauthorized_WhenSecurityStampChanged()
+    {
+        // Arrange: the token was issued before a password change rotated the stamp.
+        var token = JwtTools.GenerateRefreshToken(m_KeyAccessor.ApplicationKey, m_TestUser.Id, m_TestUser.Email!,
+            "stamp-before-password-change");
+
+        // Act
+        var result = await AuthEndpoints.RefreshHandler(new RefreshTokenDto(token), m_UserManager.Object, m_KeyAccessor);
+
+        // Assert
+        result.ShouldBeOfType<UnauthorizedHttpResult>();
+    }
+
+    [Fact]
+    public async Task ForgotPasswordHandler_UnknownEmail_AnswersOkAndSendsNothing()
+    {
+        // Arrange
+        var emailSender = new Mock<IEmailSender<ApplicationUser>>();
+        var context = new DefaultHttpContext();
+        context.Request.Scheme = "https";
+        context.Request.Host = new HostString("onyx.example");
+
+        // Act
+        var result = await AuthEndpoints.ForgotPasswordHandler(new ForgotPasswordDto("nobody@example.com"), context,
+            m_UserManager.Object, emailSender.Object);
+
+        // Assert
+        result.GetType().Name.ShouldStartWith("Ok");
+        emailSender.VerifyNoOtherCalls();
+        m_UserManager.Verify(x => x.RemovePasswordAsync(It.IsAny<ApplicationUser>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ForgotPasswordHandler_KnownEmail_SendsLinkWithCode_AndKeepsPassword()
+    {
+        // Arrange
+        var emailSender = new Mock<IEmailSender<ApplicationUser>>();
+        m_UserManager.Setup(x => x.FindByEmailAsync(m_TestUser.Email!)).ReturnsAsync(m_TestUser);
+        m_UserManager.Setup(x => x.GeneratePasswordResetTokenAsync(m_TestUser)).ReturnsAsync("reset+code/1");
+        var context = new DefaultHttpContext();
+        context.Request.Scheme = "https";
+        context.Request.Host = new HostString("onyx.example");
+
+        // Act
+        await AuthEndpoints.ForgotPasswordHandler(new ForgotPasswordDto(m_TestUser.Email!), context,
+            m_UserManager.Object, emailSender.Object);
+
+        // Assert
+        emailSender.Verify(x => x.SendPasswordResetLinkAsync(m_TestUser, m_TestUser.Email!,
+            It.Is<string>(link => link.Contains("https://onyx.example/account/resetPasswordWithEmail")
+                                  && link.Contains("code=reset%2Bcode%2F1"))), Times.Once);
+        m_UserManager.Verify(x => x.RemovePasswordAsync(It.IsAny<ApplicationUser>()), Times.Never);
     }
 
     [Fact]
@@ -541,7 +653,7 @@ public class AuthEndpointsTest
             .ReturnsAsync(IdentityResult.Success);
 
         // Act
-        var result = await AuthEndpoints.DeleteAccountHandler(m_HttpContext.Object, m_UserManager.Object);
+        var result = await AuthEndpoints.DeleteAccountHandler(m_HttpContext.Object, m_UserManager.Object, CreateDbContext());
 
         // Assert
         result.ShouldBeOfType<Ok>();
@@ -556,7 +668,7 @@ public class AuthEndpointsTest
             .ReturnsAsync((ApplicationUser)null!);
 
         // Act
-        var result = await AuthEndpoints.DeleteAccountHandler(m_HttpContext.Object, m_UserManager.Object);
+        var result = await AuthEndpoints.DeleteAccountHandler(m_HttpContext.Object, m_UserManager.Object, CreateDbContext());
 
         // Assert
         result.ShouldBeOfType<NotFound>();
@@ -579,7 +691,7 @@ public class AuthEndpointsTest
             .ReturnsAsync(failedResult);
 
         // Act
-        var result = await AuthEndpoints.DeleteAccountHandler(m_HttpContext.Object, m_UserManager.Object);
+        var result = await AuthEndpoints.DeleteAccountHandler(m_HttpContext.Object, m_UserManager.Object, CreateDbContext());
 
         // Assert
         var badRequestResult = result.ShouldBeOfType<BadRequest<IEnumerable<IdentityError>>>();

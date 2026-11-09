@@ -21,8 +21,28 @@ public class UserManager(
     IJSRuntime jsRuntime,
     IAntiforgery antiforgery,
     IEmailSender<ApplicationUser> emailSender,
-    IHttpContextAccessor httpContextAccessor) : IUserManager
+    IHttpContextAccessor httpContextAccessor,
+    CurrentUser currentUser,
+    Onyx.Data.DataBaseSchema.ApplicationDbContext dbContext) : IUserManager
 {
+    public async Task<bool> DeleteAccountAsync()
+    {
+        if (await currentUser.GetUserIdAsync() is not { } userId || await userManager.FindByIdAsync(userId) is not { } user)
+            return false;
+
+        var result = await AccountDeletion.DeleteAsync(dbContext, userManager, user);
+        if (!result.Succeeded)
+        {
+            logger.LogWarning("Deleting account {UserId} failed: {Errors}", userId,
+                string.Join(", ", result.Errors.Select(e => e.Description)));
+            return false;
+        }
+
+        // A Blazor circuit can't change cookies; this endpoint signs out and redirects to the start page.
+        navigationManager.NavigateTo("/account/deleted", forceLoad: true);
+        return true;
+    }
+
     public async Task<RegisterResult> RegisterAsync(string name, string email, string password)
     {
         var user = new ApplicationUser
@@ -100,39 +120,22 @@ public class UserManager(
 
     public async Task<ResetPasswordResult> ResetPasswordAsync(string email)
     {
-        var user = await userManager.FindByEmailAsync(email);
+        // The password stays valid until the reset is completed with the emailed code. (It used to be removed
+        // here, which let anyone lock out an account by its email address.)
+        await PasswordReset.SendLinkAsync(userManager, emailSender, email,
+            navigationManager.ToAbsoluteUri("/").AbsoluteUri);
 
-        if (user != null)
-        {
-            await userManager.RemovePasswordAsync(user);
-            
-            var code = await userManager.GeneratePasswordResetTokenAsync(user);
-            
-            var callbackUrl = navigationManager.GetUriWithQueryParameters(
-                navigationManager.ToAbsoluteUri("/account/resetPasswordWithEmail").AbsoluteUri,
-                new Dictionary<string, object?> { ["userId"] = user.Id, ["code"] = code });
-            await emailSender.SendPasswordResetLinkAsync(user, email, 
-                HtmlEncoder.Default.Encode(callbackUrl));
-            
-            return new ResetPasswordResult()
-            {
-                Success = true
-            };
-        }
-        
-        return new ResetPasswordResult()
-        {
-            Success = false
-        };
+        return new ResetPasswordResult { Success = true };
     }
     
-    public async Task<ResetPasswordResult> SetPasswordAsync(string id, string password)
+    public async Task<ResetPasswordResult> SetPasswordAsync(string id, string code, string password)
     {
         var user = await userManager.FindByIdAsync(id);
 
         if (user != null)
         {
-            var result = await userManager.AddPasswordAsync(user, password);
+            // ResetPasswordAsync verifies the emailed code; without it anyone knowing the user id could set a password.
+            var result = await userManager.ResetPasswordAsync(user, code, password);
             if (!result.Succeeded)
                 return new ResetPasswordResult()
                 {
