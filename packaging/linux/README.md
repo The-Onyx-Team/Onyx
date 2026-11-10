@@ -9,7 +9,8 @@ Install from a release archive (`onyx-agent-linux-x64.tar.gz` or `-arm64`):
 
     tar xzf onyx-agent-linux-x64.tar.gz && cd onyx-agent && ./install.sh
 
-Commands: `onyx-agent login | run | status | logout`. Files: `~/.config/onyx/` (server, tokens; mode 600) and
+Commands: `onyx-agent login | run | status | logout | websites on|off`. With `websites on` and the Onyx browser
+extension installed, browser time is split by website (domain only). Files: `~/.config/onyx/` (server, tokens; mode 600) and
 `~/.local/state/onyx/pending.json` (data not uploaded yet).
 
 Build the archive yourself:

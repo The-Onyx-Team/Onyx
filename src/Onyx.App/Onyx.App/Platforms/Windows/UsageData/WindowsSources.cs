@@ -68,7 +68,8 @@ public sealed partial class WindowsSources : IForegroundAppSource, IIdleTimeSour
                 m_PathByIdentifier[identifier] = path;
             }
 
-            app = new ForegroundApp(identifier, name ?? process.ProcessName);
+            // The process id lets website reports from a browser extension be matched to this window.
+            app = new ForegroundApp(identifier, name ?? process.ProcessName, ProcessId: pid);
         }
 
         m_ByProcess[pid] = (app, started);

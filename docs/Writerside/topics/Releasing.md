@@ -12,6 +12,7 @@ git tag v1.2.0 && git push origin v1.2.0
 | `onyx-android.apk` | Signed Android app, for direct download |
 | `onyx-windows-x64.zip` | Self-contained, unpackaged Windows app |
 | `onyx-agent-linux-{x64,arm64}.tar.gz` | Linux agent with systemd unit and installer |
+| `onyx-browser-extension.zip` | Browser extension (website recording), for loading unpacked or store upload |
 | `SHA256SUMS` | Checksums |
 
 The web app's downloads page links to `/releases/latest/download/<asset>`, so keep these names. The Android
@@ -37,6 +38,16 @@ Google Play:
 - Data safety form: declare exactly what the privacy notice lists (app usage per app and hour, device name and platform, account email).
 - Usage access (`PACKAGE_USAGE_STATS`) is granted by the user in system settings; describe why in the listing.
 - Account deletion: in the app (Settings) and on the web (`/settings`).
+
+Browser extension (see [Websites](Websites.md)):
+- Chrome Web Store and Edge Add-ons: upload `onyx-browser-extension.zip` after removing the `key` field from
+  `manifest.json`, then add the assigned extension ids to `BrowserBridge.ChromeExtensionIds`.
+- Firefox: submit to addons.mozilla.org (id `websites@onyx-team.github.io`). Release builds of Firefox only install
+  signed add-ons.
+- All stores: single purpose "usage statistics for the Onyx app", privacy policy URL, and the disclosure that
+  browsing activity (domains of the active tab) is collected. Chrome shows the `tabs` permission as "Read your
+  browsing history".
+- Windows: the zip contains `onyx-native-host.exe` (Native AOT, built on the Windows runner).
 
 Microsoft Store: package the Windows app as MSIX (`WindowsPackageType=MSIX`) with the Identity values from
 Partner Center in `Platforms/Windows/Package.appxmanifest`. For direct downloads, sign `Onyx.App.exe`

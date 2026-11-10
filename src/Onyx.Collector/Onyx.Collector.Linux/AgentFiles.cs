@@ -4,7 +4,8 @@ using Onyx.Collector.Core;
 namespace Onyx.Collector.Linux;
 
 /// <summary>Agent settings, in $XDG_CONFIG_HOME/onyx/agent.json.</summary>
-internal sealed record AgentConfig(string ServerUrl, string? DeviceName = null)
+/// <param name="RecordWebsites">Record which website the browser shows (needs the Onyx browser extension).</param>
+internal sealed record AgentConfig(string ServerUrl, string? DeviceName = null, bool RecordWebsites = false)
 {
     public string EffectiveDeviceName => string.IsNullOrWhiteSpace(DeviceName) ? Environment.MachineName : DeviceName;
 }
@@ -24,6 +25,10 @@ internal static class AgentFiles
     public static string ConfigPath => Path.Combine(ConfigDirectory, "agent.json");
     public static string CredentialsPath => Path.Combine(ConfigDirectory, "credentials.json");
     public static string PendingPath => Path.Combine(StateDirectory, "pending.json");
+
+    public static string DataDirectory => Path.Combine(
+        Environment.GetEnvironmentVariable("XDG_DATA_HOME")
+        ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share"), "onyx");
 
     public static AgentConfig? LoadConfig() =>
         File.Exists(ConfigPath) ? JsonSerializer.Deserialize<AgentConfig>(File.ReadAllText(ConfigPath), s_Json) : null;

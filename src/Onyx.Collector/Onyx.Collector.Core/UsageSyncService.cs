@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Onyx.Collector.Core.Browser;
 
 namespace Onyx.Collector.Core;
 
@@ -11,7 +12,8 @@ public sealed class UsageSyncService(
     TimeProvider timeProvider,
     string deviceName,
     string platform,
-    ILogger? logger = null)
+    ILogger? logger = null,
+    BrowserActivity? browserActivity = null)
 {
     private readonly ILogger m_Logger = logger ?? NullLogger.Instance;
     private readonly HashSet<string> m_IconsSent = new();
@@ -43,6 +45,9 @@ public sealed class UsageSyncService(
     /// <returns>True when everything pending was uploaded.</returns>
     public async Task<bool> SyncOnceAsync(CancellationToken cancellationToken)
     {
+        if (browserActivity is not null)
+            await RefreshExcludedDomainsAsync(browserActivity, cancellationToken);
+
         var snapshot = store.Snapshot();
         if (snapshot.Count == 0)
             return true;
@@ -76,6 +81,20 @@ public sealed class UsageSyncService(
             LastError = e.Message;
             m_Logger.LogWarning("Upload failed, will retry: {Reason}", e.Message);
             return false;
+        }
+    }
+
+    /// <summary>Picks up websites the user excluded in the dashboard. The server drops them as well, so a failed
+    /// refresh only means they are filtered there instead of here.</summary>
+    private async Task RefreshExcludedDomainsAsync(BrowserActivity activity, CancellationToken ct)
+    {
+        try
+        {
+            activity.SetExcludedDomains(await client.GetWebsiteExclusionsAsync(ct));
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or NotSignedInException)
+        {
+            m_Logger.LogDebug("Could not refresh excluded websites: {Reason}", e.Message);
         }
     }
 

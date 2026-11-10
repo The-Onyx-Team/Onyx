@@ -40,6 +40,27 @@
                     @(m_Syncing ? "Uploading..." : "Upload now")
                 </MudButton>
             }
+
+            @if (m_Status.RecordWebsites is { } recordWebsites)
+            {
+                <MudDivider Class="my-4"/>
+                <MudSwitch T="bool" Value="recordWebsites" ValueChanged="SetRecordWebsitesAsync" Color="Color.Primary"
+                           Disabled="m_Switching" Label="Record websites in browsers"/>
+                <MudText Typo="Typo.body2" Class="mt-1">
+                    Splits browser time by website. Only the domain of the active tab is recorded (for example
+                    "github.com"), never the full address, and never private windows. Needs the Onyx Websites browser
+                    extension (<MudLink Href="/downloads" Typo="Typo.body2">Downloads</MudLink>).
+                    Excluded websites and deleting the history: <MudLink Href="/settings#websites" Typo="Typo.body2">Settings</MudLink>.
+                </MudText>
+                @if (recordWebsites)
+                {
+                    <MudText Typo="Typo.body2" Class="mt-2">
+                        @(m_Status.ActiveWebsite is { } site
+                            ? $"Browser extension connected, last website: {site}"
+                            : "No report from the browser extension yet. Install it, or switch to a browser tab.")
+                    </MudText>
+                }
+            }
         </MudPaper>
     }
 
@@ -82,6 +103,7 @@
     private CollectionStatus m_Status = new(false, false, null, null, 0);
     private List<DeviceDto>? m_Devices;
     private bool m_Syncing;
+    private bool m_Switching;
 
     protected override async Task OnInitializedAsync()
     {
@@ -118,6 +140,35 @@
         finally
         {
             m_Syncing = false;
+        }
+    }
+
+    private async Task SetRecordWebsitesAsync(bool enabled)
+    {
+        if (enabled)
+        {
+            var confirmed = await DialogService.ShowMessageBox("Record websites",
+                "Onyx will record which website (domain only) is open in your browser while it is in front, " +
+                "and upload it to your account. Websites can reveal sensitive things about you, such as health, " +
+                "religion or political views. You can exclude websites and delete the history in Settings, and " +
+                "turn this off at any time.",
+                yesText: "Turn on", cancelText: "Cancel");
+            if (confirmed != true)
+                return;
+        }
+
+        m_Switching = true;
+        try
+        {
+            m_Status = await StatsService.SetRecordWebsitesAsync(enabled);
+        }
+        catch (InvalidOperationException e)
+        {
+            Snackbar.Add(e.Message, Severity.Error);
+        }
+        finally
+        {
+            m_Switching = false;
         }
     }
 

@@ -93,4 +93,28 @@ public class UsageSummaryTest
     [InlineData(135, "2 h 15 min")]
     public void Format(double minutes, string expected) =>
         UsageSummary.Format(TimeSpan.FromMinutes(minutes)).ShouldBe(expected);
+
+    [Fact]
+    public void Create_SumsWebsitesAcrossBrowsersAndDevices()
+    {
+        var day = new DateTime(2026, 11, 9);
+        var hour = new DateTime(2026, 11, 9, 9, 0, 0);
+        UsageDto Web(int appId, string app, int minutes, string? domain, string device = "Laptop")
+        {
+            var u = Usage(appId, app, hour, minutes, device);
+            u.Domain = domain;
+            return u;
+        }
+
+        var summary = UsageSummary.Create(
+            [Web(1, "Firefox", 30, "github.com"), Web(2, "Chrome", 10, "github.com", "Desktop"),
+             Web(1, "Firefox", 20, "example.org"), Web(1, "Firefox", 5, null), Usage(3, "Kitty", hour, 15)],
+            day, day.AddDays(1), DashboardRange.Day, s_Vienna);
+
+        summary.WebsiteTime.ShouldBe(TimeSpan.FromMinutes(60));
+        summary.Websites.Select(w => (w.Name, w.Time.TotalMinutes)).ShouldBe([("github.com", 40d), ("example.org", 20d)]);
+        summary.Websites[0].Share.ShouldBe(40d / 60, 0.0001);
+        // Website rows still add up to the browser's total.
+        summary.Apps.Single(a => a.Name == "Firefox").Time.ShouldBe(TimeSpan.FromMinutes(55));
+    }
 }

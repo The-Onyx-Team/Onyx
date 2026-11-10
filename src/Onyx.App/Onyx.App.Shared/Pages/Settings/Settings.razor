@@ -1,4 +1,6 @@
 @page "/settings"
+@using Onyx.App.Shared.Services.Usage
+@inject IWebsiteSettings WebsiteSettings
 @inject IUserManager UserManager
 @inject IPlatformService PlatformService
 @inject IDialogService DialogService
@@ -24,6 +26,50 @@
                 </MudText>
             </MudPaper>
 
+            <MudPaper Class="pa-4 mb-6" Elevation="1" id="websites">
+                <MudText Typo="Typo.h6">Websites</MudText>
+                <MudText Class="mt-2">
+                    Computers with website recording turned on (on the Devices page or with
+                    <code>onyx-agent websites on</code>) split browser time by website, using the Onyx Websites browser
+                    extension. Only domains are stored.
+                </MudText>
+
+                <MudText Typo="Typo.subtitle1" Class="mt-4">Never record these websites</MudText>
+                <MudText Typo="Typo.body2" Class="mb-2">
+                    Subdomains are included. Time on them still counts for the browser, without the website. Adding a
+                    website also removes it from the history already recorded.
+                </MudText>
+                @if (m_Excluded is null)
+                {
+                    <MudProgressLinear Indeterminate="true"/>
+                }
+                else
+                {
+                    <MudChipSet T="string" AllClosable="true" OnClose="RemoveExclusionAsync">
+                        @foreach (var domain in m_Excluded)
+                        {
+                            <MudChip T="string" Value="domain" Text="@domain"/>
+                        }
+                    </MudChipSet>
+                    <div class="d-flex align-center gap-2 mt-2">
+                        <MudTextField T="string" @bind-Value="m_NewExclusion" Label="Website, e.g. example.com"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true"
+                                      OnKeyDown="@(async e => { if (e.Key == "Enter") await AddExclusionAsync(); })"/>
+                        <MudButton Variant="Variant.Outlined" OnClick="AddExclusionAsync"
+                                   Disabled="string.IsNullOrWhiteSpace(m_NewExclusion)">Exclude</MudButton>
+                    </div>
+                }
+
+                <MudText Typo="Typo.subtitle1" Class="mt-4">Website history</MudText>
+                <MudText Typo="Typo.body2" Class="mb-2">
+                    Removes the website from all recorded usage on all devices. Browser time is kept.
+                </MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="m_DeletingHistory"
+                           OnClick="DeleteWebsiteHistoryAsync">
+                    @(m_DeletingHistory ? "Deleting..." : "Delete website history")
+                </MudButton>
+            </MudPaper>
+
             <MudPaper Class="pa-4" Elevation="1">
                 <MudText Typo="Typo.h6" Color="Color.Error">Delete account</MudText>
                 <MudText Class="mt-2 mb-3">
@@ -39,6 +85,75 @@
 
 @code {
     private bool m_Deleting;
+    private bool m_DeletingHistory;
+    private List<string>? m_Excluded;
+    private string? m_NewExclusion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            m_Excluded = await WebsiteSettings.GetExcludedDomainsAsync();
+        }
+        catch (Exception e)
+        {
+            m_Excluded = [];
+            Snackbar.Add($"Could not load excluded websites: {e.Message}", Severity.Error);
+        }
+    }
+
+    private async Task AddExclusionAsync()
+    {
+        if (string.IsNullOrWhiteSpace(m_NewExclusion) || m_Excluded is null)
+            return;
+        if (await SaveExclusionsAsync([..m_Excluded, m_NewExclusion.Trim()]))
+            m_NewExclusion = null;
+    }
+
+    private async Task RemoveExclusionAsync(MudChip<string> chip)
+    {
+        if (m_Excluded is not null)
+            await SaveExclusionsAsync(m_Excluded.Where(d => d != chip.Value).ToList());
+    }
+
+    private async Task<bool> SaveExclusionsAsync(List<string> domains)
+    {
+        try
+        {
+            m_Excluded = await WebsiteSettings.SetExcludedDomainsAsync(domains);
+            return true;
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add(e is ArgumentException ? e.Message : $"Could not save: {e.Message}", Severity.Error);
+            return false;
+        }
+    }
+
+    private async Task DeleteWebsiteHistoryAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBox("Delete website history",
+            "Remove the website from all recorded usage? Browser time is kept. This cannot be undone. " +
+            "Devices that still record websites keep adding new history.",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirmed != true)
+            return;
+
+        m_DeletingHistory = true;
+        try
+        {
+            await WebsiteSettings.DeleteWebsiteHistoryAsync();
+            Snackbar.Add("Website history deleted.", Severity.Success);
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"Could not delete the history: {e.Message}", Severity.Error);
+        }
+        finally
+        {
+            m_DeletingHistory = false;
+        }
+    }
 
     private async Task DeleteAccountAsync()
     {

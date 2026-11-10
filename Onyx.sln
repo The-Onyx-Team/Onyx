@@ -54,6 +54,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Onyx.Collector.Core", "src\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Onyx.Collector.Linux", "src\Onyx.Collector\Onyx.Collector.Linux\Onyx.Collector.Linux.csproj", "{53E15224-FAB7-4F02-8B09-49DC123E2E64}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Onyx.Collector.NativeHost", "src\Onyx.Collector\Onyx.Collector.NativeHost\Onyx.Collector.NativeHost.csproj", "{68C0352B-02B2-4210-A4E1-60446A814892}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -208,6 +210,18 @@ Global
 		{53E15224-FAB7-4F02-8B09-49DC123E2E64}.Release|x64.Build.0 = Release|Any CPU
 		{53E15224-FAB7-4F02-8B09-49DC123E2E64}.Release|x86.ActiveCfg = Release|Any CPU
 		{53E15224-FAB7-4F02-8B09-49DC123E2E64}.Release|x86.Build.0 = Release|Any CPU
+		{68C0352B-02B2-4210-A4E1-60446A814892}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{68C0352B-02B2-4210-A4E1-60446A814892}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{68C0352B-02B2-4210-A4E1-60446A814892}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{68C0352B-02B2-4210-A4E1-60446A814892}.Debug|x64.Build.0 = Debug|Any CPU
+		{68C0352B-02B2-4210-A4E1-60446A814892}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{68C0352B-02B2-4210-A4E1-60446A814892}.Debug|x86.Build.0 = Debug|Any CPU
+		{68C0352B-02B2-4210-A4E1-60446A814892}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{68C0352B-02B2-4210-A4E1-60446A814892}.Release|Any CPU.Build.0 = Release|Any CPU
+		{68C0352B-02B2-4210-A4E1-60446A814892}.Release|x64.ActiveCfg = Release|Any CPU
+		{68C0352B-02B2-4210-A4E1-60446A814892}.Release|x64.Build.0 = Release|Any CPU
+		{68C0352B-02B2-4210-A4E1-60446A814892}.Release|x86.ActiveCfg = Release|Any CPU
+		{68C0352B-02B2-4210-A4E1-60446A814892}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -227,5 +241,6 @@ Global
 		{56E85B17-B34A-4174-925C-77B8B8748B3C} = {E07F23FA-4B78-450D-B418-EE64F3806BF0}
 		{6719200A-A3AF-4702-9F25-A842D4B3272F} = {EEC869BE-4264-071E-C678-5CD8D5D529BB}
 		{53E15224-FAB7-4F02-8B09-49DC123E2E64} = {EEC869BE-4264-071E-C678-5CD8D5D529BB}
+		{68C0352B-02B2-4210-A4E1-60446A814892} = {EEC869BE-4264-071E-C678-5CD8D5D529BB}
 	EndGlobalSection
 EndGlobal

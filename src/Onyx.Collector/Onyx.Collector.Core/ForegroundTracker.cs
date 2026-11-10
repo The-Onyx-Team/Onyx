@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Onyx.Collector.Core.Browser;
 
 namespace Onyx.Collector.Core;
 
@@ -28,18 +29,23 @@ public sealed class ForegroundTracker(
     PendingUsageStore store,
     TimeProvider timeProvider,
     ForegroundTrackerOptions? options = null,
-    ILogger? logger = null)
+    ILogger? logger = null,
+    IWebsiteSource? websiteSource = null)
 {
     private readonly ForegroundTrackerOptions m_Options = options ?? new ForegroundTrackerOptions();
     private readonly ILogger m_Logger = logger ?? NullLogger.Instance;
 
     private ForegroundApp? m_Current;
+    private string? m_CurrentDomain;
     private DateTimeOffset m_LastSample;
     private DateTimeOffset m_LastSave;
     private bool m_LoggedFailure;
 
     /// <summary>The app sampled last, for status output.</summary>
     public ForegroundApp? Current => m_Current;
+
+    /// <summary>The website sampled last, if the current app is a browser that reports one.</summary>
+    public string? CurrentDomain => m_CurrentDomain;
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -68,10 +74,11 @@ public sealed class ForegroundTracker(
         var elapsed = now - m_LastSample;
 
         if (m_Current is not null && elapsed > TimeSpan.Zero && elapsed <= m_Options.PollInterval * 3)
-            store.Add(m_Current, m_LastSample, now);
+            store.Add(m_Current, m_LastSample, now, m_CurrentDomain);
 
         m_LastSample = now;
         m_Current = ReadForegroundApp();
+        m_CurrentDomain = m_Current is null ? null : websiteSource?.GetDomain(m_Current);
 
         if (now - m_LastSave >= m_Options.SaveInterval)
         {

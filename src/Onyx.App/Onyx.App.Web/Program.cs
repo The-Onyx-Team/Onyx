@@ -236,6 +236,7 @@ builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddScoped<IUsageDataService, UsageDataService>();
 builder.Services.AddScoped<IDeviceManager, DeviceManager>();
 builder.Services.AddScoped<IAppManager, AppManager>();
+builder.Services.AddScoped<IWebsiteSettings, WebsiteSettings>();
 builder.Services.AddSingleton<IStatsService, WebStatsService>();
 builder.Services.AddScoped<Onyx.App.Shared.Services.Dashboard.ClientTimeZone>();
 
@@ -263,6 +264,7 @@ app.MapAuthEndpoints();
 app.MapDataEndpoints();
 app.MapDeviceEndpoints();
 app.MapAppEndpoints();
+app.MapWebsiteEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(typeof(Onyx.App.Shared._Imports).Assembly);

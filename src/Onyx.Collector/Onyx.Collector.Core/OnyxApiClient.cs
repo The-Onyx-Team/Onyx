@@ -76,7 +76,7 @@ public sealed class OnyxApiClient(HttpClient http, ICredentialStore store, ILogg
     {
         var missingIcons = new HashSet<string>();
 
-        foreach (var chunk in entries.Chunk(MaxEntriesPerUpload))
+        foreach (var chunk in ChunkByHour(entries))
         {
             var deviceId = await EnsureDeviceAsync(deviceName, platform, ct);
             UsageUploadResultDto result;
@@ -100,6 +100,37 @@ public sealed class OnyxApiClient(HttpClient http, ICredentialStore store, ILogg
         }
 
         return missingIcons;
+    }
+
+    /// <summary>Splits an upload into requests of at most <see cref="MaxEntriesPerUpload"/> entries, keeping each
+    /// hour in one request: the server replaces an app's hour with what one request contains.</summary>
+    internal static IEnumerable<UsageEntryDto[]> ChunkByHour(IReadOnlyList<UsageEntryDto> entries)
+    {
+        var chunk = new List<UsageEntryDto>();
+        foreach (var hour in entries.GroupBy(e => e.BucketStart).OrderBy(g => g.Key))
+        {
+            var items = hour.ToList();
+            if (chunk.Count > 0 && chunk.Count + items.Count > MaxEntriesPerUpload)
+            {
+                yield return chunk.ToArray();
+                chunk.Clear();
+            }
+
+            // A single hour with more entries than the limit (thousands of apps or websites) is split anyway.
+            foreach (var part in items.Chunk(MaxEntriesPerUpload))
+            {
+                if (chunk.Count + part.Length > MaxEntriesPerUpload)
+                {
+                    yield return chunk.ToArray();
+                    chunk.Clear();
+                }
+
+                chunk.AddRange(part);
+            }
+        }
+
+        if (chunk.Count > 0)
+            yield return chunk.ToArray();
     }
 
     public async Task UploadIconAsync(string appIdentifier, byte[] png, CancellationToken ct = default)
@@ -141,6 +172,16 @@ public sealed class OnyxApiClient(HttpClient http, ICredentialStore store, ILogg
 
     public Task<List<AppDto>> GetAppsAsync(CancellationToken ct = default) =>
         SendAsync<List<AppDto>>(HttpMethod.Get, "/api/app", null, ct);
+
+    public async Task<List<string>> GetWebsiteExclusionsAsync(CancellationToken ct = default) =>
+        (await SendAsync<WebsiteExclusionsDto>(HttpMethod.Get, "/api/websites/exclusions", null, ct)).Domains;
+
+    public async Task<List<string>> SetWebsiteExclusionsAsync(IReadOnlyList<string> domains, CancellationToken ct = default) =>
+        (await SendAsync<WebsiteExclusionsDto>(HttpMethod.Put, "/api/websites/exclusions",
+            new WebsiteExclusionsDto(domains.ToList()), ct)).Domains;
+
+    public Task DeleteWebsiteHistoryAsync(CancellationToken ct = default) =>
+        SendAsync<object?>(HttpMethod.Delete, "/api/websites/history", null, ct);
 
     private async Task<T> SendAsync<T>(HttpMethod method, string path, object? body, CancellationToken ct)
     {

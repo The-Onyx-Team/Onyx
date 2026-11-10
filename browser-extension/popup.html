@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Onyx</title>
+  <style>
+    :root { color-scheme: light dark; --ok: #2e7d32; --warn: #b26a00; --muted: #777; }
+    body { font: 14px system-ui, sans-serif; margin: 0; padding: 14px 16px; width: 280px; }
+    h1 { font-size: 15px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+    h1 img { width: 20px; height: 20px; }
+    p { margin: 6px 0; }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .muted { color: var(--muted); font-size: 12px; }
+    code { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1><img src="icons/icon-32.png" alt="">Onyx Websites</h1>
+  <p id="status">Checking...</p>
+  <p id="domain" class="muted"></p>
+  <p class="muted">Only the domain of the active tab is shared with the Onyx app on this computer. Private windows are never shared.</p>
+  <script src="popup.js"></script>
+</body>
+</html>

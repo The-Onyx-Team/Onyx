@@ -19,11 +19,14 @@ public sealed class PendingUsageStore
     private readonly string? m_Path;
     private readonly ILogger m_Logger;
     private readonly Lock m_Lock = new();
-    private readonly Dictionary<(string App, DateTime Hour), Bucket> m_Buckets = new();
+    private readonly Dictionary<(string App, string Domain, DateTime Hour), Bucket> m_Buckets = new();
 
     private sealed record Bucket(string AppName, string? Category, TimeSpan Time);
 
-    private sealed record StoredBucket(string App, string AppName, string? Category, DateTime Hour, TimeSpan Time);
+    /// <param name="Domain">Website for browser time; null (also in files written before websites existed) for
+    /// everything else.</param>
+    private sealed record StoredBucket(string App, string AppName, string? Category, DateTime Hour, TimeSpan Time,
+        string? Domain = null);
 
     /// <param name="path">File to persist to; null keeps everything in memory (tests).</param>
     public PendingUsageStore(string? path, ILogger? logger = null)
@@ -42,13 +45,14 @@ public sealed class PendingUsageStore
     }
 
     /// <summary>Adds foreground time of <paramref name="app"/> between two instants, split across hours.</summary>
-    public void Add(ForegroundApp app, DateTimeOffset start, DateTimeOffset end)
+    /// <param name="domain">For browsers, the website that was open; null otherwise.</param>
+    public void Add(ForegroundApp app, DateTimeOffset start, DateTimeOffset end, string? domain = null)
     {
         lock (m_Lock)
         {
             UsageBuckets.Split(start, end, (hour, time) =>
             {
-                var key = (app.Identifier, hour);
+                var key = (app.Identifier, domain ?? "", hour);
                 var total = m_Buckets.TryGetValue(key, out var existing) ? existing.Time + time : time;
                 if (total > UsageBuckets.BucketLength)
                     total = UsageBuckets.BucketLength;
@@ -64,7 +68,8 @@ public sealed class PendingUsageStore
         {
             return m_Buckets
                 .Where(b => b.Value.Time > TimeSpan.Zero)
-                .Select(b => new UsageEntryDto(b.Key.App, b.Value.AppName, b.Value.Category, b.Key.Hour, b.Value.Time))
+                .Select(b => new UsageEntryDto(b.Key.App, b.Value.AppName, b.Value.Category, b.Key.Hour, b.Value.Time,
+                    b.Key.Domain == "" ? null : b.Key.Domain))
                 .OrderBy(e => e.BucketStart)
                 .ToList();
         }
@@ -78,15 +83,16 @@ public sealed class PendingUsageStore
     {
         lock (m_Lock)
         {
-            foreach (var entry in uploaded)
+            // An app's hour is dropped as a whole, or kept as a whole: the server replaces the complete hour on
+            // every upload, so a partial re-send would delete the websites left out.
+            foreach (var hour in uploaded.Where(e => e.BucketStart < currentHour).GroupBy(e => (e.AppIdentifier, e.BucketStart)))
             {
-                var key = (entry.AppIdentifier, entry.BucketStart);
-                if (entry.BucketStart < currentHour
-                    && m_Buckets.TryGetValue(key, out var bucket)
-                    && bucket.Time <= entry.ForegroundTime)
-                {
-                    m_Buckets.Remove(key);
-                }
+                var sent = hour.ToDictionary(e => e.Domain ?? "", e => e.ForegroundTime);
+                var keys = m_Buckets.Keys.Where(k => k.App == hour.Key.AppIdentifier && k.Hour == hour.Key.BucketStart).ToList();
+                var unchanged = keys.All(k => sent.TryGetValue(k.Domain, out var time) && m_Buckets[k].Time <= time);
+                if (unchanged)
+                    foreach (var key in keys)
+                        m_Buckets.Remove(key);
             }
         }
     }
@@ -101,7 +107,8 @@ public sealed class PendingUsageStore
         lock (m_Lock)
         {
             data = m_Buckets
-                .Select(b => new StoredBucket(b.Key.App, b.Value.AppName, b.Value.Category, b.Key.Hour, b.Value.Time))
+                .Select(b => new StoredBucket(b.Key.App, b.Value.AppName, b.Value.Category, b.Key.Hour, b.Value.Time,
+                    b.Key.Domain == "" ? null : b.Key.Domain))
                 .ToList();
         }
 
@@ -127,7 +134,8 @@ public sealed class PendingUsageStore
         {
             var data = JsonSerializer.Deserialize<List<StoredBucket>>(File.ReadAllText(m_Path)) ?? [];
             foreach (var b in data)
-                m_Buckets[(b.App, DateTime.SpecifyKind(b.Hour, DateTimeKind.Utc))] = new Bucket(b.AppName, b.Category, b.Time);
+                m_Buckets[(b.App, b.Domain ?? "", DateTime.SpecifyKind(b.Hour, DateTimeKind.Utc))] =
+                    new Bucket(b.AppName, b.Category, b.Time);
         }
         catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
         {

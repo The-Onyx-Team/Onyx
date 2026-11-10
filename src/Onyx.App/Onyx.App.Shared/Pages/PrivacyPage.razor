@@ -17,16 +17,28 @@
     <ul class="mb-3" style="padding-left: 1.5rem">
         <li>the name and platform of the device (for example "Pixel 9", Android), chosen when it registers;</li>
         <li>for every hour: which apps were in the foreground and for how many minutes;</li>
-        <li>for each app: its identifier (package or program name), display name, category reported by the system, and icon.</li>
+        <li>for each app: its identifier (package or program name), display name, category reported by the system, and icon;</li>
+        <li>only if you turn on website recording on a computer: for every hour, which websites (domain only, such
+            as "github.com") were open in the active browser tab and for how many minutes.</li>
     </ul>
     <MudText Class="mb-2">
-        Onyx does <b>not</b> record what you do inside apps: no window titles, web addresses, messages, keystrokes,
-        screenshots or location. Time while the device is locked or idle for five minutes is not counted on
+        Onyx does <b>not</b> record what you do inside apps: no window titles, full web addresses, page contents,
+        messages, keystrokes, screenshots or location. Time while the device is locked or idle for five minutes is not counted on
         computers; on Android, Onyx reads the usage history the system keeps.
     </MudText>
     <MudText Class="mb-2">
         For your account Onyx stores your user name, email address and a hash of your password (never the password
         itself), and, if you use them, phone number and two-factor settings.
+    </MudText>
+
+    <MudText Typo="Typo.h6" Class="mt-4">Websites</MudText>
+    <MudText Class="mb-2">
+        Website recording is off by default and turned on separately on each computer. It needs the Onyx Websites
+        browser extension, which reads the address of the active tab, reduces it to the domain, and passes the
+        domain only to the Onyx app on the same computer (never directly to the internet). Private windows are never
+        recorded. The list of websites you visit can reveal sensitive information, such as health, religious or
+        political views; you can exclude websites, delete the website history at any time in the settings, and
+        turn recording off again. Your excluded websites are stored with your account so every device respects them.
     </MudText>
 
     <MudText Typo="Typo.h6" Class="mt-4">Permissions</MudText>
@@ -45,7 +57,8 @@
     <MudText Typo="Typo.h6" Class="mt-4">Deleting your data</MudText>
     <MudText Class="mb-2">
         Removing a device on the Devices page deletes all usage it uploaded. Deleting your account in the profile
-        settings deletes the account, all devices and all usage data. Uninstalling the app stops collection; data
+        settings deletes the account, all devices and all usage data. "Delete website history" in the settings removes
+        the websites from all usage data while keeping the browser time. Uninstalling the app stops collection; data
         already uploaded stays until you delete it.
     </MudText>
 

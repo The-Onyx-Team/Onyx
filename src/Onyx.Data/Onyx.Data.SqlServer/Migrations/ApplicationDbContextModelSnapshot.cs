@@ -384,6 +384,14 @@ namespace Onyx.Data.SqlServer.Migrations
                         .HasColumnType("int")
                         .HasColumnName("DeviceId");
 
+                    b.Property<string>("Domain")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(253)
+                        .HasColumnType("nvarchar(253)")
+                        .HasDefaultValue("")
+                        .HasColumnName("Domain");
+
                     b.Property<TimeSpan>("Duration")
                         .HasColumnType("time")
                         .HasColumnName("Duration");
@@ -394,10 +402,39 @@ namespace Onyx.Data.SqlServer.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("DeviceId", "AppId", "Date")
+                    b.HasIndex("DeviceId", "AppId", "Domain", "Date")
                         .IsUnique();
 
                     b.ToTable("Usage");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.WebsiteExclusion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Domain")
+                        .IsRequired()
+                        .HasMaxLength(253)
+                        .HasColumnType("nvarchar(253)")
+                        .HasColumnName("Domain");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("UserId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Domain")
+                        .IsUnique();
+
+                    b.ToTable("WebsiteExclusions");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -524,6 +561,17 @@ namespace Onyx.Data.SqlServer.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("Device");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.WebsiteExclusion", b =>
+                {
+                    b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", b =>

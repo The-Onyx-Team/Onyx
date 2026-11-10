@@ -119,6 +119,10 @@ jobs:
           dotnet publish src/Onyx.App/Onyx.App/Onyx.App.csproj -f net10.0-windows10.0.19041.0 -c Release `
             -r win-x64 --self-contained -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true `
             -p:ApplicationDisplayVersion=$version -p:ApplicationVersion=${{ github.run_number }} -o out/windows
+          # Native messaging host for the browser extension; the app registers it from its own folder.
+          dotnet publish src/Onyx.Collector/Onyx.Collector.NativeHost -c Release -r win-x64 `
+            -p:DebugType=none -p:Version=$version -o out/native-host
+          Copy-Item out/native-host/onyx-native-host.exe out/windows/
           Compress-Archive -Path out/windows/* -DestinationPath onyx-windows-x64.zip
 
       - uses: actions/upload-artifact@v4
@@ -126,9 +130,26 @@ jobs:
           name: onyx-windows-x64
           path: onyx-windows-x64.zip
 
+  browser-extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package
+        run: |
+          version="${VERSION#v}"
+          # Browser extension versions are 1-4 dot-separated numbers.
+          jq --arg v "${version%%-*}" '.version = $v' browser-extension/manifest.json > manifest.tmp
+          mv manifest.tmp browser-extension/manifest.json
+          (cd browser-extension && zip -r ../onyx-browser-extension.zip . -x README.md)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: onyx-browser-extension
+          path: onyx-browser-extension.zip
+
   release:
     if: github.event_name == 'push'
-    needs: [ linux-agent, android, windows ]
+    needs: [ linux-agent, android, windows, browser-extension ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -137,7 +158,7 @@ jobs:
         with:
           path: assets
           merge-multiple: true
-          pattern: onyx-{agent-*,android,windows-*}
+          pattern: onyx-{agent-*,android,windows-*,browser-extension}
 
       - name: Checksums
         working-directory: assets

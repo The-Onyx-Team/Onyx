@@ -29,7 +29,8 @@ internal sealed class DesktopEntries
     /// <summary>Identifier, name and category for a window.</summary>
     /// <param name="windowClass">Wayland app id or X11 WM_CLASS.</param>
     /// <param name="executable">Executable name of the window's process, if known.</param>
-    public ForegroundApp Resolve(string windowClass, string? executable)
+    /// <param name="processId">The window's process, 0 if unknown.</param>
+    public ForegroundApp Resolve(string windowClass, string? executable, int processId = 0)
     {
         var identifier = "linux:" + windowClass.ToLowerInvariant();
 
@@ -37,7 +38,7 @@ internal sealed class DesktopEntries
         if (entry?.Icon is { } icon)
             m_IconByIdentifier.TryAdd(identifier, icon);
 
-        return new ForegroundApp(identifier, entry?.Name ?? windowClass, entry?.Category);
+        return new ForegroundApp(identifier, entry?.Name ?? windowClass, entry?.Category, processId);
     }
 
     /// <summary>PNG bytes of the app's icon from the icon themes, if one was found.</summary>

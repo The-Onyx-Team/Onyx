@@ -31,6 +31,12 @@ public sealed class UsageSummary
     public IReadOnlyList<AppTotal> Apps { get; private init; } = [];
     public IReadOnlyList<NamedTotal> Categories { get; private init; } = [];
     public IReadOnlyList<NamedTotal> Devices { get; private init; } = [];
+
+    /// <summary>Time per website (browsers on devices that record websites). Shares are of <see cref="WebsiteTime"/>.</summary>
+    public IReadOnlyList<NamedTotal> Websites { get; private init; } = [];
+
+    /// <summary>Browser time with a known website.</summary>
+    public TimeSpan WebsiteTime { get; private init; }
     public string[] PeriodLabels { get; private init; } = [];
     public IReadOnlyList<SeriesData> Series { get; private init; } = [];
 
@@ -85,6 +91,15 @@ public sealed class UsageSummary
             .Select(d => d with { Share = ShareOf(d.Time) })
             .ToList();
 
+        var websiteRows = rows.Where(r => r.Usage.Domain is not null).ToList();
+        var websiteTime = Sum(websiteRows.Select(r => r.Usage.TimeSpan));
+        var websites = websiteRows
+            .GroupBy(r => r.Usage.Domain!)
+            .Select(g => new NamedTotal(g.Key, Sum(g.Select(r => r.Usage.TimeSpan)), 0))
+            .OrderByDescending(w => w.Time)
+            .Select(w => w with { Share = websiteTime > TimeSpan.Zero ? w.Time / websiteTime : 0 })
+            .ToList();
+
         // Day view: one column per hour. Week and month: one column per day.
         var byHour = range == DashboardRange.Day;
         var periods = byHour ? 24 : (int)(localEnd - localStart).TotalDays;
@@ -126,6 +141,8 @@ public sealed class UsageSummary
             Apps = apps,
             Categories = categories,
             Devices = devices,
+            Websites = websites,
+            WebsiteTime = websiteTime,
             PeriodLabels = labels,
             Series = series
         };

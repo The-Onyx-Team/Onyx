@@ -54,6 +54,11 @@
         new("Linux", Icons.Custom.Brands.Linux,
             "A small background service (onyx-agent) for Hyprland, Sway and X11 desktops; GNOME and KDE on Wayland " +
             "are not supported yet. Extract the archive and run ./install.sh.",
-            [("x64", "onyx-agent-linux-x64.tar.gz"), ("arm64", "onyx-agent-linux-arm64.tar.gz")])
+            [("x64", "onyx-agent-linux-x64.tar.gz"), ("arm64", "onyx-agent-linux-arm64.tar.gz")]),
+        new("Browser extension", Icons.Material.Filled.Extension,
+            "Optional, for Windows and Linux: splits browser time by website (domain only). Turn on \"Record " +
+            "websites\" on the Devices page or run 'onyx-agent websites on', then add the extension to Chrome, Edge, " +
+            "Brave or Firefox. Until it is in the browser stores, unzip it and load it as an unpacked extension.",
+            [("Extension (zip)", "onyx-browser-extension.zip")])
     ];
 }

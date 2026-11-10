@@ -15,6 +15,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<GroupHasUser> GroupHasUsers { get; set; }
     public DbSet<Usage> Usages { get; set; }
     public DbSet<RegisteredApp> RegisteredApps { get; set; }
+    public DbSet<WebsiteExclusion> WebsiteExclusions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -36,10 +37,25 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .WithMany(a => a.Usages)
             .HasForeignKey(a => a.DeviceId);
 
-        // One row per device, app and hourly bucket: re-uploading a bucket replaces it instead of adding to it.
+        // One row per device, app, website and hourly bucket: re-uploading a bucket replaces it instead of adding
+        // to it. Domain is "" for everything that is not a website.
         builder.Entity<Usage>()
-            .HasIndex(a => new { a.DeviceId, a.AppId, a.Date })
+            .HasIndex(a => new { a.DeviceId, a.AppId, a.Domain, a.Date })
             .IsUnique();
+
+        builder.Entity<Usage>()
+            .Property(a => a.Domain)
+            .HasDefaultValue("");
+
+        builder.Entity<WebsiteExclusion>()
+            .HasIndex(a => new { a.UserId, a.Domain })
+            .IsUnique();
+
+        builder.Entity<WebsiteExclusion>()
+            .HasOne(a => a.User)
+            .WithMany()
+            .HasForeignKey(a => a.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         //RegisteredApps Table config
         builder.Entity<RegisteredApp>()

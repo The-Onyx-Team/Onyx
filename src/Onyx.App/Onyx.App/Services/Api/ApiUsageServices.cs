@@ -38,3 +38,23 @@ public class ApiAppManager(OnyxApiClient client) : IAppManager
         return true;
     }
 }
+
+public class ApiWebsiteSettings(OnyxApiClient client) : IWebsiteSettings
+{
+    public Task<List<string>> GetExcludedDomainsAsync() => client.GetWebsiteExclusionsAsync();
+
+    public async Task<List<string>> SetExcludedDomainsAsync(IReadOnlyList<string> domains)
+    {
+        try
+        {
+            return await client.SetWebsiteExclusionsAsync(domains);
+        }
+        catch (HttpRequestException e) when (e.StatusCode == System.Net.HttpStatusCode.BadRequest)
+        {
+            // Same contract as the web implementation: invalid input is an ArgumentException.
+            throw new ArgumentException(e.Message);
+        }
+    }
+
+    public Task DeleteWebsiteHistoryAsync() => client.DeleteWebsiteHistoryAsync();
+}

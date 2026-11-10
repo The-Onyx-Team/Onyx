@@ -28,7 +28,7 @@ internal sealed class HyprlandSource(DesktopEntries desktopEntries, TimeProvider
             return null;
 
         var pid = root.TryGetProperty("pid", out var p) ? p.GetInt32() : 0;
-        return desktopEntries.Resolve(cls.GetString()!, ProcessInfo.GetExecutableName(pid));
+        return desktopEntries.Resolve(cls.GetString()!, ProcessInfo.GetExecutableName(pid), pid);
     }
 
     public TimeSpan? GetIdleTime()

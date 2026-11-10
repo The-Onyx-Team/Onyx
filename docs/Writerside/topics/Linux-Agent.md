@@ -23,6 +23,12 @@ The agent samples the focused app every 2 seconds, adds the time to hourly bucke
 the current hour is re-sent until it is over and nothing is counted twice. Offline time is uploaded later.
 App names, categories and icons come from `.desktop` files.
 
+## Websites
+
+`onyx-agent websites on` registers the agent with the installed browsers so the Onyx browser extension can report
+the active tab's domain; restart the service afterwards. `onyx-agent websites off` removes the registration. See
+[Websites](Websites.md).
+
 ## Install and use
 
 ```bash

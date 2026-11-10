@@ -32,7 +32,7 @@ internal sealed class SwaySource(DesktopEntries desktopEntries) : IForegroundApp
 
         var exe = ProcessInfo.GetExecutableName(pid);
         var key = string.IsNullOrEmpty(appId) ? exe : appId;
-        return key is null ? null : desktopEntries.Resolve(key, exe);
+        return key is null ? null : desktopEntries.Resolve(key, exe, pid);
     }
 
     private static JsonElement? FindFocused(JsonElement node)

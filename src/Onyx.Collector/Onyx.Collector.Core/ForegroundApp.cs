@@ -5,7 +5,9 @@ namespace Onyx.Collector.Core;
 /// The server creates one app per identifier.</param>
 /// <param name="Name">Display name.</param>
 /// <param name="Category">Optional category.</param>
-public record ForegroundApp(string Identifier, string Name, string? Category = null);
+/// <param name="ProcessId">Process that owns the focused window, 0 if unknown. Used to match a browser window to
+/// the reports of the browser extension running in that browser.</param>
+public record ForegroundApp(string Identifier, string Name, string? Category = null, int ProcessId = 0);
 
 /// <summary>Reports which app is in the foreground right now (desktop platforms, polled).</summary>
 public interface IForegroundAppSource

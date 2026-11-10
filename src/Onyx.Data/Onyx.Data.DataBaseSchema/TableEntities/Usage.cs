@@ -17,6 +17,12 @@ public class Usage
     [Column("Duration"), Required, DataType(DataType.Time)]
     public TimeSpan Duration { get; set; }
 
+    /// <summary>Website the time was spent on (browsers on devices that record websites), as normalized by
+    /// <c>WebDomain</c>. Empty for everything else; not null, because SQLite treats NULLs in a unique index as
+    /// distinct and re-uploads would then add rows instead of replacing them.</summary>
+    [Column("Domain"), Required, StringLength(253)]
+    public string Domain { get; set; } = "";
+
     public Device? Device { get; set; }
     [Column("DeviceId"), Required] public int DeviceId { get; set; }
     public Category? Category { get; set; }

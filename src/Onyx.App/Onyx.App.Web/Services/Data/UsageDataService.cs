@@ -39,7 +39,8 @@ public class UsageDataService(ApplicationDbContext dbContext, CurrentUser curren
                 DeviceId = u.DeviceId,
                 DeviceName = u.Device!.Name!,
                 Date = u.Date,
-                TimeSpan = u.Duration
+                TimeSpan = u.Duration,
+                Domain = u.Domain == "" ? null : u.Domain
             })
             .ToListAsync();
 
@@ -57,7 +58,11 @@ public class UsageDataService(ApplicationDbContext dbContext, CurrentUser curren
         var device = await dbContext.Devices.FirstOrDefaultAsync(d => d.Id == deviceId && d.UserId == userId)
                      ?? throw new KeyNotFoundException("Device not found");
 
-        var buckets = Validate(entries);
+        var excluded = await dbContext.WebsiteExclusions
+            .Where(e => e.UserId == userId)
+            .Select(e => e.Domain)
+            .ToListAsync();
+        var buckets = Validate(entries, excluded);
 
         try
         {
@@ -86,13 +91,29 @@ public class UsageDataService(ApplicationDbContext dbContext, CurrentUser curren
             var existing = await dbContext.Usages
                 .Where(u => u.DeviceId == device.Id && appIds.Contains(u.AppId) && u.Date >= first && u.Date <= last)
                 .ToListAsync();
-            var byKey = existing.ToDictionary(u => (u.AppId, DateTime.SpecifyKind(u.Date, DateTimeKind.Utc)));
+            var byKey = existing.ToDictionary(u => (u.AppId, u.Domain, DateTime.SpecifyKind(u.Date, DateTimeKind.Utc)));
+
+            // An upload carries the complete set of rows for every app and hour it contains (collectors send whole
+            // hours). Rows of those hours that are missing from it, such as a website that is now excluded or time
+            // merged by "delete website history", are replaced by what was sent.
+            var uploadedKeys = buckets
+                .Select(b => (apps[b.Identifier].Id, b.Domain, b.Start))
+                .ToHashSet();
+            var uploadedHours = uploadedKeys.Select(k => (k.Item1, k.Start)).ToHashSet();
+            foreach (var (key, row) in byKey.ToList())
+            {
+                if (uploadedHours.Contains((key.AppId, key.Item3)) && !uploadedKeys.Contains(key))
+                {
+                    dbContext.Usages.Remove(row);
+                    byKey.Remove(key);
+                }
+            }
 
             foreach (var bucket in buckets)
             {
                 var appId = apps[bucket.Identifier].Id;
 
-                if (byKey.TryGetValue((appId, bucket.Start), out var usage))
+                if (byKey.TryGetValue((appId, bucket.Domain, bucket.Start), out var usage))
                 {
                     usage.Duration = bucket.Duration;
                     continue;
@@ -103,11 +124,12 @@ public class UsageDataService(ApplicationDbContext dbContext, CurrentUser curren
                     Id = Guid.NewGuid().ToString(),
                     DeviceId = device.Id,
                     AppId = appId,
+                    Domain = bucket.Domain,
                     Date = bucket.Start,
                     Duration = bucket.Duration
                 };
                 dbContext.Usages.Add(usage);
-                byKey[(appId, bucket.Start)] = usage;
+                byKey[(appId, bucket.Domain, bucket.Start)] = usage;
             }
         }
 
@@ -185,15 +207,19 @@ public class UsageDataService(ApplicationDbContext dbContext, CurrentUser curren
         return result;
     }
 
-    private sealed record Bucket(string Identifier, string AppName, string? Category, DateTime Start, TimeSpan Duration);
+    /// <param name="Domain">Normalized website, or "" for time without one.</param>
+    private sealed record Bucket(string Identifier, string AppName, string? Category, DateTime Start, TimeSpan Duration,
+        string Domain);
 
-    private List<Bucket> Validate(IReadOnlyList<UsageEntryDto> entries)
+    /// <param name="excluded">The user's excluded websites. Their time is kept, but without the domain, in case a
+    /// collector has not picked up the exclusion list yet.</param>
+    private List<Bucket> Validate(IReadOnlyList<UsageEntryDto> entries, IReadOnlyList<string> excluded)
     {
         if (entries.Count > MaxEntriesPerUpload)
             throw new ArgumentException($"At most {MaxEntriesPerUpload} entries per upload.");
 
         var latestAllowed = timeProvider.GetUtcNow().UtcDateTime.AddHours(1);
-        var buckets = new Dictionary<(string, DateTime), Bucket>();
+        var buckets = new Dictionary<(string, string, DateTime), Bucket>();
 
         foreach (var entry in entries)
         {
@@ -213,15 +239,28 @@ public class UsageDataService(ApplicationDbContext dbContext, CurrentUser curren
             var name = string.IsNullOrWhiteSpace(entry.AppName) ? identifier : entry.AppName.Trim();
             var category = string.IsNullOrWhiteSpace(entry.Category) ? null : Truncate(entry.Category.Trim(), MaxCategoryLength);
 
-            var bucket = new Bucket(identifier, Truncate(name, MaxAppNameLength), category, start, entry.ForegroundTime);
+            var rawDomain = entry.Domain?.Trim() ?? "";
+            var bucket = new Bucket(identifier, Truncate(name, MaxAppNameLength), category, start, entry.ForegroundTime,
+                rawDomain);
 
             // Duplicates within one upload: keep the larger value, which is the more complete measurement.
-            if (!buckets.TryGetValue((identifier, start), out var other) || other.Duration < bucket.Duration)
-                buckets[(identifier, start)] = bucket;
+            if (!buckets.TryGetValue((identifier, rawDomain, start), out var other) || other.Duration < bucket.Duration)
+                buckets[(identifier, rawDomain, start)] = bucket;
         }
 
-        return buckets.Values.ToList();
+        // A malformed or excluded website only loses the domain: its time is added to the hour's time without one.
+        return buckets.Values
+            .Select(b => b with { Domain = StoredDomain(b.Domain, excluded) })
+            .GroupBy(b => (b.Identifier, b.Domain, b.Start))
+            .Select(g => g.First() with { Duration = Min(Sum(g.Select(b => b.Duration)), TimeSpan.FromHours(1)) })
+            .ToList();
     }
+
+    private static string StoredDomain(string rawDomain, IReadOnlyList<string> excluded) =>
+        WebDomain.Normalize(rawDomain) is { } domain && !WebDomain.IsExcluded(domain, excluded) ? domain : "";
+
+    private static TimeSpan Sum(IEnumerable<TimeSpan> times) => times.Aggregate(TimeSpan.Zero, (a, b) => a + b);
+    private static TimeSpan Min(TimeSpan a, TimeSpan b) => a < b ? a : b;
 
     private static string Truncate(string value, int length) => value.Length <= length ? value : value[..length];
 

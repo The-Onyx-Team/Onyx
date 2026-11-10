@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Onyx Websites",
+  "short_name": "Onyx",
+  "version": "1.0.0",
+  "description": "Lets the Onyx app on this computer record which website you use. Only the domain is shared, never the full address.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy68Ncl4VjbO4uU7D0m/tGj7tsfAyDLaJV4K4NOPTcvnigYEJp2NKPGIlqVVSg0tjhKTx+x+svUoMmIFVZk5Ae/fNeFv//aB3j+QJRdixz29+Hat3bLYA9u5ZEhHl25sPkzgnz2CDv3C5Y9LO9SklTYQL6JcUOL3UG/QJiX0MsIKyynElrizKPH9AdWUinbB1xZMhKo+bjGMPySGt4MJ/KYo7Vk/ySOZH82YXlVpjD2hXpOS5qUvyu9Kem1VuFU6EE9JatiJkzvID/E7xyeHqMFoCzWwiKjuPLj6XGpsu9lLbVo18TuZT86IX1IikehJi0v2ai8vt5NYZVFDzen+fZQIDAQAB",
+  "permissions": ["tabs", "nativeMessaging", "alarms"],
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
+  },
+  "action": {
+    "default_title": "Onyx",
+    "default_popup": "popup.html",
+    "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png" }
+  },
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "incognito": "not_allowed",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "websites@onyx-team.github.io",
+      "strict_min_version": "128.0",
+      "data_collection_permissions": { "required": ["browsingActivity"] }
+    }
+  }
+}

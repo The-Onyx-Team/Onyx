@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Onyx.Collector.Core;
+using Onyx.Collector.Core.Browser;
 using Onyx.Collector.Linux;
 using Onyx.Collector.Linux.Sources;
 
@@ -12,6 +13,10 @@ const string usage = """
       run            Collect usage and upload it (what the systemd service runs).
       status         Show sign-in state, detected desktop session and pending data.
       logout         Forget the tokens. Pending data is kept.
+      websites on|off
+                     Record which website the browser shows (domain only). Needs the Onyx browser
+                     extension; 'on' registers the agent with the installed browsers. Restart the
+                     service afterwards: systemctl --user restart onyx-agent
     """;
 
 using var loggerFactory = LoggerFactory.Create(b => b
@@ -29,6 +34,9 @@ return args.FirstOrDefault() switch
     "run" => await RunAsync(),
     "status" => await StatusAsync(),
     "logout" => await LogoutAsync(),
+    "websites" => Websites(args[1..]),
+    // Started by the browser through the launcher script NativeHostRegistration writes.
+    "native-host" => await NativeHostAsync(),
     _ => Usage()
 };
 
@@ -93,9 +101,21 @@ async Task<int> RunAsync()
 
     var time = TimeProvider.System;
     var store = new PendingUsageStore(AgentFiles.PendingPath, loggerFactory.CreateLogger<PendingUsageStore>());
-    var tracker = new ForegroundTracker(source, idle, store, time, logger: loggerFactory.CreateLogger<ForegroundTracker>());
+
+    // Website recording: the browser extension reports through the native messaging host to this bridge.
+    BrowserActivity? browser = null;
+    if (config.RecordWebsites)
+    {
+        browser = new BrowserActivity(time);
+        // Refresh the registration: browsers installed since, or a new agent path after an update.
+        var registered = NativeHostRegistration.Install(Environment.ProcessPath!);
+        logger.LogInformation("Recording websites; host registered for {Count} browser(s)", registered.Count);
+    }
+
+    var tracker = new ForegroundTracker(source, idle, store, time, logger: loggerFactory.CreateLogger<ForegroundTracker>(),
+        websiteSource: browser);
     var sync = new UsageSyncService(CreateClient(config), store, source as IAppIconSource ?? new IconSource(),
-        time, config.EffectiveDeviceName, "Linux", loggerFactory.CreateLogger<UsageSyncService>());
+        time, config.EffectiveDeviceName, "Linux", loggerFactory.CreateLogger<UsageSyncService>(), browser);
 
     using var stop = new CancellationTokenSource();
     using var sigterm = System.Runtime.InteropServices.PosixSignalRegistration.Create(
@@ -112,7 +132,10 @@ async Task<int> RunAsync()
 
     await Task.WhenAll(
         tracker.RunAsync(stop.Token),
-        sync.RunAsync(TimeSpan.FromMinutes(5), stop.Token));
+        sync.RunAsync(TimeSpan.FromMinutes(5), stop.Token),
+        browser is null
+            ? Task.CompletedTask
+            : new BrowserBridgeServer(browser, loggerFactory.CreateLogger<BrowserBridgeServer>()).RunAsync(stop.Token));
 
     // Last attempt so a clean shutdown (logout, reboot) loses nothing.
     using var final = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -131,6 +154,9 @@ async Task<int> StatusAsync()
     Console.WriteLine($"Signed in: {(signedIn ? "yes" : "no")}");
     Console.WriteLine($"Session:   {description}{(source is null ? " (unsupported)" : "")}");
     Console.WriteLine($"Pending:   {new PendingUsageStore(AgentFiles.PendingPath).Count} hourly buckets");
+    var hosts = NativeHostRegistration.Installed();
+    Console.WriteLine($"Websites:  {(config?.RecordWebsites == true ? "on" : "off")}" +
+                      (hosts.Count > 0 ? $" (registered in {string.Join(", ", hosts)})" : ""));
 
     if (source is not null)
     {
@@ -146,6 +172,46 @@ async Task<int> StatusAsync()
     }
 
     return signedIn ? 0 : 1;
+}
+
+int Websites(string[] options)
+{
+    if (AgentFiles.LoadConfig() is not { } config)
+    {
+        Console.Error.WriteLine("Not configured. Run 'onyx-agent login' first.");
+        return 78;
+    }
+
+    switch (options.FirstOrDefault())
+    {
+        case "on":
+            var dirs = NativeHostRegistration.Install(Environment.ProcessPath!);
+            AgentFiles.SaveConfig(config with { RecordWebsites = true });
+            Console.WriteLine("Website recording is on. Only the domain of the active tab is recorded.");
+            Console.WriteLine(dirs.Count == 0
+                ? "No supported browser profile found yet; run this again after starting your browser once."
+                : $"Registered for: {string.Join(", ", dirs)}");
+            Console.WriteLine("Next: install the Onyx Websites browser extension, then restart the agent:");
+            Console.WriteLine("  systemctl --user restart onyx-agent");
+            return 0;
+        case "off":
+            NativeHostRegistration.Uninstall();
+            AgentFiles.SaveConfig(config with { RecordWebsites = false });
+            Console.WriteLine("Website recording is off. Restart the agent: systemctl --user restart onyx-agent");
+            Console.WriteLine("Websites recorded so far can be deleted in the dashboard under Settings.");
+            return 0;
+        default:
+            return Usage();
+    }
+}
+
+async Task<int> NativeHostAsync()
+{
+    // The browser is our parent: the launcher script replaces itself with this process (exec).
+    var browserPid = ProcessInfo.GetParentProcessId(Environment.ProcessId);
+    await using var relay = new NativeHostRelay(browserPid);
+    await relay.RunAsync(Console.OpenStandardInput(), Console.OpenStandardOutput());
+    return 0;
 }
 
 async Task<int> LogoutAsync()

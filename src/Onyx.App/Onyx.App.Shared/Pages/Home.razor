@@ -142,6 +142,36 @@
                 </MudPaper>
             </MudItem>
 
+            @if (m_Summary.Websites.Count > 0)
+            {
+                <MudItem xs="12" md="8">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudText Typo="Typo.h6">Websites</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-2">
+                            @UsageSummary.Format(m_Summary.WebsiteTime) in browsers on devices that record websites.
+                            <MudLink Href="/settings#websites" Typo="Typo.body2">Excluded websites and history</MudLink>
+                        </MudText>
+                        <MudTable Items="m_Summary.Websites" Dense="true" Hover="true" Elevation="0" RowsPerPage="10">
+                            <HeaderContent>
+                                <MudTh>Website</MudTh>
+                                <MudTh Style="text-align: right">Time</MudTh>
+                                <MudTh Style="width: 30%">Share</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Website">@context.Name</MudTd>
+                                <MudTd DataLabel="Time" Style="text-align: right">@UsageSummary.Format(context.Time)</MudTd>
+                                <MudTd DataLabel="Share">
+                                    <MudProgressLinear Color="Color.Secondary" Value="@(context.Share * 100)"/>
+                                </MudTd>
+                            </RowTemplate>
+                            <PagerContent>
+                                <MudTablePager HideRowsPerPage="true"/>
+                            </PagerContent>
+                        </MudTable>
+                    </MudPaper>
+                </MudItem>
+            }
+
             <MudItem xs="12" md="4">
                 <MudPaper Class="pa-4" Elevation="1">
                     <MudText Typo="Typo.h6" Class="mb-2">Devices</MudText>

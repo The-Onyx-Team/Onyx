@@ -72,7 +72,7 @@ internal sealed unsafe partial class X11Source : IForegroundAppSource, IIdleTime
         }
 
         var key = string.IsNullOrEmpty(wmClass) ? exe : wmClass;
-        return key is null ? null : m_DesktopEntries.Resolve(key, exe);
+        return key is null ? null : m_DesktopEntries.Resolve(key, exe, pid);
     }
 
     public TimeSpan? GetIdleTime()
