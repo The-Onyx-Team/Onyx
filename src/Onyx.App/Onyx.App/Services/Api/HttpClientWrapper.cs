@@ -59,11 +59,6 @@ public class HttpClientWrapper
         m_HttpClient.DefaultRequestHeaders.Authorization = null;
     }
 
-    public void SetBaseUrl(string baseUrl)
-    {
-        m_HttpClient.BaseAddress = new Uri(baseUrl);
-    }
-
     public async Task<OneOf<T, HttpError, NetworkError, ParsingError>> GetAsync<T>(string endpoint)
     {
         try

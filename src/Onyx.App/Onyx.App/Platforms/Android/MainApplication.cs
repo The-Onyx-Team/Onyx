@@ -3,7 +3,10 @@ using Android.Runtime;
 using Onyx.App;
 using Onyx.App.UsageData;
 
-#if DEBUG
+#if ONYX_PRIVATE_NETWORK
+// Self-hosted server behind a VPN/LAN: http:// and user-installed CAs (Resources/xml/network_security_config.xml).
+[Application(UsesCleartextTraffic = true, NetworkSecurityConfig = "@xml/network_security_config")]
+#elif DEBUG
 [Application(UsesCleartextTraffic = true)]
 #else
 [Application]

@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Moq;
 using Onyx.App.Web.Api;
+using Onyx.App.Web.Services;
 using Onyx.App.Web.Services.Auth;
 using Onyx.Data.ApiSchema;
 using Microsoft.Data.Sqlite;
@@ -394,6 +395,20 @@ public class AuthEndpointsTest
         result.ShouldBeOfType<BadRequest<string>>();
     }
 
+    private static readonly IOptions<OnyxServerOptions> s_OpenRegistration = Options.Create(new OnyxServerOptions());
+
+    [Fact]
+    public async Task RegisterHandler_WhenRegistrationIsDisabled_ReturnsForbiddenWithoutCreatingUser()
+    {
+        var request = new RegisterDto(Name: "newuser", Email: "newuser@example.com", Password: "ValidPassword123!");
+        var closed = Options.Create(new OnyxServerOptions { AllowRegistration = false });
+
+        var result = await AuthEndpoints.RegisterHandler(request, m_UserManager.Object, closed);
+
+        result.ShouldBeOfType<ProblemHttpResult>().StatusCode.ShouldBe(StatusCodes.Status403Forbidden);
+        m_UserManager.Verify(x => x.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()), Times.Never);
+    }
+
     [Fact]
     public async Task RegisterHandler_WithValidData_ReturnsOk()
     {
@@ -404,7 +419,7 @@ public class AuthEndpointsTest
             .ReturnsAsync(IdentityResult.Success);
 
         // Act
-        var result = await AuthEndpoints.RegisterHandler(request, m_UserManager.Object);
+        var result = await AuthEndpoints.RegisterHandler(request, m_UserManager.Object, s_OpenRegistration);
 
         // Assert
         result.ShouldBeOfType<Ok<object>>();
@@ -434,7 +449,7 @@ public class AuthEndpointsTest
             .ReturnsAsync(failedResult);
 
         // Act
-        var result = await AuthEndpoints.RegisterHandler(request, m_UserManager.Object);
+        var result = await AuthEndpoints.RegisterHandler(request, m_UserManager.Object, s_OpenRegistration);
 
         // Assert
         var badRequestResult = result.ShouldBeOfType<BadRequest<IEnumerable<IdentityError>>>();
@@ -457,7 +472,7 @@ public class AuthEndpointsTest
             .ReturnsAsync(failedResult);
 
         // Act
-        var result = await AuthEndpoints.RegisterHandler(request, m_UserManager.Object);
+        var result = await AuthEndpoints.RegisterHandler(request, m_UserManager.Object, s_OpenRegistration);
 
         // Assert
         var badRequestResult = result.ShouldBeOfType<BadRequest<IEnumerable<IdentityError>>>();

@@ -35,7 +35,9 @@ public class AuthApi(HttpClientWrapper httpClientWrapper, ILogger<AuthApi> logge
 
         return result.Match(
             success => new RegisterResultDto(true, null),
-            error => new RegisterResultDto(false, error.Message),
+            error => new RegisterResultDto(false, error.StatusCode == 403
+                ? "Registration is disabled on this server."
+                : error.Message),
             error => HandleNetworkError<RegisterResultDto>(error, endpoint),
             error => HandleParsingError<RegisterResultDto>(error, endpoint));
     }

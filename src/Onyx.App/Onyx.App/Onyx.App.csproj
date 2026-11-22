@@ -45,6 +45,17 @@
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
     </PropertyGroup>
 
+    <!-- Self-hosting switches, e.g. dotnet publish ... -p:OnyxServerUrl=https://onyx.example.com
+         OnyxServerUrl:      server a fresh install starts with (users can still change it on the login page).
+         OnyxPrivateNetwork: Android only. Also allows http:// servers and certificates from user-installed CAs,
+                             for servers reachable only through a VPN or LAN. Leave it off for public builds. -->
+    <ItemGroup Condition="'$(OnyxServerUrl)' != ''">
+        <AssemblyMetadata Include="OnyxServerUrl" Value="$(OnyxServerUrl)"/>
+    </ItemGroup>
+    <PropertyGroup Condition="'$(OnyxPrivateNetwork)' == 'true'">
+        <DefineConstants>$(DefineConstants);ONYX_PRIVATE_NETWORK</DefineConstants>
+    </PropertyGroup>
+
     <ItemGroup>
         <MauiIcon Include="Resources\AppIcon\icon.svg" Color="#512BD4" BaseSize="128,128"/>
         <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128"/>

@@ -1,0 +1,59 @@
+@* Lets the native apps sign in to any Onyx server. Renders nothing on the web app, which is the server. *@
+@inject IServerSettings ServerSettings
+
+@if (ServerSettings.IsConfigurable)
+{
+    @if (m_Editing)
+    {
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudTextField T="string" Label="Server" Variant="Variant.Outlined" @bind-Value="m_Url"
+                          Placeholder="https://onyx.example.com" InputType="InputType.Url"
+                          Error="@(m_Error is not null)" ErrorText="@m_Error" Disabled="m_Checking"
+                          OnKeyDown="OnKeyDown" Immediate="true"/>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="m_Checking">
+                @(m_Checking ? "Checking…" : "Save")
+            </MudButton>
+        </MudStack>
+    }
+    else
+    {
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+            <MudText Typo="Typo.body2">Server: <b>@ServerSettings.ServerUrl</b></MudText>
+            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="StartEditing">Change</MudButton>
+        </MudStack>
+    }
+}
+
+@code {
+    private bool m_Editing;
+    private bool m_Checking;
+    private string m_Url = "";
+    private string? m_Error;
+
+    private void StartEditing()
+    {
+        m_Url = ServerSettings.ServerUrl;
+        m_Error = null;
+        m_Editing = true;
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await Save();
+    }
+
+    private async Task Save()
+    {
+        m_Checking = true;
+        try
+        {
+            m_Error = await ServerSettings.SetServerUrlAsync(m_Url);
+            m_Editing = m_Error is not null;
+        }
+        finally
+        {
+            m_Checking = false;
+        }
+    }
+}

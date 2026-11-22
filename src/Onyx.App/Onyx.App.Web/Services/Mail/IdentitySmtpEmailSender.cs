@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Mail;
 using System.Net.Mime;
 using System.Text;
@@ -6,10 +7,34 @@ using Onyx.Data.DataBaseSchema.Identity;
 
 namespace Onyx.App.Web.Services.Mail;
 
-public class IdentitySmtpEmailSender(SmtpClient smtpClient) : IEmailSender<ApplicationUser>
+public class IdentitySmtpEmailSender(SmtpClient smtpClient, IConfiguration configuration) : IEmailSender<ApplicationUser>
 {
-    private const string SenderMailAddress = "no-reply@onyx.g-martin.work";
-    
+    /// <summary>Sender address, from <c>Mail:From</c>. Self-hosters should set one their SMTP server may send as.</summary>
+    private string SenderMailAddress => configuration["Mail:From"] is { Length: > 0 } from
+        ? from
+        : "no-reply@onyx.g-martin.work";
+
+    /// <summary>
+    /// Builds the client from the <c>mail</c> connection string: <c>smtp://host:port</c> (no TLS, e.g. MailDev)
+    /// or <c>smtps://user:password@host:port</c> (STARTTLS; user and password URL-encoded and optional).
+    /// </summary>
+    public static SmtpClient CreateClient(Uri uri)
+    {
+        var client = new SmtpClient(uri.Host, uri.IsDefaultPort ? 25 : uri.Port)
+        {
+            EnableSsl = uri.Scheme.Equals("smtps", StringComparison.OrdinalIgnoreCase),
+        };
+
+        if (!string.IsNullOrEmpty(uri.UserInfo))
+        {
+            var parts = uri.UserInfo.Split(':', 2);
+            client.Credentials = new NetworkCredential(Uri.UnescapeDataString(parts[0]),
+                parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "");
+        }
+
+        return client;
+    }
+
     public async Task SendConfirmationLinkAsync(ApplicationUser user, string email, string confirmationLink)
     {
         using var message = new MailMessage(SenderMailAddress, email);

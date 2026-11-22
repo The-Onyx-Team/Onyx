@@ -25,7 +25,12 @@ namespace Onyx.App
                 .UseMauiApp<App>()
                 .ConfigureFonts(fonts => { fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular"); });
 
-            builder.Services.AddHttpClient<HttpClientWrapper>();
+            // The server is picked at runtime (login page); ServerUrlHandler points every request at it.
+            builder.Services.AddSingleton<ServerSettings>();
+            builder.Services.AddSingleton<IServerSettings>(sp => sp.GetRequiredService<ServerSettings>());
+            builder.Services.AddTransient<ServerUrlHandler>();
+            builder.Services.AddHttpClient<HttpClientWrapper>(c => c.BaseAddress = ServerUrlHandler.Placeholder)
+                .AddHttpMessageHandler<ServerUrlHandler>();
             builder.Services.AddScoped<AuthApi>();
 
             builder.Services.AddMauiBlazorWebView();
@@ -41,7 +46,9 @@ namespace Onyx.App
             // stores and refreshes its tokens itself.
             builder.Services.AddSingleton<ICredentialStore, MauiCredentialStore>();
             builder.Services.AddSingleton(sp => new OnyxApiClient(
-                new HttpClient { BaseAddress = new Uri(ServerConnectionHelper.BaseUrl), Timeout = TimeSpan.FromSeconds(60) },
+                new HttpClient(new ServerUrlHandler(sp.GetRequiredService<ServerSettings>())
+                    { InnerHandler = new HttpClientHandler() })
+                    { BaseAddress = ServerUrlHandler.Placeholder, Timeout = TimeSpan.FromSeconds(60) },
                 sp.GetRequiredService<ICredentialStore>(),
                 sp.GetRequiredService<ILogger<OnyxApiClient>>()));
 

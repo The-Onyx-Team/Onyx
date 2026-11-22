@@ -15,7 +15,9 @@ services:
     container_name: onyx-web
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:8080"
+      # Defaults to localhost for a reverse proxy on the same machine. For a server reached only through a VPN,
+      # set ONYX_BIND to the server's VPN address (e.g. 10.8.0.1) instead of 0.0.0.0.
+      - "${ONYX_BIND:-127.0.0.1}:${ONYX_PORT:-8080}:8080"
     depends_on:
       sqlserver:
         condition: service_healthy

@@ -8,6 +8,7 @@
 
     <toc-element topic="General.md"/>
     <toc-element topic="Self-Hosting.md"/>
+    <toc-element topic="Android-App.md"/>
     <toc-element topic="Linux-Agent.md"/>
     <toc-element topic="Websites.md"/>
     <toc-element topic="Developer-Documentation.md">

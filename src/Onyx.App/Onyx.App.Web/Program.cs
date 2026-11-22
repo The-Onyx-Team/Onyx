@@ -211,6 +211,8 @@ builder.Services.AddScoped<IUserProvider, UserProvider>();
 
 // Platform Service
 builder.Services.AddScoped<IPlatformService, WebPlatformService>();
+builder.Services.AddScoped<IServerSettings, WebServerSettings>();
+builder.Services.Configure<OnyxServerOptions>(config.GetSection(OnyxServerOptions.Section));
 
 // e-mail
 
@@ -219,12 +221,8 @@ var smtpServer = config.GetConnectionString("mail");
 if (!string.IsNullOrWhiteSpace(smtpServer))
 {
     builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentitySmtpEmailSender>();
-    builder.Services.AddSingleton<SmtpClient>(sp =>
-    {
-        var smtpUri = new Uri(smtpServer);
-        var smtpClient = new SmtpClient(smtpUri.Host, smtpUri.Port);
-        return smtpClient;
-    });
+    // smtp://host:port, or smtps://user:password@host:587 for STARTTLS with a login (URL-encode the password).
+    builder.Services.AddSingleton<SmtpClient>(_ => IdentitySmtpEmailSender.CreateClient(new Uri(smtpServer)));
 }
 else
     builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();

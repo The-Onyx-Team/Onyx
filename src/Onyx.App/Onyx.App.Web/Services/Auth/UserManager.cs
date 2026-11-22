@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Options;
 using Microsoft.JSInterop;
 using Onyx.App.Shared.Services.Auth;
 using Onyx.Data.DataBaseSchema.Identity;
@@ -23,7 +24,8 @@ public class UserManager(
     IEmailSender<ApplicationUser> emailSender,
     IHttpContextAccessor httpContextAccessor,
     CurrentUser currentUser,
-    Onyx.Data.DataBaseSchema.ApplicationDbContext dbContext) : IUserManager
+    Onyx.Data.DataBaseSchema.ApplicationDbContext dbContext,
+    IOptions<OnyxServerOptions> serverOptions) : IUserManager
 {
     public async Task<bool> DeleteAccountAsync()
     {
@@ -45,6 +47,9 @@ public class UserManager(
 
     public async Task<RegisterResult> RegisterAsync(string name, string email, string password)
     {
+        if (!serverOptions.Value.AllowRegistration)
+            return new RegisterResult { Success = false, Message = OnyxServerOptions.RegistrationClosedMessage };
+
         var user = new ApplicationUser
         {
             UserName = name,
@@ -63,8 +68,6 @@ public class UserManager(
         var userId = await userManager.GetUserIdAsync(user);
         var code = await userManager.GenerateEmailConfirmationTokenAsync(user);
 
-        Console.WriteLine(code);
-        
         var callbackUrl = navigationManager.GetUriWithQueryParameters(
             navigationManager.ToAbsoluteUri("/account/confirmEmail").AbsoluteUri,
             new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code });
@@ -230,6 +233,13 @@ public class UserManager(
         if (externalLoginInfo is null)
         {
             navigationManager.NavigateTo("account/login");
+            return;
+        }
+
+        if (!serverOptions.Value.AllowRegistration)
+        {
+            navigationManager.NavigateTo(navigationManager.GetUriWithQueryParameters("/account/login",
+                new Dictionary<string, object?> { ["error"] = OnyxServerOptions.RegistrationClosedMessage }));
             return;
         }
 

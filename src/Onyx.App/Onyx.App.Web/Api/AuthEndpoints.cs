@@ -6,9 +6,11 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Onyx.App.Shared.Pages.Account;
 using Onyx.App.Shared.Pages.Account.Manage;
+using Onyx.App.Web.Services;
 using Onyx.App.Web.Services.Auth;
 using Onyx.Data.ApiSchema;
 using Onyx.Data.DataBaseSchema;
@@ -169,8 +171,12 @@ public static class AuthEndpoints
     /// </summary>
     public static async Task<IResult> RegisterHandler(
         [FromBody] RegisterDto dto,
-        [FromServices] UserManager<ApplicationUser> userManager)
+        [FromServices] UserManager<ApplicationUser> userManager,
+        [FromServices] IOptions<OnyxServerOptions> serverOptions)
     {
+        if (!serverOptions.Value.AllowRegistration)
+            return Results.Problem(OnyxServerOptions.RegistrationClosedMessage, statusCode: StatusCodes.Status403Forbidden);
+
         var user = new ApplicationUser
         {
             UserName = dto.Name,

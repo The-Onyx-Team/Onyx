@@ -14,6 +14,7 @@
 
 <MudText Typo="Typo.h4"
          Class="mb-3">Register</MudText>
+<ServerPicker/>
 <EditForm Model="m_RegisterModel" OnValidSubmit="Submit"
           FormName="RegisterForm">
     <DataAnnotationsValidator/>
@@ -51,7 +52,9 @@
         }
         else
         {
-            Snackbar.Add("Failed to register user!", Severity.Error);
+            Snackbar.Add(string.IsNullOrWhiteSpace(result.Message)
+                ? "Failed to register user!"
+                : $"Failed to register user: {result.Message}", Severity.Error);
             Console.WriteLine("Error: " + result.Message);
         }
     }

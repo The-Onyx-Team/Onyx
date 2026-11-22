@@ -15,7 +15,6 @@ public abstract class ApiBase<T> where T : ApiBase<T>
     {
         m_HttpClientWrapper = httpClientWrapper;
         m_Logger = logger;
-        m_HttpClientWrapper.SetBaseUrl(ServerConnectionHelper.BaseUrl);
     }
 
     public void SetAuthToken(string token) => m_HttpClientWrapper.SetAuthToken(token);
