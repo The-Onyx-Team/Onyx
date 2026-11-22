@@ -41,6 +41,19 @@ docker run -d -p 127.0.0.1:8080:8080 -v onyx_data:/app/data -e ASPNETCORE_FORWAR
 
 The container's health check calls `/alive`.
 
+## Email through an SMTP relay (e.g. SMTP2GO)
+
+Verify your domain with the relay and create an SMTP user there, then in `.env`:
+
+```bash
+ConnectionStrings__mail=smtps://<smtp-user>:<url-encoded-password>@mail.smtp2go.com:2525
+Mail__From=onyx@example.com
+```
+
+`smtps://` means STARTTLS. Use port 2525 or 587; implicit-TLS ports such as 465 are not supported. Links in the
+emails use the address the browser or app called, so set `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` behind the
+reverse proxy (as `docker-compose.yaml` does).
+
 ## Connecting the apps
 
 - **Android / Windows:** the login and register pages show the server and a **Change** button. The app checks

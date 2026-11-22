@@ -38,7 +38,7 @@ public class IdentitySmtpEmailSender(SmtpClient smtpClient, IConfiguration confi
     public async Task SendConfirmationLinkAsync(ApplicationUser user, string email, string confirmationLink)
     {
         using var message = new MailMessage(SenderMailAddress, email);
-        message.Subject = "";
+        message.Subject = "Onyx: Bestätige deine E-Mail-Adresse";
         message.BodyEncoding = Encoding.UTF8;
         message.IsBodyHtml = true;
         message.Body = $@"
@@ -112,7 +112,7 @@ public class IdentitySmtpEmailSender(SmtpClient smtpClient, IConfiguration confi
     public async Task SendPasswordResetLinkAsync(ApplicationUser user, string email, string resetLink)
     {
         using var message = new MailMessage(SenderMailAddress, email);
-        message.Subject = "";
+        message.Subject = "Onyx: Passwort zurücksetzen";
         message.BodyEncoding = Encoding.UTF8;
         message.IsBodyHtml = true;
         message.Body = $@"
@@ -182,7 +182,7 @@ public class IdentitySmtpEmailSender(SmtpClient smtpClient, IConfiguration confi
     public async Task SendPasswordResetCodeAsync(ApplicationUser user, string email, string resetCode)
     {
         using var message = new MailMessage(SenderMailAddress, email);
-        message.Subject = "";
+        message.Subject = "Onyx: Dein Code zum Zurücksetzen des Passworts";
         message.BodyEncoding = Encoding.UTF8;
         message.IsBodyHtml = true;
         message.Body = $"Your password reset code is: {resetCode}";
