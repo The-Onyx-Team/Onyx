@@ -21,7 +21,7 @@ jobs:
 
       - name: Build and Tag Docker Image
         run: |
-          docker build \
+          docker build --pull \
             -t ghcr.io/the-onyx-team/onyx:latest \
             -f src/Onyx.App/Onyx.App.Web/Dockerfile .
 

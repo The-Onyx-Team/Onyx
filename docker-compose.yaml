@@ -11,6 +11,9 @@ services:
     build:
       context: .
       dockerfile: src/Onyx.App/Onyx.App.Web/Dockerfile
+      # Always fetch the current .NET base images: security fixes arrive as new images under the same tag
+      # (aspnet:10.0), which a cached copy would never get.
+      pull: true
     image: ghcr.io/the-onyx-team/onyx:latest
     container_name: onyx-web
     restart: unless-stopped
