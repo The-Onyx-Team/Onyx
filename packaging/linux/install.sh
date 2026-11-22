@@ -17,9 +17,20 @@ if ! "$bin_dir/onyx-agent" status >/dev/null 2>&1; then
     "$bin_dir/onyx-agent" login
 fi
 
-# graphical-session.target is only reached by sessions that start it (most systemd-managed desktops do;
-# for compositors started from a TTY, add "systemctl --user start graphical-session.target" to their startup).
+# The service starts with graphical-session.target. Sessions managed by systemd reach it (GNOME, KDE, and
+# Hyprland/Sway started through uwsm); a compositor launched directly by a display manager or from a TTY does
+# not, and the target refuses a manual start. Those sessions start the service from their autostart instead.
 systemctl --user enable onyx-agent.service
 # restart, not start: on an update the old binary would otherwise keep running until the next login.
 systemctl --user restart onyx-agent.service
 echo "onyx-agent is running. Check it with: onyx-agent status / journalctl --user -u onyx-agent"
+
+if ! systemctl --user is-active --quiet graphical-session.target; then
+    autostart="systemctl --user import-environment WAYLAND_DISPLAY DISPLAY HYPRLAND_INSTANCE_SIGNATURE SWAYSOCK XDG_CURRENT_DESKTOP && systemctl --user start onyx-agent.service"
+    echo
+    echo "Your session does not start graphical-session.target, so onyx-agent will not start by itself at the"
+    echo "next login. Add this to your compositor's autostart:"
+    echo "  Hyprland (hyprland.conf):  exec-once = sh -c '$autostart'"
+    echo "  Sway (config):             exec sh -c '$autostart'"
+    echo "Or start the compositor through uwsm. Details: https://the-onyx-team.github.io/Onyx/linux-agent.html"
+fi

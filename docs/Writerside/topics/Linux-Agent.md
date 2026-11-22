@@ -37,6 +37,46 @@ onyx-agent status
 journalctl --user -u onyx-agent
 ```
 
+## Starting at login
+
+`install.sh` enables the systemd user service `onyx-agent.service`, which starts together with
+`graphical-session.target`. Whether that target is reached depends on how the desktop starts:
+
+| Session | Starts by itself? |
+|---|---|
+| GNOME, KDE, other systemd-managed sessions | yes |
+| Hyprland or Sway started through **uwsm** (e.g. the "uwsm-managed" session in the display manager) | yes |
+| Hyprland or Sway started directly (by SDDM/GDM/greetd, or `Hyprland`/`sway` from a TTY) | **no** |
+
+`install.sh` prints a hint when the target is not active. `systemctl --user start graphical-session.target` does
+not help: systemd refuses to start that target by hand. Instead, let the compositor start the service when it
+starts. The first command hands the session's variables (display, compositor socket) to systemd; the agent needs
+them to see the focused window.
+
+Hyprland, `hyprland.conf`:
+
+```
+exec-once = sh -c 'systemctl --user import-environment WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP && systemctl --user start onyx-agent.service'
+```
+
+Hyprland with a Lua config (`hyprland.lua`), inside the `hl.on("hyprland.start", ...)` block:
+
+```lua
+hl.exec_cmd("sh -c 'systemctl --user import-environment WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP && systemctl --user start onyx-agent.service'")
+```
+
+Sway, `~/.config/sway/config`:
+
+```
+exec sh -c 'systemctl --user import-environment WAYLAND_DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP && systemctl --user start onyx-agent.service'
+```
+
+X11 window managers: the same with `DISPLAY` in their startup file (e.g. `~/.xinitrc`, before the window manager).
+
+The service stays under systemd either way, so it is restarted after a crash and logs to
+`journalctl --user -u onyx-agent`. After the next login, `onyx-agent status` should show `Signed in: yes` and your
+session. If you later switch to uwsm, remove the line again.
+
 ## Updating
 
 Extract the new archive and run `./install.sh` again. It replaces the binary and restarts the service; the
