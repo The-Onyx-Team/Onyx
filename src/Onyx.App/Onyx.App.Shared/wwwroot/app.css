@@ -187,6 +187,39 @@ html, body {
     background-color: #777;
 }
 
+.auth-nav-item {
+    cursor: pointer;
+}
+
+/* Phones: the account menu becomes a scrollable row above the page instead of a 230px column. */
+@media (max-width: 768px) {
+    .auth-wrapper {
+        flex-direction: column;
+    }
+
+    .auth-nav {
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 8px;
+        flex: 0 0 auto;
+    }
+
+    .auth-nav-item {
+        width: auto;
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+
+    .auth-nav-item p {
+        padding: 4px 10px;
+    }
+
+    .auth-content {
+        flex: 1 1 auto;
+        padding: 8px;
+    }
+}
+
 /* Template */
 
 h1:focus {
@@ -217,4 +250,202 @@ h1:focus {
 
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
+}
+
+/* Logo next to the title in app bars */
+.appbar-logo {
+    height: 30px;
+    width: auto;
+    margin: 0 12px 0 4px;
+}
+
+/* Public pages (privacy policy, downloads) under the fixed landing app bar. The page itself does not scroll
+   (html/body overflow: hidden), so these scroll on their own. */
+.web-landing .landing-page-body {
+    height: 100dvh;
+    overflow-y: auto;
+    padding-top: 80px;
+    box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+    .web-landing .landing-page-body {
+        height: calc(100dvh - 128px);
+        padding-top: 0;
+    }
+}
+
+.maui-public-page {
+    height: 100dvh;
+    overflow-y: auto;
+    padding-top: 48px;
+    box-sizing: border-box;
+}
+
+.privacy-policy ul li {
+    margin-bottom: 4px;
+}
+
+/* Login, register and password pages: a light card on the photo in both themes. The dark theme's light text
+   colours would be unreadable on it, so the card uses the light palette's colours. */
+.auth-card {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    border-radius: 24px;
+    background-color: rgba(246, 242, 233, 0.92);
+    padding: 40px 24px;
+    --mud-palette-text-primary: #111213;
+    --mud-palette-text-secondary: #494C3B;
+    --mud-palette-text-disabled: rgba(17, 18, 19, 0.45);
+    --mud-palette-action-default: #494C3B;
+    --mud-palette-action-disabled: rgba(17, 18, 19, 0.3);
+    --mud-palette-lines-inputs: #9F9B8A;
+    --mud-palette-lines-default: #CBCBBF;
+    --mud-palette-surface: #F6F2E9;
+    --mud-palette-background: #F6F2E9;
+    color: #111213;
+}
+
+@media (max-width: 600px) {
+    .auth-card {
+        width: calc(100% - 24px);
+        top: auto;
+        bottom: 12px;
+        transform: translate(-50%, 0);
+        padding: 24px 8px;
+        max-height: calc(100dvh - 15vh - 24px);
+    }
+}
+
+/* App icons in tables: same box for every icon, letter placeholder when there is none */
+.app-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.app-icon {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    object-fit: contain;
+    border-radius: 6px;
+}
+
+.app-icon-placeholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--mud-palette-secondary);
+    color: #111213;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+/* Weekly report: shown and printed as a cream sheet in both themes */
+.report-sheet {
+    background-color: #F6F2E9;
+    color: #111213;
+    border-radius: 12px;
+    padding: 24px;
+    --mud-palette-text-primary: #111213;
+    --mud-palette-text-secondary: #494C3B;
+    --mud-palette-lines-default: #CBCBBF;
+    --mud-palette-surface: #F6F2E9;
+}
+
+.report-sheet img.report-chart {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.report-stat {
+    border: 1px solid #CBCBBF;
+    border-radius: 10px;
+    padding: 12px 16px;
+    height: 100%;
+}
+
+.report-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+@media print {
+    html, body, #app-container, #app-box, .auth-wrapper, .auth-content {
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    #nav, .app-bar, .no-print, .mud-snackbar-provider {
+        display: none !important;
+    }
+
+    .report-sheet {
+        padding: 0;
+        border-radius: 0;
+    }
+
+    .mud-main-content {
+        padding-top: 0 !important;
+    }
+}
+
+/* Dashboard filters: equal height (40px, like dense outlined inputs) and aligned */
+.dashboard-filters .dashboard-filter {
+    width: 220px;
+}
+
+.dashboard-filters .dashboard-filter .mud-input-control {
+    margin-top: 0;
+}
+
+.dashboard-range .mud-toggle-item {
+    height: 40px;
+}
+
+@media (max-width: 600px) {
+    .dashboard-filters .dashboard-filter,
+    .dashboard-filters .dashboard-range {
+        width: 100%;
+    }
+}
+
+/* Charts are drawn 8 inches wide; capping the width keeps their text about the size of the page text. */
+.report-sheet img.report-chart {
+    max-width: 860px;
+    margin: 0 auto;
+}
+
+/* Dark theme: the brand brown (#9D4D27) is too dark for text on the dark surfaces, so links, text buttons and
+   outlined controls use a lighter tone. Light cards (login, report) keep the brand colour. */
+.onyx-dark .mud-primary-text:not(.mud-theme-primary) {
+    color: #E3A06B !important;
+}
+
+.onyx-dark .mud-button-outlined-primary,
+.onyx-dark .mud-toggle-group-primary {
+    border-color: #E3A06B;
+}
+
+.onyx-dark .auth-card .mud-primary-text:not(.mud-theme-primary),
+.onyx-dark .report-sheet .mud-primary-text:not(.mud-theme-primary) {
+    color: #9D4D27 !important;
+}
+
+/* Back arrow in the corner of the auth card, clear of the page heading */
+.auth-card .auth-back {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+}
+
+.auth-card:has(.auth-back) {
+    padding-top: 56px;
 }

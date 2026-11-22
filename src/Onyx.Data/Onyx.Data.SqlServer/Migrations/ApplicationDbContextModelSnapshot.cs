@@ -163,6 +163,13 @@ namespace Onyx.Data.SqlServer.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
 
+                    b.Property<byte[]>("Avatar")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("AvatarContentType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
@@ -218,6 +225,45 @@ namespace Onyx.Data.SqlServer.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.AppOverride", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AppId")
+                        .HasColumnType("int")
+                        .HasColumnName("AppId");
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("Category");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("DisplayName");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("UserId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppId");
+
+                    b.HasIndex("UserId", "AppId")
+                        .IsUnique();
+
+                    b.ToTable("AppOverrides");
                 });
 
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Category", b =>
@@ -486,6 +532,25 @@ namespace Onyx.Data.SqlServer.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.AppOverride", b =>
+                {
+                    b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.RegisteredApp", "App")
+                        .WithMany()
+                        .HasForeignKey("AppId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("App");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Device", b =>

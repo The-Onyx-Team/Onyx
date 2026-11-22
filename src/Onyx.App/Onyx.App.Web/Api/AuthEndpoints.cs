@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Onyx.App.Shared.Pages.Account;
 using Onyx.App.Shared.Pages.Account.Manage;
+using Onyx.App.Shared.Services.Auth;
 using Onyx.App.Web.Services;
 using Onyx.App.Web.Services.Auth;
 using Onyx.Data.ApiSchema;
@@ -46,6 +47,8 @@ public static class AuthEndpoints
         var authorized = api.MapGroup("/user").RequireAuthorization(Program.ApiPolicy);
         authorized.MapGet("/profile", GetProfileHandler);
         authorized.MapPut("/profile", UpdateProfileHandler);
+        authorized.MapPut("/avatar", SetAvatarHandler);
+        authorized.MapDelete("/avatar", DeleteAvatarHandler);
         authorized.MapPut("/password", ChangePasswordHandler);
         authorized.MapDelete("/account", DeleteAccountHandler);
 
@@ -215,15 +218,39 @@ public static class AuthEndpoints
         var user = await userManager.GetUserAsync(context.User);
         if (user == null) return Results.NotFound();
 
-        return Results.Ok(new
-        {
-            user.Email,
-            user.UserName,
-            user.PhoneNumber,
-            user.EmailConfirmed,
-            user.PhoneNumberConfirmed,
-            user.TwoFactorEnabled
-        });
+        return Results.Ok(ProfileService.ToDto(user));
+    }
+
+    /// <summary>Sets the current user's profile picture (PNG, JPEG or WebP, at most 512 KB).</summary>
+    public static async Task<IResult> SetAvatarHandler(
+        [FromBody] AvatarDto dto,
+        HttpContext context,
+        [FromServices] UserManager<ApplicationUser> userManager)
+    {
+        if (Avatar.Validate(dto.Data, dto.ContentType) is { } error)
+            return Results.BadRequest(error);
+
+        var user = await userManager.GetUserAsync(context.User);
+        if (user == null) return Results.NotFound();
+
+        user.Avatar = dto.Data;
+        user.AvatarContentType = dto.ContentType;
+        var result = await userManager.UpdateAsync(user);
+        return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
+    }
+
+    /// <summary>Removes the current user's profile picture.</summary>
+    public static async Task<IResult> DeleteAvatarHandler(
+        HttpContext context,
+        [FromServices] UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.GetUserAsync(context.User);
+        if (user == null) return Results.NotFound();
+
+        user.Avatar = null;
+        user.AvatarContentType = null;
+        var result = await userManager.UpdateAsync(user);
+        return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
     }
 
     /// <summary>
@@ -372,24 +399,29 @@ public static class AuthEndpoints
         [FromServices] IUserClaimsPrincipalFactory<ApplicationUser> claimsFactory,
         HttpContext context)
     {
+        // Only paths on this site: the redirect comes from a form field anyone can set.
+        var target = ReturnUrl.Sanitize(webLoginModel.Redirect);
+        var failed = $"/account/login?error={Uri.EscapeDataString("Invalid email or password")}" +
+                     (target == ReturnUrl.Default ? "" : $"&returnUrl={Uri.EscapeDataString(target)}");
+
         var user = await signInManager.UserManager.FindByEmailAsync(webLoginModel.Email);
 
         if (user == null)
         {
-            return Results.Redirect("/account/login?error=Invalid login attempt");
+            return Results.LocalRedirect(failed);
         }
 
         var result = await signInManager.PasswordSignInAsync(user, webLoginModel.Password, true, false);
 
         if (!result.Succeeded)
         {
-            return Results.Redirect("/account/login?error=Invalid login attempt");
+            return Results.LocalRedirect(failed);
         }
 
         var principal = await claimsFactory.CreateAsync(user);
         await context.SignInAsync(IdentityConstants.ApplicationScheme, principal);
 
-        return Results.Redirect(webLoginModel.Redirect);
+        return Results.LocalRedirect(target);
     }
 
     public class WebLoginModel

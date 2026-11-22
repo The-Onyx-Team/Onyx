@@ -1,6 +1,7 @@
 #!/bin/sh
-# Installs onyx-agent for the current user (no root needed) and enables the systemd user service.
-# Run from the extracted release archive: ./install.sh
+# Installs or updates onyx-agent for the current user (no root needed) and enables the systemd user service.
+# Run from the extracted release archive: ./install.sh. Updating keeps the sign-in (~/.config/onyx) and the
+# data not uploaded yet (~/.local/state/onyx).
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -18,5 +19,7 @@ fi
 
 # graphical-session.target is only reached by sessions that start it (most systemd-managed desktops do;
 # for compositors started from a TTY, add "systemctl --user start graphical-session.target" to their startup).
-systemctl --user enable --now onyx-agent.service
+systemctl --user enable onyx-agent.service
+# restart, not start: on an update the old binary would otherwise keep running until the next login.
+systemctl --user restart onyx-agent.service
 echo "onyx-agent is running. Check it with: onyx-agent status / journalctl --user -u onyx-agent"

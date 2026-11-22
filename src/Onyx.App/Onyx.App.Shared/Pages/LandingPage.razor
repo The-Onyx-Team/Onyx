@@ -1,5 +1,6 @@
 @page "/"
 @layout LandingPageLayout
+@inject IPlatformService PlatformService
 
 <style>
     .container {
@@ -63,6 +64,13 @@
         <RedirectToHome />
     </Authorized>
     <NotAuthorized>
+        @if (PlatformService.IsMaui())
+        {
+            @* The apps start at the login page; the landing page is for the website. *@
+            <RedirectToLogin/>
+        }
+        else
+        {
         <div class="container mud-width-full">
             <div class="section">
                 <div class="bg-login"></div>
@@ -92,5 +100,6 @@
                 </div>
             </div>
         </div>
+        }
     </NotAuthorized>
 </AuthorizeView>

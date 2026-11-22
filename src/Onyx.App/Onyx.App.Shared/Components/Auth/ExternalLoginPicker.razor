@@ -1,5 +1,8 @@
 ﻿@inject IUserManager UserManager
 
+@if (m_ExternalLogins.Length > 0)
+{
+<MudText Align="Align.Center">Or login using</MudText>
 <MudForm action="account/perform-external-login" method="post" 
          Class="form-horizontal">
     <AntiforgeryToken/>
@@ -14,6 +17,7 @@
         }
     </MudContainer>
 </MudForm>
+}
 
 <!--<form class="form-horizontal" action="account/perform-external-login" method="post">
     <div>

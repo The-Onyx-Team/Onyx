@@ -11,30 +11,30 @@
 <PageTitle>Dashboard</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
-    <MudGrid Spacing="2" Class="mb-2">
-        <MudItem xs="12" sm="4" md="3">
-            <MudToggleGroup T="DashboardRange" Value="m_Range" ValueChanged="OnRangeChanged" Color="Color.Primary"
-                            SelectedClass="mud-theme-primary" Outlined="true" Delimiters="true" Size="Size.Small">
-                <MudToggleItem Value="DashboardRange.Day" Text="Day"/>
-                <MudToggleItem Value="DashboardRange.Week" Text="Week"/>
-                <MudToggleItem Value="DashboardRange.Month" Text="Month"/>
-            </MudToggleGroup>
-        </MudItem>
-        <MudItem xs="12" sm="4" md="3">
+    @* Controls of the same height on one line, wrapping on narrow screens. *@
+    <div class="d-flex flex-wrap align-center gap-3 mb-4 dashboard-filters">
+        <MudToggleGroup T="DashboardRange" Value="m_Range" ValueChanged="OnRangeChanged" Color="Color.Primary"
+                        SelectedClass="mud-theme-primary" Outlined="true" Delimiters="true" Size="Size.Medium"
+                        Class="dashboard-range">
+            <MudToggleItem Value="DashboardRange.Day" Text="Day"/>
+            <MudToggleItem Value="DashboardRange.Week" Text="Week"/>
+            <MudToggleItem Value="DashboardRange.Month" Text="Month"/>
+        </MudToggleGroup>
+        <div class="dashboard-filter">
             <MudDatePicker Label="Date" Date="m_Anchor" DateChanged="OnDateChanged" Variant="Variant.Outlined"
                            Margin="Margin.Dense" DateFormat="dd.MM.yyyy" MaxDate="m_Today"/>
-        </MudItem>
-        <MudItem xs="12" sm="4" md="3">
-            <MudSelect T="int?" Label="Device" Value="m_DeviceId" ValueChanged="OnDeviceChanged"
+        </div>
+        <div class="dashboard-filter">
+            <MudSelect T="int" Label="Device" Value="@(m_DeviceId ?? 0)" ValueChanged="@(id => OnDeviceChanged(id == 0 ? null : id))"
                        Variant="Variant.Outlined" Margin="Margin.Dense">
-                <MudSelectItem T="int?" Value="null">All devices</MudSelectItem>
+                <MudSelectItem T="int" Value="0">All devices</MudSelectItem>
                 @foreach (var device in m_Devices)
                 {
-                    <MudSelectItem T="int?" Value="device.Id">@device.Name</MudSelectItem>
+                    <MudSelectItem T="int" Value="device.Id">@device.Name</MudSelectItem>
                 }
             </MudSelect>
-        </MudItem>
-    </MudGrid>
+        </div>
+    </div>
 
     @if (m_Error is not null)
     {
@@ -62,7 +62,7 @@
     {
         <MudGrid Spacing="3">
             <MudItem xs="12" sm="4">
-                <MudPaper Class="pa-4" Elevation="1">
+                <MudPaper Class="pa-4" Elevation="1" Style="height: 100%">
                     <MudText Typo="Typo.caption">Screen time, @PeriodText</MudText>
                     <MudText Typo="Typo.h4">@UsageSummary.Format(m_Summary.Total)</MudText>
                     @if (m_Summary.Range != DashboardRange.Day)
@@ -72,14 +72,14 @@
                 </MudPaper>
             </MudItem>
             <MudItem xs="12" sm="4">
-                <MudPaper Class="pa-4" Elevation="1">
+                <MudPaper Class="pa-4" Elevation="1" Style="height: 100%">
                     <MudText Typo="Typo.caption">Most used</MudText>
                     <MudText Typo="Typo.h5">@m_Summary.Apps[0].Name</MudText>
                     <MudText Typo="Typo.body2">@UsageSummary.Format(m_Summary.Apps[0].Time) (@m_Summary.Apps[0].Share.ToString("P0"))</MudText>
                 </MudPaper>
             </MudItem>
             <MudItem xs="12" sm="4">
-                <MudPaper Class="pa-4" Elevation="1">
+                <MudPaper Class="pa-4" Elevation="1" Style="height: 100%">
                     <MudText Typo="Typo.caption">Apps used</MudText>
                     <MudText Typo="Typo.h4">@m_Summary.Apps.Count</MudText>
                     <MudText Typo="Typo.body2">on @m_Summary.Devices.Count device(s)</MudText>
@@ -112,23 +112,24 @@
 
             <MudItem xs="12" md="8">
                 <MudPaper Class="pa-4" Elevation="1">
-                    <MudText Typo="Typo.h6" Class="mb-2">Apps</MudText>
+                    <div class="d-flex align-center justify-space-between mb-2">
+                        <MudText Typo="Typo.h6">Apps</MudText>
+                        <MudLink Href="/settings#apps" Typo="Typo.body2">Rename apps</MudLink>
+                    </div>
                     <MudTable Items="m_Summary.Apps" Dense="true" Hover="true" Elevation="0" RowsPerPage="10">
                         <HeaderContent>
-                            <MudTh></MudTh>
                             <MudTh>App</MudTh>
                             <MudTh>Category</MudTh>
                             <MudTh Style="text-align: right">Time</MudTh>
                             <MudTh Style="width: 30%">Share</MudTh>
                         </HeaderContent>
                         <RowTemplate>
-                            <MudTd Style="width: 40px">
-                                @if (m_Icons.TryGetValue(context.AppId, out var icon))
-                                {
-                                    <img src="@icon" alt="" width="24" height="24"/>
-                                }
+                            <MudTd DataLabel="App">
+                                <div class="app-name-cell">
+                                    <AppIcon Src="@m_Icons.GetValueOrDefault(context.AppId)" Name="@context.Name"/>
+                                    <span>@context.Name</span>
+                                </div>
                             </MudTd>
-                            <MudTd DataLabel="App">@context.Name</MudTd>
                             <MudTd DataLabel="Category">@(context.Category ?? "-")</MudTd>
                             <MudTd DataLabel="Time" Style="text-align: right">@UsageSummary.Format(context.Time)</MudTd>
                             <MudTd DataLabel="Share">

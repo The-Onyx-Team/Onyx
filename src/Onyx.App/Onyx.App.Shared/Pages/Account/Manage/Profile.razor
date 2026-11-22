@@ -1,104 +1,175 @@
 @page "/Account/Manage/Profile"
-@inject NavigationManager NavigationManager
+@using Onyx.Data.ApiSchema
+@inject IProfileService ProfileService
+@inject ISnackbar Snackbar
 
-<MudContainer Class="py-4 px-3">
-    <MudGrid>
-        <MudItem xs="12" sm="11">
-            <MudPaper Class="pa-4 elevation-1">
-                <MudText Typo="Typo.h6" Class="mb-4">Profile Settings</MudText>
+<PageTitle>Profile · Onyx</PageTitle>
 
-                <div class="d-flex flex-column align-items-center mb-4">
-                    <MudAvatar Image="https://i.pravatar.cc/150?img=3" Class="mb-3" Size="Size.Large" />
-                    <div>
-                        <MudFileUpload T="IBrowserFile" FilesChanged="UploadImage">
-                            <ActivatorContent>
-                                <MudButton Variant="Variant.Filled"
-                                           Color="Color.Primary"
-                                           StartIcon="@Icons.Material.Filled.Image">
-                                    Upload Image
-                                </MudButton>
-                            </ActivatorContent>
-                        </MudFileUpload>
-                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Class="mt-2">Delete avatar</MudButton>
-                    </div>
-                </div>
+<MudContainer MaxWidth="MaxWidth.Medium" Class="py-4 px-0">
+    <MudPaper Class="pa-4" Elevation="1">
+        <MudText Typo="Typo.h6" Class="mb-4">Profile</MudText>
 
-                <EditForm Model="@accountModel" OnValidSubmit="@SaveChanges">
-                    <MudGrid>
-                        <MudItem xs="12" sm="6">
-                            <MudTextField T="string" Label="First Name" @bind-Value="@accountModel.FirstName"
-                                          Variant="Variant.Outlined" FullWidth="true" />
-                        </MudItem>
+        @if (m_Profile is null)
+        {
+            <MudProgressLinear Indeterminate="true"/>
+        }
+        else
+        {
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="4" Class="mb-6" Wrap="Wrap.Wrap">
+                <MudAvatar Size="Size.Large" Color="Color.Secondary" Style="width: 96px; height: 96px; font-size: 2.2rem">
+                    @if (m_Profile.AvatarDataUrl is { } avatar)
+                    {
+                        <MudImage Src="@avatar" Alt="Profile picture" ObjectFit="ObjectFit.Cover"/>
+                    }
+                    else
+                    {
+                        @Initial
+                    }
+                </MudAvatar>
+                <MudStack Spacing="2">
+                    <MudFileUpload T="IBrowserFile" FilesChanged="UploadAvatarAsync" Accept=".png,.jpg,.jpeg,.webp"
+                                   MaximumFileCount="1">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="m_Busy"
+                                       StartIcon="@Icons.Material.Filled.Image">
+                                Upload picture
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="DeleteAvatarAsync"
+                               Disabled="@(m_Busy || m_Profile.AvatarDataUrl is null)"
+                               StartIcon="@Icons.Material.Filled.Delete">
+                        Remove picture
+                    </MudButton>
+                    <MudText Typo="Typo.caption">PNG, JPEG or WebP. It is scaled down to 256 × 256 pixels.</MudText>
+                </MudStack>
+            </MudStack>
 
-                        <MudItem xs="12" sm="6">
-                            <MudTextField T="string" Label="Last Name" @bind-Value="@accountModel.LastName"
-                                          Variant="Variant.Outlined" FullWidth="true" />
-                        </MudItem>
+            <EditForm Model="m_Model" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator/>
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="User name" @bind-Value="m_Model.UserName" For="@(() => m_Model.UserName)"
+                                      Variant="Variant.Outlined" HelperText="Letters and digits only" Immediate="true"/>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Phone number" @bind-Value="m_Model.PhoneNumber"
+                                      For="@(() => m_Model.PhoneNumber)" Variant="Variant.Outlined" InputType="InputType.Telephone"
+                                      Immediate="true"/>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Email" Value="@m_Profile.Email" ReadOnly="true" Variant="Variant.Outlined"
+                                      HelperText="@(m_Profile.EmailConfirmed ? "Confirmed" : "Not confirmed yet")"/>
+                    </MudItem>
+                </MudGrid>
 
-                        <MudItem xs="12" sm="6">
-                            <MudTextField T="string" Label="Email" @bind-Value="@accountModel.Email"
-                                          Variant="Variant.Outlined" FullWidth="true" />
-                        </MudItem>
-                    </MudGrid>
-
-                    <!-- Save Changes Button -->
-                    <div class="mt-4">
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@DisableSave" Type="submit">
-                            Save Changes
-                        </MudButton>
-                    </div>
-                </EditForm>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+                <MudButton Class="mt-4" Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit"
+                           Disabled="@(m_Busy || !IsChanged)" StartIcon="@Icons.Material.Filled.Save">
+                    @(m_Busy ? "Saving…" : "Save changes")
+                </MudButton>
+            </EditForm>
+        }
+    </MudPaper>
 </MudContainer>
 
-@code
-{
-    private AccountModel accountModel = new AccountModel
-    {
-        FirstName = "",
-        LastName = "",
-        Email = "",
-        MobileNumber = "",
-        Gender = "",
-        ID = "",
-        TaxIdentificationNumber = "",
-        TaxIdentificationCountry = "",
-        ResidentialAddress = "",
-        PhoneCountryCode = ""
-    };
+@code {
+    /// <summary>Upload size after scaling; the server accepts up to 512 KB.</summary>
+    private const long MaxUploadBytes = 512 * 1024;
 
-    IList<IBrowserFile> _files = new List<IBrowserFile>();
+    private ProfileDto? m_Profile;
+    private readonly ProfileModel m_Model = new();
+    private bool m_Busy;
 
-    private void UploadImage(IBrowserFile? file)
+    private string Initial => string.IsNullOrEmpty(m_Profile?.UserName) ? "?" : m_Profile.UserName[..1].ToUpperInvariant();
+
+    private bool IsChanged => m_Profile is not null &&
+                              (m_Model.UserName != m_Profile.UserName || (m_Model.PhoneNumber ?? "") != (m_Profile.PhoneNumber ?? ""));
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
     {
-        _files.Add(file);
-        //TODO upload the files to the server
+        try
+        {
+            m_Profile = await ProfileService.GetAsync();
+            m_Model.UserName = m_Profile.UserName ?? "";
+            m_Model.PhoneNumber = m_Profile.PhoneNumber;
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"Could not load the profile: {e.Message}", Severity.Error);
+        }
     }
 
-    private bool DisableSave => string.IsNullOrWhiteSpace(accountModel.FirstName)
-    || string.IsNullOrWhiteSpace(accountModel.LastName)
-    || string.IsNullOrWhiteSpace(accountModel.Email);
-
-    private void SaveChanges()
+    private async Task SaveAsync()
     {
-        // todo: logik zum speichern der daten in der db
+        await RunAsync(() => ProfileService.UpdateAsync(m_Model.UserName, m_Model.PhoneNumber), "Profile saved.");
     }
 
-    public class AccountModel
+    private async Task UploadAvatarAsync(IBrowserFile? file)
     {
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string Email { get; set; }
-        public string MobileNumber { get; set; }
-        public string Gender { get; set; }
-        public string ID { get; set; }
-        public string TaxIdentificationNumber { get; set; }
-        public string TaxIdentificationCountry { get; set; }
-        public string ResidentialAddress { get; set; }
+        if (file is null)
+            return;
 
-        // Extra: For demonstration if you want a prefix field
-        public string PhoneCountryCode { get; set; }
+        await RunAsync(async () =>
+        {
+            // Scaled in the browser (or web view) before uploading, so large photos work too.
+            IBrowserFile scaled;
+            try
+            {
+                scaled = await file.RequestImageFileAsync("image/jpeg", 256, 256);
+            }
+            catch (Exception e)
+            {
+                return $"The picture could not be read: {e.Message}";
+            }
+
+            if (scaled.Size > MaxUploadBytes)
+                return "The picture is too large, even after scaling it down.";
+
+            using var stream = new MemoryStream();
+            await scaled.OpenReadStream(MaxUploadBytes).CopyToAsync(stream);
+            return await ProfileService.SetAvatarAsync(stream.ToArray(), "image/jpeg");
+        }, "Picture updated.");
+    }
+
+    private async Task DeleteAvatarAsync() =>
+        await RunAsync(ProfileService.DeleteAvatarAsync, "Picture removed.");
+
+    /// <summary>Runs a change, shows its result and reloads the profile.</summary>
+    private async Task RunAsync(Func<Task<string?>> change, string success)
+    {
+        m_Busy = true;
+        try
+        {
+            var error = await change();
+            if (error is null)
+            {
+                Snackbar.Add(success, Severity.Success);
+                await LoadAsync();
+            }
+            else
+            {
+                Snackbar.Add(error, Severity.Error);
+            }
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"Could not save: {e.Message}", Severity.Error);
+        }
+        finally
+        {
+            m_Busy = false;
+        }
+    }
+
+    private sealed class ProfileModel
+    {
+        [Required(ErrorMessage = "Enter a user name.")]
+        [RegularExpression("^[a-zA-Z0-9]+$", ErrorMessage = "Use letters and digits only.")]
+        public string UserName { get; set; } = "";
+
+        [RegularExpression(@"^\+?[0-9 ()/-]{3,30}$", ErrorMessage = "Enter a valid phone number.")]
+        public string? PhoneNumber { get; set; }
     }
 }

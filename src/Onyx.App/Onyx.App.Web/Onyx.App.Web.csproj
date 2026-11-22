@@ -30,4 +30,8 @@
     <PackageReference Include="System.IO.Abstractions" Version="22.3.0" />
   </ItemGroup>
   
+    <!-- Chart rendering for weekly reports (Python 3 + matplotlib, see ReportChartRenderer). -->
+    <ItemGroup>
+        <None Update="Reports\weekly_report.py" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
+    </ItemGroup>
 </Project>

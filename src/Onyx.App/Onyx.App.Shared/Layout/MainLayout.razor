@@ -4,9 +4,12 @@
 @inject ISnackbar Snackbar
 
 <CascadingValue Value="this">
-    <CustomErrorBoundary>
-        @Body
-    </CustomErrorBoundary>
+    @* The theme class lets app.css adjust colours MudBlazor's palette can't express per theme. *@
+    <div class="@(m_IsDarkMode ? "onyx-dark" : "onyx-light")" style="display: contents">
+        <CustomErrorBoundary>
+            @Body
+        </CustomErrorBoundary>
+    </div>
 </CascadingValue>
 
 <div id="blazor-error-ui" data-nosnippet>

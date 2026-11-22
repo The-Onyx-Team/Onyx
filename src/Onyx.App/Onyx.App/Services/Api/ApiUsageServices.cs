@@ -37,6 +37,23 @@ public class ApiAppManager(OnyxApiClient client) : IAppManager
         await client.UploadIconAsync(appIdentifier, iconPng);
         return true;
     }
+
+    public async Task<bool> SetOverrideAsync(int appId, string? displayName, string? category)
+    {
+        try
+        {
+            await client.SetAppOverrideAsync(appId, new AppOverrideDto(displayName, category));
+            return true;
+        }
+        catch (HttpRequestException e) when (e.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+        catch (HttpRequestException e) when (e.StatusCode == System.Net.HttpStatusCode.BadRequest)
+        {
+            throw new ArgumentException(OnyxApiClient.ErrorMessage(e));
+        }
+    }
 }
 
 public class ApiWebsiteSettings(OnyxApiClient client) : IWebsiteSettings

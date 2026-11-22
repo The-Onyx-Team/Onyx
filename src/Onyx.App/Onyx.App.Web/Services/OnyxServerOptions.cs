@@ -11,5 +11,11 @@ public sealed class OnyxServerOptions
     /// </summary>
     public bool AllowRegistration { get; set; } = true;
 
+    /// <summary>Who runs this server (name and postal address), shown in the privacy policy.</summary>
+    public string? Operator { get; set; }
+
+    /// <summary>Contact address for privacy questions and data requests, shown in the privacy policy.</summary>
+    public string? ContactEmail { get; set; }
+
     public const string RegistrationClosedMessage = "Registration is disabled on this server.";
 }

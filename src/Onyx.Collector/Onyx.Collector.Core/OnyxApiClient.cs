@@ -183,6 +183,57 @@ public sealed class OnyxApiClient(HttpClient http, ICredentialStore store, ILogg
     public Task DeleteWebsiteHistoryAsync(CancellationToken ct = default) =>
         SendAsync<object?>(HttpMethod.Delete, "/api/websites/history", null, ct);
 
+    public Task<ProfileDto> GetProfileAsync(CancellationToken ct = default) =>
+        SendAsync<ProfileDto>(HttpMethod.Get, "/api/user/profile", null, ct);
+
+    public Task UpdateProfileAsync(string userName, string? phoneNumber, CancellationToken ct = default) =>
+        SendAsync<object?>(HttpMethod.Put, "/api/user/profile", new UpdateProfileDto(userName, phoneNumber), ct);
+
+    public Task SetAvatarAsync(byte[] data, string contentType, CancellationToken ct = default) =>
+        SendAsync<object?>(HttpMethod.Put, "/api/user/avatar", new AvatarDto(contentType, data), ct);
+
+    public Task DeleteAvatarAsync(CancellationToken ct = default) =>
+        SendAsync<object?>(HttpMethod.Delete, "/api/user/avatar", null, ct);
+
+    public Task SetAppOverrideAsync(int appId, AppOverrideDto dto, CancellationToken ct = default) =>
+        SendAsync<object?>(HttpMethod.Put, $"/api/app/{appId}/override", dto, ct);
+
+    public Task<WeeklyReportDto> GetWeeklyReportAsync(DateOnly weekStart, string timeZone, CancellationToken ct = default) =>
+        SendAsync<WeeklyReportDto>(HttpMethod.Get,
+            $"/api/reports/weekly?weekStart={weekStart:yyyy-MM-dd}&timeZone={Uri.EscapeDataString(timeZone)}", null, ct);
+
+    /// <summary>
+    /// The user-facing part of an error the server returned: Identity error descriptions, a problem's detail, or
+    /// the plain text. Falls back to the exception message.
+    /// </summary>
+    public static string ErrorMessage(Exception e)
+    {
+        if (e is not HttpRequestException http)
+            return e.Message;
+        var i = http.Message.IndexOf(": ", StringComparison.Ordinal);
+        if (i < 0)
+            return e.Message;
+
+        var body = http.Message[(i + 2)..].Trim();
+        try
+        {
+            using var json = JsonDocument.Parse(body);
+            var root = json.RootElement;
+            if (root.ValueKind == JsonValueKind.Array)
+                return string.Join(" ", root.EnumerateArray()
+                    .Select(x => x.TryGetProperty("description", out var d) ? d.GetString() : x.ToString()));
+            if (root.ValueKind == JsonValueKind.String)
+                return root.GetString() ?? body;
+            if (root.TryGetProperty("detail", out var detail))
+                return detail.GetString() ?? body;
+        }
+        catch (JsonException)
+        {
+        }
+
+        return string.IsNullOrEmpty(body) ? e.Message : body;
+    }
+
     private async Task<T> SendAsync<T>(HttpMethod method, string path, object? body, CancellationToken ct)
     {
         var token = await GetAccessTokenAsync(forceRefresh: false, ct);

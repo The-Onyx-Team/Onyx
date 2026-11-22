@@ -38,3 +38,21 @@ that app (Files, browser, ...).
 1. Open Onyx, check the server shown on the login page, then register or sign in.
 2. On the **Devices** page, tap **Grant usage access** and allow Onyx. Without it nothing can be collected.
 3. Usage is uploaded every 30 minutes when a network is available. **Upload now** on the Devices page uploads at once.
+
+## Updating
+
+Build the new version with the same command and install it over the old one; **don't uninstall first**. An
+update keeps the sign-in, the device registration and the record of what was already uploaded.
+
+Uninstalling deletes those from the phone (the data on the server stays). After a reinstall the phone registers as
+a **new device** and uploads the last 7 days again, so those days are counted twice. (Removing the old device on
+the Devices page would also delete all of its older data.)
+
+```bash
+git pull
+packaging/android/build-apk.sh --server https://onyx.example.com --install   # adb install -r keeps the app's data
+```
+
+An update only installs if it is signed with **the same key** (`~/.config/onyx-build/onyx-sideload.keystore`)
+and has a higher version code; the script takes care of the version code. Without adb, open the new APK on the
+phone and choose **Update**.

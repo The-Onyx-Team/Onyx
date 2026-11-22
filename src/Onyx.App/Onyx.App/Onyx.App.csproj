@@ -57,8 +57,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <MauiIcon Include="Resources\AppIcon\icon.svg" Color="#512BD4" BaseSize="128,128"/>
-        <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128"/>
+        <!-- Cream background with the stone scaled into Android's adaptive-icon safe zone (the launcher crops the
+             outer third), so the whole stone is visible in round and squircle masks. -->
+        <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg"
+                  ForegroundScale="0.58" Color="#F6F2E9"/>
+        <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#F6F2E9" BaseSize="96,96"/>
         <MauiImage Include="Resources\Images\*"/>
         <MauiImage Update="Resources\Images\dotnet_bot.svg" BaseSize="168,208"/>
         <MauiFont Include="Resources\Fonts\*"/>

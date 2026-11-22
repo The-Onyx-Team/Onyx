@@ -1,0 +1,217 @@
+@page "/reports"
+@using System.Globalization
+@using System.Text
+@using Onyx.App.Shared.Services.Dashboard
+@using Onyx.App.Shared.Services.Usage
+@using Onyx.Data.ApiSchema
+@layout AppLayout
+@attribute [Authorize]
+@inject IReportService ReportService
+@inject ClientTimeZone ClientTimeZone
+@inject IPlatformService PlatformService
+@inject IJSRuntime JS
+
+<PageTitle>Weekly report · Onyx</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+    <div class="d-flex flex-wrap align-center gap-2 mb-4 no-print">
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="() => MoveAsync(-1)" Disabled="m_Loading"
+                       aria-label="Previous week"/>
+        <MudText Typo="Typo.h6" Style="min-width: 210px; text-align: center">@WeekText</MudText>
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" OnClick="() => MoveAsync(1)"
+                       Disabled="@(m_Loading || m_WeekStart >= ThisWeek)" aria-label="Next week"/>
+        @if (m_WeekStart != ThisWeek)
+        {
+            <MudButton Variant="Variant.Text" OnClick="() => ShowAsync(ThisWeek)" Disabled="m_Loading">This week</MudButton>
+        }
+        <MudSpacer/>
+        @if (!PlatformService.IsMaui())
+        {
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print" OnClick="PrintAsync"
+                       Disabled="@(m_Report is null || m_Loading)">Print / PDF</MudButton>
+        }
+    </div>
+
+    @if (m_Loading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-2"/>
+        <MudText Typo="Typo.body2" Class="no-print">Building the report…</MudText>
+    }
+    else if (m_Error is not null)
+    {
+        <MudAlert Severity="Severity.Error">@m_Error</MudAlert>
+    }
+    else if (m_Report is { } report)
+    {
+        <div class="report-sheet">
+            <div class="d-flex align-center mb-4">
+                <img src="_content/Onyx.App.Shared/img/Icon.png" alt="" style="height: 44px" class="mr-3"/>
+                <div>
+                    <MudText Typo="Typo.h5" Style="font-weight: 700">Weekly report</MudText>
+                    <MudText Typo="Typo.body2" Style="color: #494C3B">@WeekText</MudText>
+                </div>
+            </div>
+
+            @if (report.Total == TimeSpan.Zero)
+            {
+                <MudText>No usage was recorded in this week.</MudText>
+            }
+            else
+            {
+                @if (report.ChartError is not null)
+                {
+                    <MudAlert Severity="Severity.Warning" Class="mb-4" Dense="true">@report.ChartError</MudAlert>
+                }
+
+                <MudGrid Spacing="2" Class="mb-4 report-section">
+                    <MudItem xs="6" md="3">
+                        <div class="report-stat">
+                            <MudText Typo="Typo.caption">Screen time</MudText>
+                            <MudText Typo="Typo.h5" Style="font-weight: 700">@UsageSummary.Format(report.Total)</MudText>
+                            <MudText Typo="Typo.body2">@Change(report.Total, report.PreviousTotal) vs. the week before</MudText>
+                        </div>
+                    </MudItem>
+                    <MudItem xs="6" md="3">
+                        <div class="report-stat">
+                            <MudText Typo="Typo.caption">Per day</MudText>
+                            <MudText Typo="Typo.h5" Style="font-weight: 700">@UsageSummary.Format(report.DailyAverage)</MudText>
+                            <MudText Typo="Typo.body2">on average</MudText>
+                        </div>
+                    </MudItem>
+                    <MudItem xs="6" md="3">
+                        <div class="report-stat">
+                            <MudText Typo="Typo.caption">Busiest day</MudText>
+                            <MudText Typo="Typo.h5" Style="font-weight: 700">@report.BusiestDay</MudText>
+                            <MudText Typo="Typo.body2">@UsageSummary.Format(report.BusiestDayTime)</MudText>
+                        </div>
+                    </MudItem>
+                    <MudItem xs="6" md="3">
+                        <div class="report-stat">
+                            <MudText Typo="Typo.caption">Most used</MudText>
+                            <MudText Typo="Typo.h5" Style="font-weight: 700; overflow-wrap: anywhere">@report.Apps.FirstOrDefault()?.Name</MudText>
+                            <MudText Typo="Typo.body2">@UsageSummary.Format(report.Apps.FirstOrDefault()?.Time ?? TimeSpan.Zero)</MudText>
+                        </div>
+                    </MudItem>
+                </MudGrid>
+
+                <ReportChart Report="report" Key="daily" Title="Every day"
+                             Caption="Screen time per day, split by device."/>
+
+                <ReportChart Report="report" Key="apps" Title="Top apps"
+                             Caption="This week compared with the week before."/>
+
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" md="5">
+                        <ReportChart Report="report" Key="categories" Title="Categories"/>
+                    </MudItem>
+                    <MudItem xs="12" md="7">
+                        <ReportChart Report="report" Key="trend" Title="Trend"
+                                     Caption="@($"Screen time per week over the last {WeeklyReportDto.TrendWeeks} weeks.")"/>
+                        <div class="report-section">
+                            <MudText Typo="Typo.body2" Class="mt-2">@TrendText(report)</MudText>
+                        </div>
+                    </MudItem>
+                </MudGrid>
+
+                <ReportChart Report="report" Key="heatmap" Title="When"
+                             Caption="Minutes of use per hour of the day."/>
+
+                <MudText Typo="Typo.h6" Class="mt-6 mb-2" Style="font-weight: 700">Devices</MudText>
+                @foreach (var device in report.Devices)
+                {
+                    <div class="report-section mb-4">
+                        <MudText Typo="Typo.subtitle1" Style="font-weight: 600">
+                            @device.Name: @UsageSummary.Format(device.Time)
+                            <span style="color: #494C3B; font-weight: 400">(@Change(device.Time, device.PreviousTime) vs. the week before)</span>
+                        </MudText>
+                        <ReportChart Report="report" Key="@($"device-{device.Id}")"/>
+                    </div>
+                }
+            }
+        </div>
+    }
+</MudContainer>
+
+@code {
+    private DateOnly m_WeekStart;
+    private DateOnly m_Today;
+    private TimeZoneInfo m_Zone = TimeZoneInfo.Local;
+    private WeeklyReportDto? m_Report;
+    private bool m_Loading = true;
+    private string? m_Error;
+
+    private DateOnly ThisWeek => m_Today.AddDays(-(((int)m_Today.DayOfWeek + 6) % 7));
+
+    private string WeekText => m_WeekStart == default
+        ? ""
+        : $"{m_WeekStart.ToString("dd.MM.", CultureInfo.InvariantCulture)} – {m_WeekStart.AddDays(6).ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)}";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        // The viewer's zone decides where days and weeks begin; it needs JS interop.
+        m_Zone = await ClientTimeZone.GetAsync();
+        m_Today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, m_Zone));
+        await ShowAsync(ThisWeek);
+    }
+
+    private Task MoveAsync(int weeks) => ShowAsync(m_WeekStart.AddDays(7 * weeks));
+
+    private async Task ShowAsync(DateOnly weekStart)
+    {
+        m_WeekStart = weekStart;
+        m_Loading = true;
+        m_Error = null;
+        StateHasChanged();
+        try
+        {
+            m_Report = await ReportService.GetWeeklyReportAsync(weekStart, m_Zone);
+        }
+        catch (Exception e)
+        {
+            m_Report = null;
+            m_Error = $"Could not load the report: {e.Message}";
+        }
+        finally
+        {
+            m_Loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task PrintAsync() => await JS.InvokeVoidAsync("print");
+
+    private static string Change(TimeSpan current, TimeSpan previous)
+    {
+        if (previous == TimeSpan.Zero)
+            return current == TimeSpan.Zero ? "same" : "new";
+        var change = (current - previous) / previous;
+        return change switch
+        {
+            > 0.005 => $"+{change:P0}",
+            < -0.005 => $"{change:P0}",
+            _ => "about the same"
+        };
+    }
+
+    private static string TrendText(WeeklyReportDto report)
+    {
+        var earlier = report.Trend.Take(report.Trend.Count - 1).Where(t => t.Time > TimeSpan.Zero).ToList();
+        if (earlier.Count == 0)
+            return "There is no data from earlier weeks to compare with yet.";
+
+        var average = TimeSpan.FromTicks((long)earlier.Average(t => t.Time.Ticks));
+        var change = (report.Total - average) / average;
+        var direction = change switch
+        {
+            > 0.1 => "more than",
+            < -0.1 => "less than",
+            _ => "about the same as"
+        };
+        return $"This week you used your devices {direction} your average of {UsageSummary.Format(average)} " +
+               $"per week over the {earlier.Count} earlier week(s) with data" +
+               (Math.Abs(change) > 0.1 ? $" ({(change > 0 ? "+" : "")}{change:P0})." : ".");
+    }
+}

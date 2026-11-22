@@ -1,17 +1,16 @@
 @page "/account/login"
-@using Microsoft.AspNetCore.WebUtilities
 @inject IUserManager UserManager
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 @layout AuthNavLayout
 @inject IPlatformService PlatformService
 
-<PageTitle>Login</PageTitle>
+<PageTitle>Login · Onyx</PageTitle>
 
 @if (!PlatformService.IsMaui())
 {
     <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
-                   Style="position: absolute; top: 2vh; left: 1vw;"
+                   Class="auth-back"
                    Href="/"
                    Color="Color.Primary"/>
 }
@@ -38,14 +37,14 @@
     <MudButton ButtonType="ButtonType.Submit"
                Variant="Variant.Filled"
                Class="rounded mud-button-full-width mb-3"
-               Style="background-color: black">
-        Login
+               Disabled="m_Submitting"
+               Style="background-color: black; color: white">
+        @(m_Submitting ? "Signing in…" : "Login")
     </MudButton>
 </EditForm>
 
 @if (!PlatformService.IsMaui())
 {
-    <MudText Align="Align.Center">Or login using</MudText>
     <ExternalLoginPicker/>
 }
 
@@ -56,38 +55,45 @@
 
 @code {
     private readonly LoginModel m_LoginModel = new();
-    private Uri MyUri;
-    private string UriParam;
-    
+    private bool m_Submitting;
 
-    protected override  async Task OnInitializedAsync()
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    [SupplyParameterFromQuery(Name = "returnUrl")] private string? ReturnUrlParameter { get; set; }
+
+    [SupplyParameterFromQuery(Name = "error")] private string? Error { get; set; }
+
+    private string Target => ReturnUrl.Sanitize(ReturnUrlParameter);
+
+    protected override async Task OnInitializedAsync()
     {
-        MyUri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
-        if (QueryHelpers.ParseQuery(MyUri.Query).TryGetValue("error", out var _initialCount))
-        {
-            UriParam = _initialCount;
-            Snackbar.Add(_initialCount, Severity.Error);
-            Console.WriteLine("Error: " + _initialCount);
-        }
+        if (!string.IsNullOrEmpty(Error))
+            Snackbar.Add(Error, Severity.Error);
+
+        // Already signed in (e.g. the app restarted with a stored session): go straight on.
+        if (AuthenticationState is not null && (await AuthenticationState).User.Identity?.IsAuthenticated == true)
+            NavigationManager.NavigateTo(Target);
     }
-    
+
     private async Task Submit()
     {
-        var result = await UserManager.LoginAsync(m_LoginModel.Email, m_LoginModel.Password, "/");
-        /*if (result.Success)
+        m_Submitting = true;
+        try
         {
-            Snackbar.Add("Logged in successfully", Severity.Success);
-            //Console.WriteLine("Logged in successfully------------------------------------------------------");
-            await Task.Delay(500);
-#
+            // The web app signs in with a form post that redirects to the target itself.
+            var result = await UserManager.LoginAsync(m_LoginModel.Email, m_LoginModel.Password, Target);
+            if (!PlatformService.IsMaui())
+                return;
+
+            if (result.Success)
+                NavigationManager.NavigateTo(Target);
+            else
+                Snackbar.Add(result.Message ?? "Invalid email or password", Severity.Error);
         }
-        else
+        finally
         {
-            await Task.Delay(1000);
-            Snackbar.Add("Failed to log in", Severity.Error);
-            Console.WriteLine("Error: " + result.Message);
-        }*/
-        
+            m_Submitting = false;
+        }
     }
 
     public class LoginModel
@@ -99,5 +105,4 @@
         [Required]
         public string Password { get; set; } = "";
     }
-
 }

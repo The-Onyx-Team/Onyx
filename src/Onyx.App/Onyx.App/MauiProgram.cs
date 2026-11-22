@@ -56,6 +56,8 @@ namespace Onyx.App
             builder.Services.AddScoped<IUsageDataService, ApiUsageDataService>();
             builder.Services.AddScoped<IAppManager, ApiAppManager>();
             builder.Services.AddScoped<IWebsiteSettings, ApiWebsiteSettings>();
+            builder.Services.AddScoped<IProfileService, ApiProfileService>();
+            builder.Services.AddScoped<IReportService, ApiReportService>();
             builder.Services.AddScoped<Onyx.App.Shared.Services.Dashboard.ClientTimeZone>();
 
             // Platform Service

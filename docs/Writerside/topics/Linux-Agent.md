@@ -36,3 +36,21 @@ tar xzf onyx-agent-linux-x64.tar.gz && cd onyx-agent && ./install.sh
 onyx-agent status
 journalctl --user -u onyx-agent
 ```
+
+## Updating
+
+Extract the new archive and run `./install.sh` again. It replaces the binary and restarts the service; the
+sign-in (`~/.config/onyx/`) and data not uploaded yet (`~/.local/state/onyx/pending.json`) stay. Usage recorded
+while the old version was running is uploaded by the new one.
+
+Built from source instead:
+
+```bash
+git pull
+dotnet publish src/Onyx.Collector/Onyx.Collector.Linux -c Release -r linux-x64 --self-contained \
+    -p:PublishSingleFile=true -o out/onyx-agent
+cp packaging/linux/onyx-agent.service packaging/linux/install.sh out/onyx-agent/
+(cd out/onyx-agent && ./install.sh)
+```
+
+Don't run `onyx-agent logout` for an update: it deletes the stored sign-in.

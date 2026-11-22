@@ -208,6 +208,7 @@ builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddScoped<IUserManager, UserManager>();
 builder.Services.AddScoped<IUserProvider, UserProvider>();
+builder.Services.AddScoped<IProfileService, ProfileService>();
 
 // Platform Service
 builder.Services.AddScoped<IPlatformService, WebPlatformService>();
@@ -237,6 +238,8 @@ builder.Services.AddScoped<IAppManager, AppManager>();
 builder.Services.AddScoped<IWebsiteSettings, WebsiteSettings>();
 builder.Services.AddSingleton<IStatsService, WebStatsService>();
 builder.Services.AddScoped<Onyx.App.Shared.Services.Dashboard.ClientTimeZone>();
+builder.Services.AddSingleton<Onyx.App.Web.Services.Reports.ReportChartRenderer>();
+builder.Services.AddScoped<IReportService, Onyx.App.Web.Services.Reports.ReportService>();
 
 var app = builder.Build();
 
@@ -263,6 +266,10 @@ app.MapDataEndpoints();
 app.MapDeviceEndpoints();
 app.MapAppEndpoints();
 app.MapWebsiteEndpoints();
+app.MapReportEndpoints();
+// Public: the apps show it on the privacy and register pages before anyone signs in.
+app.MapGet("/api/info", (Microsoft.Extensions.Options.IOptionsSnapshot<OnyxServerOptions> options) =>
+    WebServerSettings.Info(options.Value)).AllowAnonymous();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(typeof(Onyx.App.Shared._Imports).Assembly);

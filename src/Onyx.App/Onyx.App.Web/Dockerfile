@@ -34,6 +34,10 @@ WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080 \
     KeyDirectory=/app/data \
     ConnectionStrings__SQLite="Data Source=/app/data/onyx.db"
+# Python with matplotlib renders the charts of the weekly reports (Reports/weekly_report.py).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 python3-matplotlib \
+    && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /app/data && chown "$APP_UID" /app/data
 VOLUME /app/data
 EXPOSE 8080

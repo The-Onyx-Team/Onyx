@@ -2,6 +2,10 @@
 @code {
     protected override void OnInitialized()
     {
-        NavigationManager.NavigateTo("/account/login");
+        // Come back to the requested page after signing in.
+        var path = "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.NavigateTo(path is "/" or "/home" || path.StartsWith("/account/login")
+            ? "/account/login"
+            : $"/account/login?returnUrl={Uri.EscapeDataString(path)}");
     }
 }

@@ -1,6 +1,9 @@
 @page "/settings"
 @using Onyx.App.Shared.Services.Usage
+@using Onyx.App.Shared.Components.Apps
+@using Onyx.Data.ApiSchema
 @inject IWebsiteSettings WebsiteSettings
+@inject IAppManager AppManager
 @inject IUserManager UserManager
 @inject IPlatformService PlatformService
 @inject IDialogService DialogService
@@ -22,8 +25,60 @@
                     The <MudLink Href="/devices">Devices</MudLink> page shows each device's last upload and can upload this device now.
                 </MudText>
                 <MudText Class="mt-2">
-                    What is collected: see the <MudLink Href="/privacy">privacy notice</MudLink>.
+                    What is collected: see the <MudLink Href="/privacy">privacy policy</MudLink>.
                 </MudText>
+            </MudPaper>
+
+            <MudPaper Class="pa-4 mb-6" Elevation="1" id="apps">
+                <MudText Typo="Typo.h6">Apps</MudText>
+                <MudText Class="mt-2 mb-3">
+                    Give apps your own name or category, for example packages the device could not translate to a
+                    name. This only changes what you see, everywhere in Onyx.
+                </MudText>
+                @if (m_Apps is null)
+                {
+                    <MudProgressLinear Indeterminate="true"/>
+                }
+                else if (m_Apps.Count == 0)
+                {
+                    <MudText Typo="Typo.body2">No apps yet. They appear once a device uploads usage.</MudText>
+                }
+                else
+                {
+                    <MudTextField T="string" @bind-Value="m_AppFilter" Placeholder="Search apps" Immediate="true"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2" Clearable="true"/>
+                    <MudTable Items="FilteredApps" Dense="true" Hover="true" Elevation="0" RowsPerPage="10"
+                              OnRowClick="@((TableRowClickEventArgs<AppDto> e) => EditAppAsync(e.Item!))" Style="cursor: pointer">
+                        <HeaderContent>
+                            <MudTh>App</MudTh>
+                            <MudTh>Category</MudTh>
+                            <MudTh Style="width: 48px"></MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="app">
+                            <MudTd DataLabel="App">
+                                <div class="app-name-cell">
+                                    <AppIcon Src="@IconSrc(app)" Name="@app.Name"/>
+                                    <div style="min-width: 0">
+                                        <div>@app.Name</div>
+                                        @if (app.IsCustomized && app.Name != app.ReportedName)
+                                        {
+                                            <MudText Typo="Typo.caption">reported as @app.ReportedName</MudText>
+                                        }
+                                    </div>
+                                </div>
+                            </MudTd>
+                            <MudTd DataLabel="Category">@(app.Category ?? "-")</MudTd>
+                            <MudTd>
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Rename"
+                                               OnClick="@(() => EditAppAsync(app))"/>
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager HideRowsPerPage="true"/>
+                        </PagerContent>
+                    </MudTable>
+                }
             </MudPaper>
 
             <MudPaper Class="pa-4 mb-6" Elevation="1" id="websites">
@@ -89,6 +144,15 @@
     private List<string>? m_Excluded;
     private string? m_NewExclusion;
 
+    private List<AppDto>? m_Apps;
+    private string? m_AppFilter;
+
+    private IEnumerable<AppDto> FilteredApps => (m_Apps ?? [])
+        .Where(a => string.IsNullOrWhiteSpace(m_AppFilter)
+                    || a.Name.Contains(m_AppFilter, StringComparison.OrdinalIgnoreCase)
+                    || (a.ReportedName?.Contains(m_AppFilter, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (a.Identifier?.Contains(m_AppFilter, StringComparison.OrdinalIgnoreCase) ?? false));
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -99,6 +163,45 @@
         {
             m_Excluded = [];
             Snackbar.Add($"Could not load excluded websites: {e.Message}", Severity.Error);
+        }
+
+        await LoadAppsAsync();
+    }
+
+    private async Task LoadAppsAsync()
+    {
+        try
+        {
+            m_Apps = (await AppManager.GetAppsAsync()).OrderBy(a => a.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+        catch (Exception e)
+        {
+            m_Apps = [];
+            Snackbar.Add($"Could not load apps: {e.Message}", Severity.Error);
+        }
+    }
+
+    private static string? IconSrc(AppDto app) =>
+        app.IconBitmap.Length > 0 ? $"data:image/png;base64,{Convert.ToBase64String(app.IconBitmap)}" : null;
+
+    private async Task EditAppAsync(AppDto app)
+    {
+        var categories = (m_Apps ?? []).SelectMany(a => new[] { a.Category, a.ReportedCategory })
+            .Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c!)
+            .Distinct(StringComparer.OrdinalIgnoreCase).Order().ToList();
+
+        var dialog = await DialogService.ShowAsync<AppEditDialog>(null, new DialogParameters<AppEditDialog>
+        {
+            { d => d.App, app },
+            { d => d.IconSrc, IconSrc(app) },
+            { d => d.Categories, categories },
+        }, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            Snackbar.Add("Saved. The dashboard and reports use the new name.", Severity.Success);
+            await LoadAppsAsync();
         }
     }
 

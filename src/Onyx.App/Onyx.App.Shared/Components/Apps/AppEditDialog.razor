@@ -1,0 +1,87 @@
+@using Onyx.App.Shared.Services.Usage
+@using Onyx.Data.ApiSchema
+@inject IAppManager AppManager
+
+<MudDialog>
+    <TitleContent>
+        <div class="app-name-cell">
+            <AppIcon Src="@IconSrc" Name="@App.Name"/>
+            <MudText Typo="Typo.h6">Rename app</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-3">
+            Reported as <b>@(App.ReportedName ?? App.Name)</b> (@(App.ReportedCategory ?? "no category")),
+            identifier <code>@App.Identifier</code>. Your names only change what you see.
+        </MudText>
+        <MudTextField T="string" Label="Name" @bind-Value="m_Name" Placeholder="@App.ReportedName"
+                      Variant="Variant.Outlined" MaxLength="200" Class="mb-3" Immediate="true"/>
+        <MudAutocomplete T="string" Label="Category" @bind-Value="m_Category" SearchFunc="SearchCategories"
+                         Placeholder="@App.ReportedCategory" Variant="Variant.Outlined" MaxLength="500"
+                         CoerceText="false" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true"/>
+        @if (m_Error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-3" Dense="true">@m_Error</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (App.IsCustomized)
+        {
+            <MudButton Color="Color.Secondary" OnClick="ResetAsync" Disabled="m_Saving" Class="mr-auto">Use reported</MudButton>
+        }
+        <MudButton OnClick="() => MudDialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAsync" Disabled="m_Saving">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter, EditorRequired] public AppDto App { get; set; } = null!;
+    [Parameter] public string? IconSrc { get; set; }
+    [Parameter] public IReadOnlyList<string> Categories { get; set; } = [];
+
+    private string? m_Name;
+    private string? m_Category;
+    private string? m_Error;
+    private bool m_Saving;
+
+    protected override void OnInitialized()
+    {
+        // Only the user's own values go into the fields; the reported ones are shown as placeholders.
+        m_Name = App.IsCustomized && App.Name != App.ReportedName ? App.Name : null;
+        m_Category = App.IsCustomized && App.Category != App.ReportedCategory ? App.Category : null;
+    }
+
+    private Task<IEnumerable<string>> SearchCategories(string? text, CancellationToken _) =>
+        Task.FromResult(Categories
+            .Where(c => string.IsNullOrWhiteSpace(text) || c.Contains(text, StringComparison.OrdinalIgnoreCase))
+            .Append(text ?? "")
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.OrdinalIgnoreCase));
+
+    private Task SaveAsync() => StoreAsync(m_Name, m_Category);
+
+    private Task ResetAsync() => StoreAsync(null, null);
+
+    private async Task StoreAsync(string? name, string? category)
+    {
+        m_Saving = true;
+        m_Error = null;
+        try
+        {
+            if (await AppManager.SetOverrideAsync(App.Id, name, category))
+                MudDialog.Close(DialogResult.Ok(true));
+            else
+                m_Error = "This app is no longer in your data.";
+        }
+        catch (Exception e)
+        {
+            m_Error = e is ArgumentException ? e.Message : $"Could not save: {e.Message}";
+        }
+        finally
+        {
+            m_Saving = false;
+        }
+    }
+}

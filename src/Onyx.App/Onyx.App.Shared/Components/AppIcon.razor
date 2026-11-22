@@ -1,0 +1,16 @@
+@* An app's icon in a fixed-size box, or its first letter when no device uploaded an icon. *@
+@if (!string.IsNullOrEmpty(Src))
+{
+    <img src="@Src" alt="" class="app-icon" loading="lazy"/>
+}
+else
+{
+    <span class="app-icon app-icon-placeholder" aria-hidden="true">@Letter</span>
+}
+
+@code {
+    [Parameter] public string? Src { get; set; }
+    [Parameter] public string? Name { get; set; }
+
+    private string Letter => string.IsNullOrWhiteSpace(Name) ? "?" : Name.Trim()[..1].ToUpperInvariant();
+}

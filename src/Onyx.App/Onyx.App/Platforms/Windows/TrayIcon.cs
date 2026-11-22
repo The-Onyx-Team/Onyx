@@ -17,7 +17,7 @@ internal static class TrayIcon
         if (s_Icon is not null)
             return;
 
-        var iconPath = Path.Combine(AppContext.BaseDirectory, "icon.ico");
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "appicon.ico"); // generated from the MauiIcon
         s_Icon = new TaskbarIcon
         {
             ToolTipText = "Onyx - collecting app usage",

@@ -5,7 +5,10 @@
              xmlns:shared="clr-namespace:Onyx.App.Shared;assembly=Onyx.App.Shared"
              xmlns:components="clr-namespace:Onyx.App.Components"
              x:Class="Onyx.App.MainPage"
-             BackgroundColor="{DynamicResource PageBackgroundColor}">
+             BackgroundColor="{DynamicResource PageBackgroundColor}"
+             SafeAreaEdges="All">
+    <!-- Android 15+ draws apps edge to edge. "All" keeps the web view clear of the status bar, the navigation
+         bar and the keyboard, so the app bars and the bottom navigation are not covered. -->
 
     <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/index.html">
         <BlazorWebView.RootComponents>

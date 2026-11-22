@@ -55,6 +55,22 @@ public sealed class ServerSettings(IHttpClientFactory httpClientFactory, ILogger
         return null;
     }
 
+    public async Task<Onyx.Data.ApiSchema.ServerInfoDto?> GetInfoAsync()
+    {
+        try
+        {
+            using var client = httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(10);
+            return await System.Net.Http.Json.HttpClientJsonExtensions.GetFromJsonAsync<Onyx.Data.ApiSchema.ServerInfoDto>(
+                client, $"{ServerUrl}/api/info");
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            logger.LogInformation(e, "Server info of {Server} not available", ServerUrl);
+            return null;
+        }
+    }
+
     /// <summary>Adds https:// when the scheme is missing and drops a trailing slash.</summary>
     internal static string? Normalize(string? url)
     {

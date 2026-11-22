@@ -863,6 +863,25 @@ public class AuthEndpointsTest
     }
 
     [Fact]
+    public async Task LoginHandler_WithExternalRedirect_GoesToTheDashboardInstead()
+    {
+        m_UserManager.Setup(x => x.FindByEmailAsync(m_ValidWebLoginModel.Email)).ReturnsAsync(m_TestUser);
+        m_SignInManager.Setup(x => x.PasswordSignInAsync(m_TestUser, m_ValidWebLoginModel.Password, true, false))
+            .ReturnsAsync(SignInResult.Success);
+        m_ClaimsFactory.Setup(x => x.CreateAsync(m_TestUser)).ReturnsAsync(new ClaimsPrincipal());
+        var model = new AuthEndpoints.WebLoginModel
+        {
+            Email = m_ValidWebLoginModel.Email, Password = m_ValidWebLoginModel.Password,
+            Redirect = "https://evil.example/phish"
+        };
+
+        var result = await AuthEndpoints.WebLoginHandler(model, m_SignInManager.Object, m_ClaimsFactory.Object,
+            m_HttpContext.Object);
+
+        result.ShouldBeOfType<RedirectHttpResult>().Url.ShouldBe("/home");
+    }
+
+    [Fact]
     public async Task LoginHandler_WithNonExistentUser_ShouldReturnUnauthorized()
     {
         // Arrange

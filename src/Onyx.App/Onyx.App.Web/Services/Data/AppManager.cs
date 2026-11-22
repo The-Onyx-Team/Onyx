@@ -3,6 +3,7 @@ using Onyx.App.Shared.Services.Usage;
 using Onyx.App.Web.Services.Auth;
 using Onyx.Data.ApiSchema;
 using Onyx.Data.DataBaseSchema;
+using Onyx.Data.DataBaseSchema.TableEntities;
 
 namespace Onyx.App.Web.Services.Data;
 
@@ -17,7 +18,7 @@ public class AppManager(ApplicationDbContext dbContext, CurrentUser currentUser)
         var userId = await currentUser.GetRequiredUserIdAsync();
 
         // Apps are shared between users; only list the ones this user has data for.
-        return await dbContext.RegisteredApps
+        var apps = await dbContext.RegisteredApps
             .Where(a => a.Usages!.Any(u => u.Device!.UserId == userId))
             .Select(a => new AppDto
             {
@@ -28,6 +29,63 @@ public class AppManager(ApplicationDbContext dbContext, CurrentUser currentUser)
                 IconBitmap = a.IconBitmap ?? Array.Empty<byte>()
             })
             .ToListAsync();
+
+        var overrides = await dbContext.AppOverrides
+            .Where(o => o.UserId == userId)
+            .ToDictionaryAsync(o => o.AppId);
+
+        foreach (var app in apps)
+        {
+            app.ReportedName = app.Name;
+            app.ReportedCategory = app.Category;
+            if (!overrides.TryGetValue(app.Id, out var own))
+                continue;
+
+            app.IsCustomized = true;
+            app.Name = own.DisplayName ?? app.Name;
+            app.Category = own.Category ?? app.Category;
+        }
+
+        return apps;
+    }
+
+    public async Task<bool> SetOverrideAsync(int appId, string? displayName, string? category)
+    {
+        var userId = await currentUser.GetRequiredUserIdAsync();
+        displayName = Clean(displayName, MaxNameLength);
+        category = Clean(category, MaxCategoryLength);
+
+        if (!await dbContext.RegisteredApps.AnyAsync(a => a.Id == appId && a.Usages!.Any(u => u.Device!.UserId == userId)))
+            return false;
+
+        var existing = await dbContext.AppOverrides.FirstOrDefaultAsync(o => o.UserId == userId && o.AppId == appId);
+        if (displayName is null && category is null)
+        {
+            if (existing is not null)
+                dbContext.AppOverrides.Remove(existing);
+        }
+        else
+        {
+            existing ??= dbContext.AppOverrides.Add(new AppOverride { UserId = userId, AppId = appId }).Entity;
+            existing.DisplayName = displayName;
+            existing.Category = category;
+        }
+
+        await dbContext.SaveChangesAsync();
+        return true;
+    }
+
+    private const int MaxNameLength = 200;
+    private const int MaxCategoryLength = 500;
+
+    private static string? Clean(string? value, int maxLength)
+    {
+        value = value?.Trim();
+        if (string.IsNullOrEmpty(value))
+            return null;
+        if (value.Length > maxLength)
+            throw new ArgumentException($"At most {maxLength} characters.");
+        return value;
     }
 
     public async Task<bool> SetIconAsync(string appIdentifier, byte[] iconPng)

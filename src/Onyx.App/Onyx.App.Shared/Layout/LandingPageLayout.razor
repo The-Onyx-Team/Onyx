@@ -1,59 +1,57 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @layout MainLayout
+@inject IPlatformService PlatformService
+@inject NavigationManager NavigationManager
 
-<script>
-    const sections = document.querySelectorAll(".section");
-    let currentIndex = 0;
-
-    window.addEventListener("wheel", (event) => {
-        if (event.deltaY > 0) {
-            // Scroll down
-            currentIndex = Math.min(currentIndex + 1, sections.length - 1);
-        } else {
-            // Scroll up
-            currentIndex = Math.max(currentIndex - 1, 0);
-        }
-
-        sections[currentIndex].scrollIntoView({
-            behavior: "smooth"
-        });
-
-        event.preventDefault();
-    }, { passive: false });
-</script>
-
-<MudAppBar Color="Color.Primary" Fixed="true" ToolBarClass="mud-width-full toolbar" Class="mud-width-full logo-container appbar-full">
-    <div class="pa-0 ma-5 d-flex align-center">
-        <MudImage Src="/img/Icon.png" Alt="Icon" Class="logo mr-7"/>
-        <MudText Typo="Typo.h4">Onyx</MudText>
+@if (PlatformService.IsMaui())
+{
+    @* The apps have no landing page: public pages (privacy policy, downloads) get a plain bar with a way back. *@
+    <MudAppBar Color="Color.Primary" Fixed="true" Dense="true" Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Inherit" Edge="Edge.Start"
+                       OnClick="@(() => NavigationManager.NavigateTo("/home"))" aria-label="Back"/>
+        <img src="_content/Onyx.App.Shared/img/Icon.png" alt="" class="appbar-logo"/>
+        <MudText Typo="Typo.h6">Onyx</MudText>
+    </MudAppBar>
+    <div class="maui-public-page">
+        @Body
     </div>
-    <div>
+}
+else
+{
+    <MudAppBar Color="Color.Primary" Fixed="true" ToolBarClass="mud-width-full toolbar" Class="mud-width-full logo-container appbar-full">
+        <a href="/" class="pa-0 ma-5 d-flex align-center" style="color: inherit; text-decoration: none">
+            <img src="_content/Onyx.App.Shared/img/Icon.png" alt="Onyx" class="logo mr-7"/>
+            <MudText Typo="Typo.h4">Onyx</MudText>
+        </a>
+        <div>
+            <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Inherit"
+                           Href="/downloads" Size="Size.Large" title="Downloads"/>
+            <MudIconButton Icon="@Icons.Material.Filled.Dashboard" Color="Color.Inherit"
+                           Href="/home" Size="Size.Large" title="Dashboard"/>
+            <MudIconButton Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Inherit"
+                           Href="/account/register" Size="Size.Large" title="Register"/>
+            <MudButton StartIcon="@Icons.Material.Filled.Login" Color="Color.Tertiary" Href="/account/login"
+                       Variant="Variant.Filled">
+                Login
+            </MudButton>
+        </div>
+    </MudAppBar>
+    <MudAppBar Color="Color.Primary" ToolBarClass="mud-width-full toolbar" Class="mud-width-full logo-container appbar-top">
+        <a href="/" class="pa-0 ma-5 d-flex align-center" style="color: inherit; text-decoration: none">
+            <img src="_content/Onyx.App.Shared/img/Icon.png" alt="Onyx" class="logo mr-7"/>
+            <MudText Typo="Typo.h4">Onyx</MudText>
+        </a>
+    </MudAppBar>
+    <MudAppBar Color="Color.Primary" Fixed="true" ToolBarClass="mud-width-full toolbar" Class="mud-width-full logo-container mud-appbar-fixed-bottom appbar-bottom">
         <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Inherit"
-                       Href="/downloads" Size="Size.Large" title="Downloads"/> 
-        <MudIconButton Icon="@Icons.Material.Filled.DataArray" Color="Color.Inherit"
-                       Href="/home" Size="Size.Large" title="Dashboard"/>
-        <MudIconButton Icon="@Icons.Material.Filled.NewLabel" Color="Color.Inherit"
+                       Href="/downloads" Size="Size.Large" title="Downloads"/>
+        <MudIconButton Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Inherit"
                        Href="/account/register" Size="Size.Large" title="Register"/>
-        <MudButton StartIcon="@Icons.Material.Filled.Login" Color="Color.Tertiary" ButtonType="ButtonType.Button" Variant="Variant.Filled">
-            Login
-        </MudButton>
-    </div>
-</MudAppBar>
-<MudAppBar Color="Color.Primary" ToolBarClass="mud-width-full toolbar" Class="mud-width-full logo-container appbar-top">
-    <div class="pa-0 ma-5 d-flex align-center">
-        <MudImage Src="/img/Icon.png" Alt="Icon" Class="logo mr-7"/>
-        <MudText Typo="Typo.h4">Onyx</MudText>
-    </div>
-</MudAppBar>
-<MudAppBar Color="Color.Primary" Fixed="true" ToolBarClass="mud-width-full toolbar" Class="mud-width-full logo-container mud-appbar-fixed-bottom appbar-bottom">
-    <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Inherit"
-                   Href="/downloads" Size="Size.Large" title="Downloads"/>
-    <MudIconButton Icon="@Icons.Material.Filled.NewLabel" Color="Color.Inherit"
-                   Href="/account/register" Size="Size.Large" title="Register"/>
-    <MudIconButton Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit"
-                   Href="/account/login" Size="Size.Large" title="Login"/>
-</MudAppBar>
+        <MudIconButton Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit"
+                       Href="/account/login" Size="Size.Large" title="Login"/>
+    </MudAppBar>
 
-<div class="content ma-0 pa-0 mud-width-full">
-    @Body
-</div>
+    <div class="content web-landing ma-0 pa-0 mud-width-full">
+        @Body
+    </div>
+}

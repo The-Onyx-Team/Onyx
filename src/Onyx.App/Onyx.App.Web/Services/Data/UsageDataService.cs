@@ -44,9 +44,22 @@ public class UsageDataService(ApplicationDbContext dbContext, CurrentUser curren
             })
             .ToListAsync();
 
-        // SQLite hands DateTimes back with Kind=Unspecified; they are stored as UTC.
+        // The user's own names and categories (AppOverrides) replace the reported ones.
+        var overrides = await dbContext.AppOverrides
+            .Where(o => o.UserId == userId)
+            .ToDictionaryAsync(o => o.AppId);
+
         foreach (var row in rows)
+        {
+            // SQLite hands DateTimes back with Kind=Unspecified; they are stored as UTC.
             row.Date = DateTime.SpecifyKind(row.Date, DateTimeKind.Utc);
+
+            if (overrides.TryGetValue(row.AppId, out var own))
+            {
+                row.AppName = own.DisplayName ?? row.AppName;
+                row.Category = own.Category ?? row.Category;
+            }
+        }
 
         return rows;
     }

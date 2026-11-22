@@ -18,4 +18,7 @@ public interface IServerSettings
     /// </summary>
     /// <returns>Null on success, otherwise a message for the user.</returns>
     Task<string?> SetServerUrlAsync(string url);
+
+    /// <summary>Public information of the current server; null if it can't be reached.</summary>
+    Task<Onyx.Data.ApiSchema.ServerInfoDto?> GetInfoAsync();
 }

@@ -16,6 +16,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Usage> Usages { get; set; }
     public DbSet<RegisteredApp> RegisteredApps { get; set; }
     public DbSet<WebsiteExclusion> WebsiteExclusions { get; set; }
+    public DbSet<AppOverride> AppOverrides { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -55,6 +56,23 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasOne(a => a.User)
             .WithMany()
             .HasForeignKey(a => a.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // One override per user and app. Both parents cascade; they share no ancestor, so SQL Server accepts it.
+        builder.Entity<AppOverride>()
+            .HasIndex(a => new { a.UserId, a.AppId })
+            .IsUnique();
+
+        builder.Entity<AppOverride>()
+            .HasOne(a => a.User)
+            .WithMany()
+            .HasForeignKey(a => a.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<AppOverride>()
+            .HasOne(a => a.App)
+            .WithMany()
+            .HasForeignKey(a => a.AppId)
             .OnDelete(DeleteBehavior.Cascade);
 
         //RegisteredApps Table config

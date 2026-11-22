@@ -36,6 +36,8 @@ docker run -d -p 127.0.0.1:8080:8080 -v onyx_data:/app/data -e ASPNETCORE_FORWAR
 | `ConnectionStrings__mail` | `smtp://host:port` (no TLS) or `smtps://user:password@host:587` (STARTTLS, password URL-encoded) for confirmation and password reset emails. Without it no emails are sent. |
 | `Mail__From` | Sender address for those emails. Use one your SMTP server may send as. |
 | `Onyx__AllowRegistration` | `true` (default) or `false`. Off blocks new accounts (password and external login); existing users can still sign in. |
+| `Onyx__Operator` / `Onyx__ContactEmail` | Who runs the server and where to send privacy requests. Shown in the privacy policy (web and apps). |
+| `Onyx__Reports__Python` | Python interpreter for the weekly report charts (default `python3`, which needs matplotlib). The Docker image includes both. Without it, reports are shown without charts. |
 | `KeyDirectory` | Where the signing and data-protection keys are kept (`/app/data` in the image). |
 | `Authentication__{Google,Microsoft,GitHub}__ClientId` / `__ClientSecret` | Optional external logins; each is enabled only when both values are set. |
 
@@ -76,3 +78,18 @@ its sign-in cookie is `Secure`. Browsers only accept that over plain HTTP on `lo
 
 On the phone, turn on **Always-on VPN** for the VPN app. Otherwise Android's background upload (every
 30 minutes) fails while the VPN is down. It retries later and loses nothing, since Android keeps the usage history.
+
+## Updating the server
+
+Data lives in the volumes (`onyx_data`: keys and, with SQLite, the database; `onyx_sqlserver_data`: SQL Server),
+so replacing the container keeps everything. Migrations run when the new version starts.
+
+```bash
+git pull                     # when building from source
+docker compose up -d --build # or: docker compose pull && docker compose up -d (prebuilt image)
+docker compose logs -f app   # "Database initialization completed" means the migrations ran
+```
+
+Never run `docker compose down -v`: `-v` deletes the volumes, and with them all accounts, usage data and keys. A
+backup before larger updates is cheap: `docker run --rm -v onyx_data:/d -v "$PWD":/b alpine tar czf /b/onyx_data.tgz -C /d .`
+(the same for `onyx_sqlserver_data`).

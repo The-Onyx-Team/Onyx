@@ -15,6 +15,7 @@ public static class AppEndpoints
 
         group.MapGet("/", GetAppsAsync).Produces<List<AppDto>>();
         group.MapPut("/icon", SetIconAsync);
+        group.MapPut("/{appId:int}/override", SetOverrideAsync);
 
         return group;
     }
@@ -31,6 +32,23 @@ public static class AppEndpoints
             return await appManager.SetIconAsync(dto.AppIdentifier, dto.IconPng)
                 ? Results.NoContent()
                 : Results.Conflict("Unknown app or icon already set");
+        }
+        catch (ArgumentException e)
+        {
+            return Results.BadRequest(e.Message);
+        }
+    }
+
+    public static async Task<IResult> SetOverrideAsync(
+        int appId,
+        [FromBody] AppOverrideDto dto,
+        [FromServices] IAppManager appManager)
+    {
+        try
+        {
+            return await appManager.SetOverrideAsync(appId, dto.DisplayName, dto.Category)
+                ? Results.NoContent()
+                : Results.NotFound();
         }
         catch (ArgumentException e)
         {
