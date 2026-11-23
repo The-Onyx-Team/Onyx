@@ -35,8 +35,9 @@ public record AvatarDto(string ContentType, byte[] Data);
 /// <param name="HostingLocation">Where the server runs, e.g. "Germany"; null when not configured.</param>
 /// <param name="EmailProvider">Service that delivers the server's emails, e.g. "SMTP2GO"; null when not configured.</param>
 /// <param name="SendsEmail">Whether the server sends emails at all (confirmation, password reset).</param>
+/// <param name="Version">The server's Onyx version, e.g. <c>0.0+3f2a1b9</c>.</param>
 public record ServerInfoDto(string? Operator, string? ContactEmail, bool AllowRegistration,
-    string? HostingLocation = null, string? EmailProvider = null, bool SendsEmail = false);
+    string? HostingLocation = null, string? EmailProvider = null, bool SendsEmail = false, string? Version = null);
 
 public record ConfirmEmailDto(string UserId, string Code);
 public record ResetPasswordDto(string UserId, string Code, string Password);

@@ -20,6 +20,7 @@ const string usage = """
       run            Collect usage and upload it (what the systemd service runs).
       status         Show sign-in state, detected desktop session and pending data.
       logout         Forget the tokens. Pending data is kept.
+      version        Show the agent's version.
       websites on|off
                      Record which website the browser shows (domain only). Needs the Onyx browser
                      extension; 'on' registers the agent with the installed browsers. Restart the
@@ -42,11 +43,27 @@ return args.FirstOrDefault() switch
     "run" => await RunAsync(),
     "status" => await StatusAsync(),
     "logout" => await LogoutAsync(),
+    "version" or "--version" => PrintVersion(),
     "websites" => Websites(args[1..]),
     // Started by the browser through the launcher script NativeHostRegistration writes.
     "native-host" => await NativeHostAsync(),
     _ => Usage()
 };
+
+int PrintVersion()
+{
+    Console.WriteLine($"onyx-agent {AgentVersion()}");
+    return 0;
+}
+
+static string AgentVersion()
+{
+    var text = System.Reflection.CustomAttributeExtensions
+        .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(AgentConfig).Assembly)
+        ?.InformationalVersion ?? "unknown";
+    var plus = text.IndexOf('+');
+    return plus < 0 ? text : $"{text[..plus]} ({text[(plus + 1)..Math.Min(text.Length, plus + 8)]})";
+}
 
 int Usage()
 {
@@ -208,6 +225,7 @@ async Task<int> StatusAsync()
     var signedIn = config is not null && await new FileCredentialStore().LoadAsync() is not null;
     var (source, _, description) = DetectSession();
 
+    Console.WriteLine($"Version:   {AgentVersion()}");
     Console.WriteLine($"Server:    {config?.ServerUrl ?? "(not configured)"}");
     Console.WriteLine($"Device:    {config?.EffectiveDeviceName ?? Environment.MachineName}");
     Console.WriteLine($"Signed in: {(signedIn ? "yes" : "no")}");

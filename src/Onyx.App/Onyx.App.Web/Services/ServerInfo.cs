@@ -11,7 +11,8 @@ public static class ServerInfo
         options.AllowRegistration,
         Clean(options.HostingLocation),
         Clean(options.EmailProvider),
-        sendsEmail);
+        sendsEmail,
+        Onyx.App.Shared.Services.AppVersion.Of(typeof(ServerInfo).Assembly).Full);
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

@@ -12,7 +12,6 @@
         <AssemblyName>onyx-agent</AssemblyName>
         <RootNamespace>Onyx.Collector.Linux</RootNamespace>
         <InvariantGlobalization>true</InvariantGlobalization>
-        <Version>1.0.0</Version>
     </PropertyGroup>
 
     <ItemGroup>

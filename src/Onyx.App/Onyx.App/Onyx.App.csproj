@@ -31,7 +31,7 @@
         <ApplicationTitle>Onyx</ApplicationTitle>
         <ApplicationId>com.onyx-team.onyx.app</ApplicationId>
 
-        <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+        <ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
         <ApplicationVersion>1</ApplicationVersion>
 
         <WindowsPackageType>None</WindowsPackageType>

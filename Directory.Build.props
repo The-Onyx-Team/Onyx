@@ -1,0 +1,11 @@
+<Project>
+    <!-- The Onyx version, shared by the server, the apps and the Linux agent, and shown on the About page.
+         Tag releases with the same number (v0.0). Release builds pass -p:Version from the tag instead.
+         The informational version also carries the git commit (".NET adds +<sha> automatically"). -->
+    <PropertyGroup>
+        <OnyxVersion>0.0</OnyxVersion>
+        <Version Condition="'$(Version)' == ''">$(OnyxVersion)</Version>
+        <Authors>The Onyx Team</Authors>
+        <Product>Onyx</Product>
+    </PropertyGroup>
+</Project>

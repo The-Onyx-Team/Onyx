@@ -109,3 +109,11 @@ cp packaging/linux/onyx-agent.service packaging/linux/install.sh out/onyx-agent/
 Don't run `onyx-agent logout` for an update: it deletes the stored sign-in and the key.
 
 The first version with end-to-end encryption needs `onyx-agent unlock` once after the update (see above).
+
+## See also
+
+- [End-to-End Encryption](Encryption.md)
+- [Websites](Websites.md)
+- [Self-Hosting](Self-Hosting.md)
+- [Releasing](Releasing.md)
+- [Overview of all articles](General.md)

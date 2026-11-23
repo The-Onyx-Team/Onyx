@@ -30,6 +30,9 @@
                                Color="Color.Inherit" OnClick="@(() => MainLayout.IsDarkMode = !MainLayout.IsDarkMode)"
                                aria-label="Switch theme"/>
             </MudTooltip>
+            <MudTooltip Text="@($"About Onyx {AppVersion.Current.Number}")">
+                <MudIconButton Icon="@Icons.Material.Outlined.Info" Color="Color.Inherit" Href="/about" aria-label="About"/>
+            </MudTooltip>
             <MudTooltip Text="Account">
                 <MudIconButton Icon="@Icons.Material.Outlined.AccountCircle" Color="Color.Inherit"
                                Href="/account/manage/profile" aria-label="Account"/>

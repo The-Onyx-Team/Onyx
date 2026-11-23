@@ -1,0 +1,91 @@
+@page "/about"
+@using Onyx.Data.ApiSchema
+@layout LandingPageLayout
+@inject IServerSettings ServerSettings
+@inject IPlatformService PlatformService
+
+<PageTitle>About · Onyx</PageTitle>
+
+<div class="public-page">
+<article class="doc-sheet about-sheet">
+    <header class="doc-header about-header">
+        <img src="_content/Onyx.App.Shared/img/Icon.png" alt="" class="about-logo"/>
+        <div>
+            <div class="doc-brand">ONYX</div>
+            <h1>Onyx @s_App.Number</h1>
+            <p class="doc-subtitle">Screen time across your devices, end-to-end encrypted.</p>
+        </div>
+    </header>
+
+    <section class="doc-section">
+        <h2>Version</h2>
+        <dl class="doc-values">
+            <dt>This @(PlatformService.IsMaui() ? "app" : "web app")</dt>
+            <dd>@s_App.Number@(s_App.Commit is { } commit ? $" · build {commit}" : "")</dd>
+            <dt>Running on</dt>
+            <dd>@PlatformService.Description</dd>
+            <dt>Server</dt>
+            <dd>@ServerSettings.ServerUrl</dd>
+            <dt>Server version</dt>
+            <dd>
+                @if (m_Loading)
+                {
+                    <span>checking…</span>
+                }
+                else if (m_Server is null)
+                {
+                    <span>not reachable</span>
+                }
+                else
+                {
+                    @m_Server.Full
+                    @if (m_Server.Number != s_App.Number)
+                    {
+                        <div class="about-warning">
+                            The app and the server have different versions. Update the older one to avoid problems.
+                        </div>
+                    }
+                }
+            </dd>
+            <dt>Operator</dt>
+            <dd>@(m_Info?.Operator ?? "not specified")</dd>
+        </dl>
+    </section>
+
+    <section class="doc-section">
+        <h2>Links</h2>
+        <ul class="about-links">
+            <li><a href="https://the-onyx-team.github.io/Onyx/" target="_blank" rel="noopener">Documentation</a></li>
+            <li><a href="https://github.com/The-Onyx-Team/Onyx" target="_blank" rel="noopener">Source code</a></li>
+            <li><a href="@($"https://github.com/The-Onyx-Team/Onyx/releases/tag/v{s_App.Number}")" target="_blank" rel="noopener">Release notes for @s_App.Number</a></li>
+            <li><a href="https://the-onyx-team.github.io/Onyx/encryption.html" target="_blank" rel="noopener">How the encryption works</a></li>
+            <li><a href="privacy">Privacy policy of this server</a></li>
+            <li><a href="downloads">Downloads</a></li>
+        </ul>
+    </section>
+
+    <section class="doc-section">
+        <h2>License</h2>
+        <p>
+            Onyx is free software under the GNU Affero General Public License v3.0 (AGPL-3.0): you may use, study,
+            change and share it. If you run a changed version as a service, you must offer its source code to your
+            users.
+        </p>
+    </section>
+</article>
+</div>
+
+@code {
+    private static readonly AppVersion s_App = AppVersion.Current;
+
+    private ServerInfoDto? m_Info;
+    private AppVersion? m_Server;
+    private bool m_Loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        m_Info = await ServerSettings.GetInfoAsync();
+        m_Server = m_Info?.Version is { } version ? AppVersion.Parse(version) : null;
+        m_Loading = false;
+    }
+}

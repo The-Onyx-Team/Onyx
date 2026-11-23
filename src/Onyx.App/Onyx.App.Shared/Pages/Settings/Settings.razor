@@ -208,9 +208,14 @@
             Android uploads about every 30 minutes when online; Windows and the Linux agent every 5 minutes.
             What is collected and why: <MudLink Href="/privacy" Typo="Typo.body2">privacy policy</MudLink>.
         </MudText>
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Description" Href="/account/manage/personal-data">
-            Personal data report
-        </MudButton>
+        <div class="d-flex flex-wrap gap-2">
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Description" Href="/account/manage/personal-data">
+                Personal data report
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Info" Href="/about">
+                About Onyx @AppVersion.Current.Number
+            </MudButton>
+        </div>
     </MudPaper>
 
     <MudPaper Class="pa-4 settings-section danger-zone" Elevation="0" Outlined="true">

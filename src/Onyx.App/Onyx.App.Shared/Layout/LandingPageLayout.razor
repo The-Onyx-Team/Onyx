@@ -11,7 +11,7 @@
     {
         <header class="public-header compact">
             <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Inherit" Edge="Edge.Start"
-                           OnClick="@(() => NavigationManager.NavigateTo("/home"))" aria-label="Back"/>
+                           OnClick="@(() => NavigationManager.NavigateTo(m_Back))" aria-label="Back"/>
             <img src="_content/Onyx.App.Shared/img/Icon.png" alt="" class="public-logo"/>
             <span class="public-brand">Onyx</span>
         </header>
@@ -39,12 +39,26 @@
     @if (!PlatformService.IsMaui())
     {
         <footer class="public-footer">
-            <span>Onyx · open source (AGPL-3.0) · end-to-end encrypted</span>
+            <span>Onyx @AppVersion.Current.Number · open source (AGPL-3.0) · end-to-end encrypted</span>
             <span class="public-footer-links">
                 <a href="/privacy">Privacy policy</a>
                 <a href="/downloads">Downloads</a>
+                <a href="/about">About</a>
                 <a href="https://the-onyx-team.github.io/Onyx/" target="_blank" rel="noopener">Documentation</a>
             </span>
         </footer>
     }
 </div>
+
+@code {
+    // In the apps, public pages are opened from inside the app or from the sign-in page.
+    [CascadingParameter] private Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState>? Auth { get; set; }
+
+    private string m_Back = "/home";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Auth is not null && (await Auth).User.Identity?.IsAuthenticated != true)
+            m_Back = "/account/login";
+    }
+}

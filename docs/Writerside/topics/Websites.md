@@ -26,20 +26,19 @@ Browser extension ──native messaging──▶ native host ──local pipe�
 5. **Upload**: buckets are keyed by app, domain and hour. A browser's hour becomes several `UsageEntryDto`s with
    a `Domain`; the time without a website has none. They add up to the browser's time.
 
-The collectors fetch the user's excluded websites before each upload and drop those domains locally; the server
-drops them too, in case a collector has an old list.
+The collectors read the user's excluded websites from the encrypted settings before each upload and drop those
+domains locally. The server can't: everything about websites is end-to-end encrypted ([Encryption](Encryption.md)).
 
 ## Server
 
-- `Usage.Domain` is part of the unique index (device, app, domain, hour). It is `""` for time without a website,
-  not `NULL`, because SQLite treats NULLs in a unique index as distinct.
-- **An upload replaces whole app hours**: rows of an (app, hour) in the upload that the upload doesn't contain are
-  deleted. Collectors therefore always send complete hours (`PendingUsageStore.Acknowledge` keeps or drops an app's
-  hour as a whole, `OnyxApiClient.ChunkByHour` never splits an hour across requests). This keeps totals right when
-  a collector re-sends an hour after its websites were excluded or deleted on the server.
-- `WebsiteExclusions` holds the excluded domains per user (subdomains included). `GET/PUT /api/websites/exclusions`
-  and `DELETE /api/websites/history` back the Settings page. Excluding a domain or deleting the history moves the
-  time to the hour's row without a domain, so browser totals stay the same.
+- The domains travel inside the encrypted usage rows: one row per device, app and hour, with the time per website
+  inside it. The server stores the row without being able to read it.
+- **An upload replaces whole app hours**: a row replaces the stored row of the same app and hour. Collectors
+  therefore always send complete hours (`PendingUsageStore.Acknowledge` keeps or drops an app's hour as a whole,
+  `OnyxApiClient.ChunkByHour` never splits an hour across requests).
+- Excluded websites are part of the encrypted settings. Excluding a domain or deleting the history is done by the
+  dashboard: it decrypts the affected rows, moves their time to the browser's time without a website, encrypts
+  them again and uploads them (`E2EWebsiteSettings`), so browser totals stay the same.
 
 ## Turning it on
 
@@ -61,3 +60,10 @@ The native host only accepts the extension ids listed in its manifest:
 - Chromium: the unpacked build has the fixed id `nkgaflfkpndlfchgfnjmjdkjdfpihnei` (from the `key` in
   `manifest.json`). The Chrome Web Store and Edge Add-ons assign their own ids when the extension is published; add
   them to `BrowserBridge.ChromeExtensionIds` and ship a new app/agent version, which rewrites the manifests on start.
+
+## See also
+
+- [Linux Agent](Linux-Agent.md)
+- [End-to-End Encryption](Encryption.md)
+- [Self-Hosting](Self-Hosting.md)
+- [Overview of all articles](General.md)

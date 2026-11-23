@@ -24,3 +24,10 @@ dotnet ef migrations add
 
 1. Based on the solution directory
 2. Make sure to replace the MigrationName with the name of your Migration (use CamelCase)
+
+## See also
+
+- [Developer Documentation](Developer-Documentation.md)
+- [Self-Hosting](Self-Hosting.md)
+- [End-to-End Encryption](Encryption.md)
+- [Overview of all articles](General.md)

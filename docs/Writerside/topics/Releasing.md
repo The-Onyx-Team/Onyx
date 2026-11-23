@@ -1,5 +1,28 @@
 # Releasing
 
+## Versions
+
+The version number lives in one place, `Directory.Build.props` at the repository root (`OnyxVersion`, currently
+**0.0**). The server, the apps and the Linux agent are built with it; .NET adds the git commit to the
+informational version, so every build is identifiable. It shows on:
+
+- the **About** page (`/about`, linked from the app bar, the account menu, Settings, the sign-in page and the
+  website footer), with the app's version, the server's version (from `GET /api/info`) and a warning when they
+  differ;
+- `onyx-agent version` and `onyx-agent status`;
+- the Android app's version name.
+
+To release a new version, raise `OnyxVersion`, commit, and tag the same number:
+
+```bash
+git tag -a v0.1 -m "Onyx 0.1"
+git push origin v0.1        # starts the release workflow below
+```
+
+The release workflow passes the tag's number as `-p:Version`, so a tagged build always shows the tag.
+
+## Release builds
+
 Pushing a version tag builds every device app and publishes a GitHub release
 (`.github/workflows/release.yml`):
 
@@ -52,3 +75,11 @@ Browser extension (see [Websites](Websites.md)):
 Microsoft Store: package the Windows app as MSIX (`WindowsPackageType=MSIX`) with the Identity values from
 Partner Center in `Platforms/Windows/Package.appxmanifest`. For direct downloads, sign `Onyx.App.exe`
 (for example with Azure Trusted Signing) so SmartScreen does not block it.
+
+## See also
+
+- [Android App](Android-App.md)
+- [Linux Agent](Linux-Agent.md)
+- [Developer Documentation](Developer-Documentation.md)
+- [Development Backlog](Onyx_Internal_Developer_Docs.md)
+- [Overview of all articles](General.md)

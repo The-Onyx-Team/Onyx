@@ -61,3 +61,11 @@ phone and choose **Update**.
 
 The first update to the version with end-to-end encryption asks for the passphrase once. Until then nothing is
 uploaded; Android keeps the history, and the app uploads it after you unlock.
+
+## See also
+
+- [Self-Hosting](Self-Hosting.md)
+- [End-to-End Encryption](Encryption.md)
+- [Releasing](Releasing.md)
+- [Android Emulation](Android-Emulation.md)
+- [Overview of all articles](General.md)

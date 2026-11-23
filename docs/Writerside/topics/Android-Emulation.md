@@ -1,4 +1,4 @@
-# Android App
+# Android Emulation
 
 This guide will focus on the JetBrains Rider integration with Android Emulation.
 
@@ -23,3 +23,9 @@ To connect to a physical phone, you need to enable USB Debugging on your phone a
 Alternatively, you can use the "ADB" tool to connect to your phone over the network.
 
 Hint: Rider also has a nice UI for that, check the top navbar for the device selector!
+
+## See also
+
+- [Android App](Android-App.md)
+- [Developer Documentation](Developer-Documentation.md)
+- [Overview of all articles](General.md)

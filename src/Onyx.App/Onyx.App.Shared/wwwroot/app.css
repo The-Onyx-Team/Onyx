@@ -890,6 +890,39 @@ code {
     }
 }
 
+/* About page */
+
+.about-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.about-logo {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+}
+
+.about-warning {
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: #F6E3C4;
+    color: #5C3A06;
+    font-size: 0.88rem;
+}
+
+.about-links {
+    columns: 2;
+}
+
+@media (max-width: 700px) {
+    .about-links {
+        columns: 1;
+    }
+}
+
 /* ---------------------------------------------------------------- Weekly report: pearl paper in both themes */
 
 .report-sheet {
