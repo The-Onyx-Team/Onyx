@@ -2,104 +2,106 @@
 @layout LandingPageLayout
 @inject IPlatformService PlatformService
 
-<style>
-    .container {
-        scroll-snap-type: y mandatory;
-        overflow-y: scroll;
-        height: 100vh;
-    }
-
-    .section {
-        height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        scroll-snap-align: start;
-        padding: 2rem;
-        flex-wrap: wrap;
-    }
-
-    .section-content {
-        flex: 1;
-        min-width: 300px;
-        padding: 1rem;
-    }
-
-    .image-container {
-        flex: 1;
-        min-width: 300px;
-        height: 400px;
-        border-radius: 12px;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-size: contain;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        margin: 1rem;
-    }
-
-    .bg-login {
-        background-image: url('img/LoginBackground.png');
-        background-size: cover;
-        background-position: center;
-        height: 100vh;
-        width: 100%;
-        position: absolute;
-        top: 0;
-        left: 0;
-        z-index: -1;
-        opacity: 0.08;
-    }
-
-    .present-image1 {
-        background-image: url('img/Dashboard.png');
-    }
-
-    .present-image2 {
-        background-image: url('img/Test2.png');
-    }
-</style>
+<PageTitle>Onyx · Screen time across your devices, encrypted end to end</PageTitle>
 
 <AuthorizeView>
     <Authorized>
-        <RedirectToHome />
+        <RedirectToHome/>
     </Authorized>
     <NotAuthorized>
         @if (PlatformService.IsMaui())
         {
-            @* The apps start at the login page; the landing page is for the website. *@
+            @* The apps start at the sign-in page; the landing page is for the website. *@
             <RedirectToLogin/>
         }
         else
         {
-        <div class="container mud-width-full">
-            <div class="section">
-                <div class="bg-login"></div>
-                <div class="section-content" style="z-index: 1; text-align: center; color: white;">
-                    <h1 style="font-size: xxx-large">Willkommen bei der Onyx App</h1>
-                    <p style="font-size: large">Bitte <a href="/account/login" style="color: #C58848;">logge dich ein</a>, um fortzufahren.</p>
+            <section class="hero">
+                <div class="hero-strata" aria-hidden="true"></div>
+                <div class="hero-content">
+                    <div class="hero-badge"><MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Small"/> End-to-end encrypted · self-hostable</div>
+                    <h1>Your screen time,<br/><span class="hero-accent">every device, one view.</span></h1>
+                    <p class="hero-lead">
+                        Onyx records which apps you use on your phone and computers and shows it in one dashboard, with
+                        goals, streaks and friends to keep you honest. Encrypted on your devices: not even the server can read it.
+                    </p>
+                    <div class="hero-actions">
+                        <MudButton Href="/account/register" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large">Get started, it's free</MudButton>
+                        <MudButton Href="/downloads" Variant="Variant.Outlined" Size="Size.Large" Class="hero-secondary">Download the apps</MudButton>
+                    </div>
+                    <div class="hero-platforms">
+                        <span><i class="fa-brands fa-android"></i> Android</span>
+                        <span><i class="fa-brands fa-windows"></i> Windows</span>
+                        <span><i class="fa-brands fa-linux"></i> Linux</span>
+                        <span><i class="fa-solid fa-globe"></i> Web</span>
+                    </div>
                 </div>
-            </div>
+                <div class="hero-visual" aria-hidden="true">
+                    <div class="mock-card">
+                        <div class="mock-top"><span></span><span></span><span></span></div>
+                        <div class="mock-stat"><small>Screen time today</small><strong>3 h 12 min</strong></div>
+                        <div class="mock-bars">
+                            @foreach (var h in s_MockBars)
+                            {
+                                <i style="height: @(h)%"></i>
+                            }
+                        </div>
+                        <div class="mock-goal"><span>🔥 12</span> At most 2 h a day on the phone</div>
+                        <div class="mock-rows">
+                            <div><b style="width: 78%"></b><span>Firefox</span></div>
+                            <div><b style="width: 52%"></b><span>Obsidian</span></div>
+                            <div><b style="width: 31%"></b><span>Signal</span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-            <div class="section">
-                <div class="section-content">
-                    <MudText Color="Color.Secondary" Typo="Typo.h3">Alles auf einen Blick</MudText>
-                    <MudText Typo="Typo.body1">
-                        Verwalte die Bildschirmzeit all deiner Geräte an einem Ort – effizient, zentral und übersichtlich.
-                    </MudText>
+            <section id="features" class="landing-section">
+                <h2>Everything in one place</h2>
+                <p class="section-lead">Onyx collects quietly in the background and turns it into something you can act on.</p>
+                <div class="feature-grid">
+                    @foreach (var feature in s_Features)
+                    {
+                        <div class="feature-card">
+                            <div class="feature-icon"><MudIcon Icon="@feature.Icon"/></div>
+                            <h3>@feature.Title</h3>
+                            <p>@feature.Text</p>
+                        </div>
+                    }
                 </div>
-                <div class="image-container present-image1"></div>
-            </div>
+            </section>
 
-            <div class="section">
-                <div class="image-container present-image2"></div>
-                <div class="section-content">
-                    <MudText Color="Color.Secondary" Typo="Typo.h3">Zeit sinnvoll nutzen</MudText>
-                    <MudText Typo="Typo.body1">
-                        Analysiere dein Nutzungsverhalten und gewinne Zeit für die wirklich wichtigen Dinge im Leben.
-                    </MudText>
+            <section id="privacy" class="landing-section privacy-band">
+                <div class="band-strata" aria-hidden="true"></div>
+                <h2>Private by design</h2>
+                <p class="section-lead">What you do on your devices is nobody's business. Onyx is built so that it stays that way.</p>
+                <div class="steps">
+                    <div class="step"><span>1</span><h3>Encrypted on your device</h3><p>Usage, app names, goals and settings are encrypted with your key before they are uploaded.</p></div>
+                    <div class="step"><span>2</span><h3>Stored, not read</h3><p>The server keeps the encrypted data in sync between your devices, but has no key to read it.</p></div>
+                    <div class="step"><span>3</span><h3>Yours to keep or delete</h3><p>Download everything as PDF or JSON, or delete your account, at any time.</p></div>
                 </div>
-            </div>
-        </div>
+                <MudButton Href="/privacy" Variant="Variant.Text" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward">Read the privacy policy</MudButton>
+            </section>
+
+            <section class="landing-section cta">
+                <h2>Know where your time goes</h2>
+                <p class="section-lead">Create an account, install Onyx on your devices, and see your first day tomorrow.</p>
+                <MudButton Href="/account/register" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large">Create your account</MudButton>
+            </section>
         }
     </NotAuthorized>
 </AuthorizeView>
+
+@code {
+    private static readonly int[] s_MockBars = [8, 12, 5, 0, 0, 0, 4, 22, 46, 61, 38, 55, 70, 42, 30, 58, 66, 49, 72, 85, 64, 40, 18, 9];
+
+    private static readonly (string Icon, string Title, string Text)[] s_Features =
+    [
+        (Icons.Material.Outlined.Devices, "Every device", "Android, Windows and Linux in one dashboard. The same app on your phone and computer counts together."),
+        (Icons.Material.Outlined.Lock, "End-to-end encrypted", "Only your devices hold the key. The server, and whoever runs it, can't read your data."),
+        (Icons.Material.Outlined.Flag, "Goals and streaks", "Set limits or targets per day or week, for an app, a category or a device, and keep your streak alive."),
+        (Icons.Material.Outlined.Group, "Friends and groups", "Compare screen time with friends, encrypted for each of them. You decide what they see."),
+        (Icons.Material.Outlined.Assessment, "Weekly reports", "Trends, categories, busiest hours and devices on one printable page, with week numbers."),
+        (Icons.Material.Outlined.Dns, "Self-hostable", "Run your own server with Docker. Open source under the AGPL."),
+    ];
+}

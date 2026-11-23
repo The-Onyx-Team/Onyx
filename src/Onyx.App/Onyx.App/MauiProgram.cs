@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Maui.LifecycleEvents;
 using MudBlazor.Services;
 using Onyx.App.Services;
-using Onyx.App.Services.Api;
 using Onyx.App.Services.Auth;
 using Onyx.App.Services.Collection;
 using Onyx.App.Shared.Services;
@@ -28,37 +27,27 @@ namespace Onyx.App
             // The server is picked at runtime (login page); ServerUrlHandler points every request at it.
             builder.Services.AddSingleton<ServerSettings>();
             builder.Services.AddSingleton<IServerSettings>(sp => sp.GetRequiredService<ServerSettings>());
-            builder.Services.AddTransient<ServerUrlHandler>();
-            builder.Services.AddHttpClient<HttpClientWrapper>(c => c.BaseAddress = ServerUrlHandler.Placeholder)
-                .AddHttpMessageHandler<ServerUrlHandler>();
-            builder.Services.AddScoped<AuthApi>();
+            builder.Services.AddHttpClient();
 
             builder.Services.AddMauiBlazorWebView();
             builder.Services.AddMudServices();
+            builder.Services.AddOnyxClient();
             builder.Services.AddSingleton<IStorage, MauiStorage>();
-
-            builder.Services.AddSingleton<AuthenticationService>();
-            builder.Services.AddScoped<AuthenticationStateProvider, MauiAuthenticationStateProvider>();
-            builder.Services.AddAuthorizationCore();
-            builder.Services.AddSingleton<IUserManager, UserManager>();
+            builder.Services.AddSingleton<IFileSaver, MauiFileSaver>();
+            builder.Services.AddSingleton<IIconFetcher, DirectIconFetcher>();
 
             // Authenticated API access shared by the dashboard and the collectors. It uses the session the login
-            // stores and refreshes its tokens itself.
-            builder.Services.AddSingleton<ICredentialStore, MauiCredentialStore>();
+            // stores and refreshes its tokens itself; the encryption key is stored with it.
+            builder.Services.AddSingleton<AuthenticationService>();
+            builder.Services.AddSingleton<MauiCredentialStore>();
+            builder.Services.AddSingleton<ICredentialStore>(sp => sp.GetRequiredService<MauiCredentialStore>());
+            builder.Services.AddSingleton<IVaultKeyOptions>(sp => sp.GetRequiredService<MauiCredentialStore>());
             builder.Services.AddSingleton(sp => new OnyxApiClient(
                 new HttpClient(new ServerUrlHandler(sp.GetRequiredService<ServerSettings>())
                     { InnerHandler = new HttpClientHandler() })
                     { BaseAddress = ServerUrlHandler.Placeholder, Timeout = TimeSpan.FromSeconds(60) },
                 sp.GetRequiredService<ICredentialStore>(),
                 sp.GetRequiredService<ILogger<OnyxApiClient>>()));
-
-            builder.Services.AddScoped<IDeviceManager, ApiDeviceManager>();
-            builder.Services.AddScoped<IUsageDataService, ApiUsageDataService>();
-            builder.Services.AddScoped<IAppManager, ApiAppManager>();
-            builder.Services.AddScoped<IWebsiteSettings, ApiWebsiteSettings>();
-            builder.Services.AddScoped<IProfileService, ApiProfileService>();
-            builder.Services.AddScoped<IReportService, ApiReportService>();
-            builder.Services.AddScoped<Onyx.App.Shared.Services.Dashboard.ClientTimeZone>();
 
             // Platform Service
             builder.Services.AddScoped<IPlatformService, MauiPlatformService>();

@@ -2,7 +2,7 @@ using Onyx.Data.ApiSchema;
 
 namespace Onyx.App.Shared.Services.Usage;
 
-/// <summary>Weekly usage reports with charts (rendered on the server with Python and matplotlib).</summary>
+/// <summary>Weekly usage reports with charts, built on this device from the decrypted data.</summary>
 public interface IReportService
 {
     /// <param name="weekStart">Monday of the week, in <paramref name="zone"/>.</param>

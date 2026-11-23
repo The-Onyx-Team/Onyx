@@ -17,6 +17,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<RegisteredApp> RegisteredApps { get; set; }
     public DbSet<WebsiteExclusion> WebsiteExclusions { get; set; }
     public DbSet<AppOverride> AppOverrides { get; set; }
+    public DbSet<UserVaultEntity> UserVaults { get; set; }
+    public DbSet<EncryptedUsage> EncryptedUsages { get; set; }
+    public DbSet<EncryptedApp> EncryptedApps { get; set; }
+    public DbSet<Friendship> Friendships { get; set; }
+    public DbSet<SharedStat> SharedStats { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -105,6 +110,71 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .WithMany()
             .HasForeignKey(a => a.UserId);
         builder.Entity<GroupHasUser>().HasKey(a => new { a.GroupId, a.UserId });
+
+        // Memberships that existed before invitations count as accepted.
+        builder.Entity<GroupHasUser>()
+            .Property(a => a.Accepted)
+            .HasDefaultValue(true);
+
+        // End-to-end encrypted data. Rows that point at two users (friendships, shares) don't cascade: SQL Server
+        // allows only one cascade path from a table, so AccountDeletion removes them before the user.
+        builder.Entity<UserVaultEntity>()
+            .HasOne(a => a.User)
+            .WithOne()
+            .HasForeignKey<UserVaultEntity>(a => a.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<EncryptedUsage>()
+            .HasOne(a => a.Device)
+            .WithMany()
+            .HasForeignKey(a => a.DeviceId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // An upload replaces the row of an app's hour on a device.
+        builder.Entity<EncryptedUsage>()
+            .HasIndex(a => new { a.DeviceId, a.Hour, a.Tag })
+            .IsUnique();
+
+        builder.Entity<EncryptedApp>().HasKey(a => new { a.UserId, a.Tag });
+
+        builder.Entity<EncryptedApp>()
+            .HasOne(a => a.User)
+            .WithMany()
+            .HasForeignKey(a => a.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Friendship>()
+            .HasOne(a => a.Requester)
+            .WithMany()
+            .HasForeignKey(a => a.RequesterId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<Friendship>()
+            .HasOne(a => a.Addressee)
+            .WithMany()
+            .HasForeignKey(a => a.AddresseeId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<Friendship>()
+            .HasIndex(a => new { a.RequesterId, a.AddresseeId })
+            .IsUnique();
+
+        builder.Entity<SharedStat>().HasKey(a => new { a.OwnerId, a.RecipientId, a.PeriodStart });
+
+        builder.Entity<SharedStat>()
+            .HasOne(a => a.Owner)
+            .WithMany()
+            .HasForeignKey(a => a.OwnerId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<SharedStat>()
+            .HasOne(a => a.Recipient)
+            .WithMany()
+            .HasForeignKey(a => a.RecipientId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<SharedStat>()
+            .HasIndex(a => new { a.RecipientId, a.PeriodStart });
         //Devices Table config
         builder.Entity<Device>()
             .HasOne(a => a.User)

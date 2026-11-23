@@ -2,7 +2,7 @@ namespace Onyx.Data.ApiSchema;
 
 /// <summary>
 /// Usage of one week (Monday to Sunday in the user's time zone) with comparisons to the week before and a trend
-/// over the last <see cref="TrendWeeks"/> weeks. Charts are SVG images rendered by the server.
+/// over the last <see cref="TrendWeeks"/> weeks. Charts are SVG, drawn on the device from the decrypted data.
 /// </summary>
 public record WeeklyReportDto
 {
@@ -29,7 +29,7 @@ public record WeeklyReportDto
     /// and <c>device-{id}</c> per device.</summary>
     public Dictionary<string, string> Charts { get; init; } = [];
 
-    /// <summary>Why charts are missing, e.g. Python or matplotlib not installed on the server.</summary>
+    /// <summary>Why charts are missing, if they are.</summary>
     public string? ChartError { get; init; }
 }
 

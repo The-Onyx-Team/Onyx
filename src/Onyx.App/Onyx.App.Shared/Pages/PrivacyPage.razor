@@ -6,87 +6,276 @@
 <PageTitle>Privacy policy · Onyx</PageTitle>
 
 @*
-    REVIEW BEFORE PUBLISHING: this describes what the code collects as of this version. The operator and contact
-    come from the server settings (Onyx__Operator, Onyx__ContactEmail); the legal basis and retention period
-    should be checked by someone qualified (GDPR, Google Play and Microsoft Store requirements).
+    This text describes what this version of Onyx does. The operator's details come from the server settings
+    (Onyx__Operator, Onyx__ContactEmail, Onyx__HostingLocation, Onyx__EmailProvider). When the text changes in a
+    way that needs new consent, raise PrivacyPolicy.Version.
 *@
 
-<div class="landing-page-body">
-<MudContainer MaxWidth="MaxWidth.Medium" Class="py-6 privacy-policy">
-    <MudText Typo="Typo.h4" Class="mb-1">Privacy policy</MudText>
-    <MudText Typo="Typo.body2" Class="mb-4" Style="color: var(--mud-palette-text-secondary)">
-        For the Onyx server at @ServerSettings.ServerUrl
-    </MudText>
+<div class="public-page">
+<article class="doc-sheet legal">
+    <header class="doc-header">
+        <div class="doc-brand">ONYX</div>
+        <h1>Privacy policy</h1>
+        <p class="doc-subtitle">
+            Version @PrivacyPolicy.Version · for the Onyx server at @ServerSettings.ServerUrl
+        </p>
+    </header>
 
-    <MudPaper Class="pa-5" Elevation="1">
+    <nav class="legal-toc" aria-label="Contents">
+        <ol>
+            @foreach (var (id, title) in s_Sections)
+            {
+                <li><a href="@($"privacy#{id}")">@title</a></li>
+            }
+        </ol>
+    </nav>
 
-    <MudText Typo="Typo.h6" Class="mb-1 privacy-heading">What Onyx collects</MudText>
-    <MudText Class="mb-2">The Onyx apps record which apps you use and for how long, so you can see it on your dashboard. For each device they upload:</MudText>
-    <ul class="mb-3" style="padding-left: 1.5rem">
-        <li>the name and platform of the device (for example "Pixel 9", Android), chosen when it registers;</li>
-        <li>for every hour: which apps were in the foreground and for how many minutes;</li>
-        <li>for each app: its identifier (package or program name), display name, category reported by the system, and icon;</li>
-        <li>only if you turn on website recording on a computer: for every hour, which websites (domain only, such
-            as "github.com") were open in the active browser tab and for how many minutes.</li>
-    </ul>
-    <MudText Class="mb-2">
-        Onyx does <b>not</b> record what you do inside apps: no window titles, full web addresses, page contents,
-        messages, keystrokes, screenshots or location. Time while the device is locked or idle for five minutes is not counted on
-        computers; on Android, Onyx reads the usage history the system keeps.
-    </MudText>
-    <MudText Class="mb-2">
-        For your account Onyx stores your user name, email address and a hash of your password (never the password
-        itself), and, if you use them, phone number and two-factor settings.
-    </MudText>
+    <section id="controller" class="doc-section">
+        <h2><span class="doc-number">1</span> Who is responsible</h2>
+        <p>
+            The controller within the meaning of Art. 4(7) of the General Data Protection Regulation (GDPR) for this
+            Onyx server is:
+        </p>
+        <address class="legal-box">
+            @if (m_Info?.Operator is { } op)
+            {
+                @foreach (var line in op.Split(',', StringSplitOptions.TrimEntries))
+                {
+                    @line<br/>
+                }
+            }
+            else
+            {
+                <span>The person or organisation running this server (the operator has not entered their details yet).</span>
+            }
+            @if (m_Info?.ContactEmail is { } email)
+            {
+                <span>Email: <a href="mailto:@email">@email</a></span>
+            }
+        </address>
+        <p>
+            Onyx is open-source software (AGPL-3.0). Anyone can run their own Onyx server; this policy covers only this
+            server. Its operator does not need, and cannot get, access to your usage data: it is end-to-end encrypted
+            (<a href="privacy#encryption">section 4</a>).
+        </p>
+    </section>
 
-    <MudText Typo="Typo.h6" Class="mt-5 mb-1 privacy-heading">Websites</MudText>
-    <MudText Class="mb-2">
-        Website recording is off by default and turned on separately on each computer. It needs the Onyx Websites
-        browser extension, which reads the address of the active tab, reduces it to the domain, and passes the
-        domain only to the Onyx app on the same computer (never directly to the internet). Private windows are never
-        recorded. The list of websites you visit can reveal sensitive information, such as health, religious or
-        political views; you can exclude websites, delete the website history at any time in the settings, and
-        turn recording off again. Your excluded websites are stored with your account so every device respects them.
-    </MudText>
+    <section id="overview" class="doc-section">
+        <h2><span class="doc-number">2</span> In short</h2>
+        <ul>
+            <li>Onyx shows you which apps you use and for how long, across your phone and computers.</li>
+            <li>Your usage, app names, settings, goals and what you share with friends are encrypted on your devices.
+                The server stores them but cannot read them.</li>
+            <li>Onyx has no advertising, no analytics and no tracking, and sells nothing to anyone.</li>
+            <li>You can see, download and delete all your data at any time.</li>
+        </ul>
+    </section>
 
-    <MudText Typo="Typo.h6" Class="mt-5 mb-1 privacy-heading">Permissions</MudText>
-    <MudText Class="mb-2">
-        On Android, Onyx needs "usage access", which you grant in the system settings, to read which apps were used.
-        It reads the list of installed launcher apps to show their names and icons.
-    </MudText>
+    <section id="data" class="doc-section">
+        <h2><span class="doc-number">3</span> What is processed, why, and on what legal basis</h2>
+        <div class="doc-table-wrap">
+            <table class="doc-table legal-table">
+                <thead>
+                <tr><th>Data</th><th>Purpose</th><th>Legal basis</th><th>Readable by the server</th></tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td data-label="Data"><b>Account:</b> user name, email address, a hash of your password (never the password itself),
+                        optionally phone number, profile picture and two-factor settings; when you created the account
+                        and agreed to this policy.</td>
+                    <td data-label="Purpose">Your account; signing in; confirmation and password reset emails.</td>
+                    <td data-label="Legal basis">Art. 6(1)(b) GDPR (contract)</td>
+                    <td data-label="Readable by the server">yes</td>
+                </tr>
+                <tr>
+                    <td data-label="Data"><b>Usage:</b> for every hour, which apps were in the foreground on which of your devices and for
+                        how many minutes; each app's identifier (package or program name), name, category and icon.</td>
+                    <td data-label="Purpose">Your dashboard, reports and goals.</td>
+                    <td data-label="Legal basis">Art. 6(1)(a) GDPR (your consent) and Art. 6(1)(b)</td>
+                    <td data-label="Readable by the server">no (encrypted)</td>
+                </tr>
+                <tr>
+                    <td data-label="Data"><b>Websites</b> (only if you turn it on for a computer): for every hour, which website domains
+                        (such as "github.com", never the full address) were open in the active browser tab and for how
+                        long.</td>
+                    <td data-label="Purpose">Splitting browser time by website.</td>
+                    <td data-label="Legal basis">Art. 6(1)(a) and, as websites can reveal health, religion or political views, Art. 9(2)(a)
+                        GDPR (explicit consent, given when you turn it on)</td>
+                    <td data-label="Readable by the server">no (encrypted)</td>
+                </tr>
+                <tr>
+                    <td data-label="Data"><b>Your settings:</b> your own app names, categories, hidden apps, excluded websites, goals and
+                        sharing settings.</td>
+                    <td data-label="Purpose">Applying them on all your devices.</td>
+                    <td data-label="Legal basis">Art. 6(1)(b)</td>
+                    <td data-label="Readable by the server">no (encrypted)</td>
+                </tr>
+                <tr>
+                    <td data-label="Data"><b>Devices:</b> name and platform of each device (for example "Pixel 9", Android), and when it last
+                        uploaded.</td>
+                    <td data-label="Purpose">Telling your devices apart; showing whether collection works.</td>
+                    <td data-label="Legal basis">Art. 6(1)(b)</td>
+                    <td data-label="Readable by the server">yes</td>
+                </tr>
+                <tr>
+                    <td data-label="Data"><b>Friends and groups:</b> who you are friends with or share a group with; your user name and
+                        profile picture are shown to them. The numbers you choose to share (screen time, and if you
+                        choose, categories, goals and streaks; never apps or websites).</td>
+                    <td data-label="Purpose">Comparing with friends.</td>
+                    <td data-label="Legal basis">Art. 6(1)(a)</td>
+                    <td data-label="Readable by the server">relationships yes; shared numbers no (encrypted for each recipient)</td>
+                </tr>
+                <tr>
+                    <td data-label="Data"><b>Connection data:</b> your IP address and the time of requests.</td>
+                    <td data-label="Purpose">Delivering the service; protecting sign-in and registration against abuse (rate limiting).</td>
+                    <td data-label="Legal basis">Art. 6(1)(f) GDPR (legitimate interest in a secure service)</td>
+                    <td data-label="Readable by the server">yes, briefly (see section 7)</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p>
+            Onyx does <b>not</b> record what you do inside apps: no window titles, full web addresses, page contents,
+            messages, keystrokes, screenshots or location. On computers, time while the device is locked or idle for
+            five minutes is not counted; on Android, Onyx reads the usage history the system keeps anyway.
+        </p>
+    </section>
 
-    <MudText Typo="Typo.h6" Class="mt-5 mb-1 privacy-heading">Who can see it</MudText>
-    <MudText Class="mb-2">
-        Your usage data is visible to you when signed in, and stored on the Onyx server operated by
-        <b>@(m_Info?.Operator ?? "the person or organisation running this server")</b>. It is not sold or shared with third parties. App icons are
-        stored once per app and shared between accounts; they contain no personal data.
-    </MudText>
+    <section id="encryption" class="doc-section">
+        <h2><span class="doc-number">4</span> End-to-end encryption</h2>
+        <p>
+            When you set up Onyx, your device creates a random key. Everything in the "no (encrypted)" rows above is
+            encrypted with it (AES-256-GCM) before it leaves your device, and only decrypted on your devices. The
+            server stores the key only in a form locked with your passphrase (PBKDF2, 600,000 rounds), which the
+            server never receives. Numbers you share with a friend are encrypted with a key only the two of you can
+            compute (ECDH P-256); you can compare "safety codes" to make sure nobody swapped keys.
+        </p>
+        <p>
+            What the server can still see: your account data, your devices, at which hours data was uploaded and how
+            many apps were used in them (not which ones or for how long), and who your friends and groups are.
+        </p>
+        <p>
+            If you forget your passphrase and lose your recovery key, nobody, including the operator, can restore your
+            data.
+        </p>
+    </section>
 
-    <MudText Typo="Typo.h6" Class="mt-5 mb-1 privacy-heading">Deleting your data</MudText>
-    <MudText Class="mb-2">
-        Removing a device on the Devices page deletes all usage it uploaded. Deleting your account in the profile
-        settings deletes the account, all devices and all usage data. "Delete website history" in the settings removes
-        the websites from all usage data while keeping the browser time. Uninstalling the app stops collection; data
-        already uploaded stays until you delete it.
-    </MudText>
+    <section id="recipients" class="doc-section">
+        <h2><span class="doc-number">5</span> Who receives data</h2>
+        <ul>
+            <li><b>The operator</b> of this server stores the data@(m_Info?.HostingLocation is { } location ? $", in {location}" : "").
+                Anyone the operator uses to host the server processes it on their behalf (Art. 28 GDPR).</li>
+            @if (m_Info?.SendsEmail == true)
+            {
+                <li><b>Email delivery:</b> confirmation and password reset emails are sent
+                    @(m_Info.EmailProvider is { } provider ? $"through {provider}" : "through an email delivery service")
+                    , which receives your email address and the email's content.</li>
+            }
+            <li><b>External logins:</b> if you sign in with Google, Microsoft or GitHub, that provider learns that you
+                signed in to this server, and sends it your email address.</li>
+            <li><b>Friends</b> you accept and <b>groups</b> you join see your user name, profile picture and the numbers
+                you choose to share.</li>
+        </ul>
+        <p>Nothing is sold, used for advertising or shared with anyone else.</p>
+    </section>
 
-    <MudText Typo="Typo.h6" Class="mt-5 mb-1 privacy-heading">Contact</MudText>
-    <MudText>
-        Questions and requests about your data:
-        @if (m_Info?.ContactEmail is { } email)
-        {
-            <MudLink Href="@($"mailto:{email}")">@email</MudLink>
-        }
-        else
-        {
-            <span>the operator of this server.</span>
-        }
-    </MudText>
-    </MudPaper>
-</MudContainer>
+    <section id="transfers" class="doc-section">
+        <h2><span class="doc-number">6</span> Transfers outside the EU</h2>
+        <p>
+            Your encrypted data stays on this server. If the email delivery service or an external login provider is
+            located outside the European Union, data is transferred there only to the extent described in section 5,
+            on the basis of an adequacy decision of the European Commission (Art. 45 GDPR) or standard contractual
+            clauses (Art. 46(2)(c) GDPR).
+        </p>
+    </section>
+
+    <section id="retention" class="doc-section">
+        <h2><span class="doc-number">7</span> How long data is kept</h2>
+        <ul>
+            <li>Account, usage and settings: until you delete them. Removing a device deletes all data it uploaded;
+                deleting your account deletes everything, including friendships, groups you run and shared numbers.</li>
+            <li>Numbers shared with friends: 12 weeks, or until the friendship or group ends.</li>
+            <li>Connection data: Onyx keeps IP addresses only in memory, for rate limiting, for about a minute. If the
+                operator runs a reverse proxy in front of the server that logs requests, those logs are kept only as
+                long as needed to keep the server secure.</li>
+            <li>Data from before end-to-end encryption was introduced is encrypted on your device the next time you
+                unlock Onyx, and the readable copy is then deleted from the server.</li>
+        </ul>
+    </section>
+
+    <section id="storage" class="doc-section">
+        <h2><span class="doc-number">8</span> Cookies and storage on your device</h2>
+        <p>
+            Onyx uses no tracking or advertising cookies. It stores only what it needs to work (Art. 5(3) ePrivacy
+            Directive, "strictly necessary"): your sign-in tokens, your theme, and, if you choose "stay unlocked", your
+            encryption key, in your browser's local storage or the app's secure storage. Signing in with an external
+            login sets a short-lived cookie for that step. Signing out removes the tokens and the key.
+        </p>
+    </section>
+
+    <section id="permissions" class="doc-section">
+        <h2><span class="doc-number">9</span> Permissions of the apps</h2>
+        <ul>
+            <li><b>Android:</b> "usage access", which you grant in the system settings, to read which apps were used;
+                the list of launcher apps, to show their names and icons.</li>
+            <li><b>Windows and Linux:</b> the name of the program in the foreground window, and how long keyboard and
+                mouse were idle.</li>
+            <li><b>Browser extension</b> (optional): the address of the active tab, reduced to the domain and handed only
+                to the Onyx app on the same computer, never sent to the internet by the extension. Private windows are
+                never recorded.</li>
+        </ul>
+    </section>
+
+    <section id="rights" class="doc-section">
+        <h2><span class="doc-number">10</span> Your rights</h2>
+        <p>You have the right to:</p>
+        <ul>
+            <li><b>access</b> your data (Art. 15 GDPR): the <a href="account/manage/personal-data">personal data report</a> shows
+                everything, as PDF;</li>
+            <li><b>rectification</b> (Art. 16): change your profile, app names and settings at any time;</li>
+            <li><b>erasure</b> (Art. 17): delete devices, website history or your whole account in the settings;</li>
+            <li><b>restriction of processing</b> (Art. 18) and <b>objection</b> (Art. 21) to processing based on
+                legitimate interest;</li>
+            <li><b>data portability</b> (Art. 20): download all your data as JSON from the personal data report;</li>
+            <li><b>withdraw your consent</b> at any time with effect for the future (Art. 7(3)): turn off website
+                recording, stop sharing, or delete your account;</li>
+            <li><b>lodge a complaint</b> with a supervisory authority (Art. 77), in particular in the EU member state
+                where you live or work, or where the operator is established.</li>
+        </ul>
+        <p>
+            For anything else, contact the operator
+            @if (m_Info?.ContactEmail is { } contact)
+            {
+                <span>at <a href="mailto:@contact">@contact</a></span>
+            }
+            .
+        </p>
+    </section>
+
+    <section id="other" class="doc-section">
+        <h2><span class="doc-number">11</span> Other information</h2>
+        <ul>
+            <li><b>Required data:</b> an email address and a password (or an external login) are needed for an account.
+                Collecting usage is the purpose of Onyx, but each device only collects once you set it up.</li>
+            <li><b>No automated decisions</b> or profiling within the meaning of Art. 22 GDPR take place.</li>
+            <li><b>Children:</b> if you are under 16, please use Onyx only with the consent of a parent or guardian
+                (Art. 8 GDPR).</li>
+            <li><b>Changes:</b> when this policy changes in a way that matters, it gets a new version and you are asked
+                to agree again before you continue.</li>
+        </ul>
+    </section>
+</article>
 </div>
 
 @code {
+    private static readonly (string Id, string Title)[] s_Sections =
+    [
+        ("controller", "Who is responsible"), ("overview", "In short"), ("data", "What is processed, why, and on what legal basis"),
+        ("encryption", "End-to-end encryption"), ("recipients", "Who receives data"), ("transfers", "Transfers outside the EU"),
+        ("retention", "How long data is kept"), ("storage", "Cookies and storage on your device"),
+        ("permissions", "Permissions of the apps"), ("rights", "Your rights"), ("other", "Other information")
+    ];
+
     private ServerInfoDto? m_Info;
 
     protected override async Task OnInitializedAsync() => m_Info = await ServerSettings.GetInfoAsync();

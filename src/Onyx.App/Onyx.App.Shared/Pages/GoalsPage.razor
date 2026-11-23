@@ -1,0 +1,138 @@
+@page "/goals"
+@using Onyx.App.Shared.Services.Dashboard
+@using Onyx.App.Shared.Services.Goals
+@using Onyx.App.Shared.Components.Goals
+@using Onyx.Collector.Core.Crypto
+@layout AppLayout
+@attribute [Authorize]
+@inject GoalService Goals
+@inject ClientTimeZone ClientTimeZone
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Goals · Onyx</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+    <div class="d-flex align-center flex-wrap gap-2 mb-4">
+        <div>
+            <MudText Typo="Typo.h5">Goals</MudText>
+            <MudText Typo="Typo.body2" Class="text-muted">
+                Limits to stay under, or targets to reach, per day or week. Every period in a row that meets a goal
+                adds to its streak.
+            </MudText>
+        </div>
+        <MudSpacer/>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => EditAsync(null)">
+            New goal
+        </MudButton>
+    </div>
+
+    @if (m_Progress is null)
+    {
+        <MudProgressLinear Indeterminate="true"/>
+    }
+    else if (m_Progress.Count == 0)
+    {
+        <div class="empty-state">
+            <MudIcon Icon="@Icons.Material.Outlined.Flag" Size="Size.Large"/>
+            <MudText Typo="Typo.h6" Class="mt-2">No goals yet</MudText>
+            <MudText Class="mb-3">For example: at most 2 hours a day on your phone, or at least 30 minutes of reading.</MudText>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="() => EditAsync(null)">Set a goal</MudButton>
+        </div>
+    }
+    else
+    {
+        <MudGrid Spacing="3">
+            @foreach (var goal in m_Progress)
+            {
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4 goal-card" Elevation="0" Outlined="true">
+                        <div class="d-flex align-start gap-2">
+                            <div style="flex: 1; min-width: 0">
+                                <MudText Typo="Typo.subtitle1" Style="font-weight: 600">@goal.Title</MudText>
+                                <MudText Typo="Typo.body2" Class="text-muted">
+                                    @(goal.Goal.Period == GoalPeriod.Day ? "Today" : "This week"):
+                                    @UsageSummary.Format(goal.Current) of @UsageSummary.Format(goal.Target)
+                                </MudText>
+                            </div>
+                            <MudChip T="string" Size="Size.Small" Color="@(goal.OnTrack ? Color.Success : Color.Warning)" Variant="Variant.Outlined">
+                                @Status(goal)
+                            </MudChip>
+                            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true" Size="Size.Small" aria-label="More">
+                                <MudMenuItem OnClick="() => EditAsync(goal.Goal)">Edit</MudMenuItem>
+                                <MudMenuItem OnClick="() => DeleteAsync(goal.Goal)">Delete</MudMenuItem>
+                            </MudMenu>
+                        </div>
+                        <MudProgressLinear Class="my-3" Rounded="true" Size="Size.Medium"
+                                           Color="@(goal.OnTrack ? Color.Success : Color.Warning)" Value="@(Math.Min(goal.Ratio, 1) * 100)"/>
+                        <div class="d-flex align-center gap-4 flex-wrap">
+                            <div class="streak-big" title="Current streak">
+                                <span class="streak-flame">🔥</span>
+                                <span class="streak-number">@goal.Streak</span>
+                                <span class="text-muted">@(goal.Goal.Period == GoalPeriod.Day ? "days" : "weeks") in a row</span>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-muted">Best: @goal.BestStreak</MudText>
+                        </div>
+                        <GoalHistory Progress="goal"/>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private List<GoalProgress>? m_Progress;
+    private TimeZoneInfo m_Zone = TimeZoneInfo.Local;
+    private DateOnly m_Today;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+        m_Zone = await ClientTimeZone.GetAsync();
+        m_Today = await ClientTimeZone.TodayAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            m_Progress = await Goals.EvaluateAsync(m_Zone, m_Today);
+        }
+        catch (Exception e)
+        {
+            m_Progress = [];
+            Snackbar.Add($"Could not load the goals: {e.Message}", Severity.Error);
+        }
+
+        StateHasChanged();
+    }
+
+    private static string Status(GoalProgress goal) => (goal.Goal.Direction, goal.OnTrack) switch
+    {
+        (GoalDirection.AtMost, true) => "on track",
+        (GoalDirection.AtMost, false) => "over the limit",
+        (_, true) => "reached",
+        _ => "not yet"
+    };
+
+    private async Task EditAsync(GoalSettings? goal)
+    {
+        var parameters = new DialogParameters<GoalDialog> { { d => d.Goal, goal }, { d => d.Today, m_Today } };
+        var dialog = await DialogService.ShowAsync<GoalDialog>(goal is null ? "New goal" : "Edit goal", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        if (await dialog.Result is { Canceled: false })
+            await LoadAsync();
+    }
+
+    private async Task DeleteAsync(GoalSettings goal)
+    {
+        if (await DialogService.ShowMessageBox("Delete goal", "Delete this goal and its streak?",
+                yesText: "Delete", cancelText: "Cancel") != true)
+            return;
+        await Goals.DeleteAsync(goal.Id);
+        await LoadAsync();
+    }
+}

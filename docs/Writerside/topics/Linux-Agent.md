@@ -37,6 +37,19 @@ onyx-agent status
 journalctl --user -u onyx-agent
 ```
 
+`onyx-agent login` asks for your password and then your **encryption passphrase** (the one you chose in the
+browser or app). The agent encrypts everything before uploading, so it needs the key; it is kept in
+`~/.config/onyx/credentials.json` (mode 600). If your account has no encryption yet, sign in once in the browser
+or app first. For an agent that was signed in before encryption existed, run:
+
+```bash
+onyx-agent unlock                 # or: onyx-agent unlock --recovery-key
+systemctl --user restart onyx-agent
+```
+
+Without the key the agent keeps recording into its queue and uploads once it is unlocked; `onyx-agent status`
+shows `Encrypted: no key yet`.
+
 ## Starting at login
 
 `install.sh` enables the systemd user service `onyx-agent.service`, which starts together with
@@ -93,4 +106,6 @@ cp packaging/linux/onyx-agent.service packaging/linux/install.sh out/onyx-agent/
 (cd out/onyx-agent && ./install.sh)
 ```
 
-Don't run `onyx-agent logout` for an update: it deletes the stored sign-in.
+Don't run `onyx-agent logout` for an update: it deletes the stored sign-in and the key.
+
+The first version with end-to-end encryption needs `onyx-agent unlock` once after the update (see above).

@@ -5,52 +5,34 @@
 @layout AuthNavLayout
 @inject IPlatformService PlatformService
 
-<PageTitle>Login · Onyx</PageTitle>
+<PageTitle>Sign in · Onyx</PageTitle>
 
 @if (!PlatformService.IsMaui())
 {
-    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
-                   Class="auth-back"
-                   Href="/"
-                   Color="Color.Primary"/>
+    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Class="auth-back" Href="/" Color="Color.Primary" aria-label="Back"/>
 }
 
-<MudText Typo="Typo.h4"
-         Class="mb-3">Login</MudText>
+<MudText Typo="Typo.h4" Class="mb-1">Sign in</MudText>
+<MudText Typo="Typo.body2" Class="mb-3 text-muted">Your data stays end-to-end encrypted.</MudText>
 <ServerPicker/>
-<EditForm Model="m_LoginModel" OnValidSubmit="Submit"
-          FormName="LoginForm">
+<EditForm Model="m_LoginModel" OnValidSubmit="Submit" FormName="LoginForm">
     <DataAnnotationsValidator/>
-    <ValidationSummary/>
 
-    <MudTextField Class="mb-3" Label="Email" Variant="Variant.Outlined"
-                  @bind-Value="m_LoginModel.Email"
-                  AdornmentColor="Color.Primary"
-                  InputType="InputType.Email"/>
-    <MudTextField Class="" Label="Password" Variant="Variant.Outlined"
-                  @bind-Value="m_LoginModel.Password"
-                  AdornmentColor="Color.Primary"
-                  InputType="InputType.Password"/>
-    <MudLink Class="mb-3 d-flex justify-end" Href="/account/resetPassword"
-             Underline="Underline.Always"
-             Color="Color.Primary">Forgot Password?</MudLink>
-    <MudButton ButtonType="ButtonType.Submit"
-               Variant="Variant.Filled"
-               Class="rounded mud-button-full-width mb-3"
-               Disabled="m_Submitting"
-               Style="background-color: black; color: white">
-        @(m_Submitting ? "Signing in…" : "Login")
+    <MudTextField Class="mb-3" Label="Email" Variant="Variant.Outlined" @bind-Value="m_LoginModel.Email"
+                  For="@(() => m_LoginModel.Email)" InputType="InputType.Email" autocomplete="username"/>
+    <MudTextField Label="Password" Variant="Variant.Outlined" @bind-Value="m_LoginModel.Password"
+                  For="@(() => m_LoginModel.Password)" InputType="InputType.Password" autocomplete="current-password"/>
+    <MudLink Class="mb-3 mt-1 d-flex justify-end" Href="/account/resetPassword" Typo="Typo.body2">Forgot password?</MudLink>
+    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+               Size="Size.Large" Class="mb-3" Disabled="m_Submitting">
+        @(m_Submitting ? "Signing in…" : "Sign in")
     </MudButton>
 </EditForm>
 
-@if (!PlatformService.IsMaui())
-{
-    <ExternalLoginPicker/>
-}
+<ExternalLoginPicker ReturnUrl="@Target"/>
 
 <MudText Class="mt-5" Align="Align.Center">No account?
-    <MudLink Color="Color.Primary" Underline="Underline.Always"
-             Href="/account/register">Sign up</MudLink>
+    <MudLink Href="/account/register">Create one</MudLink>
 </MudText>
 
 @code {
@@ -80,11 +62,7 @@
         m_Submitting = true;
         try
         {
-            // The web app signs in with a form post that redirects to the target itself.
-            var result = await UserManager.LoginAsync(m_LoginModel.Email, m_LoginModel.Password, Target);
-            if (!PlatformService.IsMaui())
-                return;
-
+            var result = await UserManager.LoginAsync(m_LoginModel.Email, m_LoginModel.Password);
             if (result.Success)
                 NavigationManager.NavigateTo(Target);
             else
@@ -98,11 +76,10 @@
 
     public class LoginModel
     {
-        [EmailAddress]
-        [Required]
+        [EmailAddress, Required(ErrorMessage = "Enter your email address.")]
         public string Email { get; set; } = "";
-        
-        [Required]
+
+        [Required(ErrorMessage = "Enter your password.")]
         public string Password { get; set; } = "";
     }
 }

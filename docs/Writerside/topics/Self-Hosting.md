@@ -1,7 +1,10 @@
 # Self-Hosting
 
 The web dashboard and the API that the apps upload to are one ASP.NET Core app, shipped as the Docker image
-`ghcr.io/the-onyx-team/onyx:latest` (built from `master`).
+`ghcr.io/the-onyx-team/onyx:latest` (built from `master`). The dashboard runs in the browser (Blazor WebAssembly):
+usage data is end-to-end encrypted, so the server stores it without being able to read it (see
+[Encryption](Encryption.md)). Serve it over **HTTPS**: browsers only offer the encryption functions on secure
+connections (or on `localhost`).
 
 ## With Docker Compose and SQL Server
 
@@ -36,8 +39,9 @@ docker run -d -p 127.0.0.1:8080:8080 -v onyx_data:/app/data -e ASPNETCORE_FORWAR
 | `ConnectionStrings__mail` | `smtp://host:port` (no TLS) or `smtps://user:password@host:587` (STARTTLS, password URL-encoded) for confirmation and password reset emails. Without it no emails are sent. |
 | `Mail__From` | Sender address for those emails. Use one your SMTP server may send as. |
 | `Onyx__AllowRegistration` | `true` (default) or `false`. Off blocks new accounts (password and external login); existing users can still sign in. |
-| `Onyx__Operator` / `Onyx__ContactEmail` | Who runs the server and where to send privacy requests. Shown in the privacy policy (web and apps). |
-| `Onyx__Reports__Python` | Python interpreter for the weekly report charts (default `python3`, which needs matplotlib). The Docker image includes both. Without it, reports are shown without charts. |
+| `Onyx__Operator` / `Onyx__ContactEmail` | Who runs the server (name and postal address, separated by commas) and where to send privacy requests. Shown in the privacy policy (web and apps), as GDPR requires. |
+| `Onyx__HostingLocation` | Where the server runs, e.g. `Austria`. Shown in the privacy policy. |
+| `Onyx__EmailProvider` | The service that delivers emails, e.g. `SMTP2GO (Australia)`. Shown in the privacy policy when mail is configured. |
 | `KeyDirectory` | Where the signing and data-protection keys are kept (`/app/data` in the image). |
 | `Authentication__{Google,Microsoft,GitHub}__ClientId` / `__ClientSecret` | Optional external logins; each is enabled only when both values are set. |
 
@@ -61,7 +65,8 @@ reverse proxy (as `docker-compose.yaml` does).
 - **Android / Windows:** the login and register pages show the server and a **Change** button. The app checks
   that `/alive` answers before it saves the address. A build can also start with your server preselected, see
   [Android App](Android-App.md).
-- **Linux:** `onyx-agent login --server https://onyx.example.com`.
+- **Linux:** `onyx-agent login --server https://onyx.example.com` (asks for the password and then the encryption
+  passphrase; `onyx-agent unlock` if the agent was signed in before).
 - **Web:** open the server's address in a browser.
 
 ## Private server behind a VPN
@@ -89,6 +94,10 @@ git pull                     # when building from source
 docker compose up -d --build # or: docker compose pull && docker compose up -d (prebuilt image)
 docker compose logs -f app   # "Database initialization completed" means the migrations ran
 ```
+
+The update to end-to-end encryption needs one step per user: sign in once in the browser or app and choose a
+passphrase. That device encrypts the existing data and the server deletes the readable copy. Then update the apps
+and run `onyx-agent unlock` on Linux. Details: [Encryption](Encryption.md#upgrading-an-existing-server).
 
 Never run `docker compose down -v`: `-v` deletes the volumes, and with them all accounts, usage data and keys. A
 backup before larger updates is cheap: `docker run --rm -v onyx_data:/d -v "$PWD":/b alpine tar czf /b/onyx_data.tgz -C /d .`

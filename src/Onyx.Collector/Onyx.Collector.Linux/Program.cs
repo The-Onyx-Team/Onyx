@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Onyx.Collector.Core;
 using Onyx.Collector.Core.Browser;
+using Onyx.Collector.Core.Crypto;
+using Onyx.Data.ApiSchema;
 using Onyx.Collector.Linux;
 using Onyx.Collector.Linux.Sources;
 
@@ -9,7 +11,12 @@ const string usage = """
 
       login [--server URL] [--email EMAIL] [--device-name NAME]
                      Sign in and save the server address. The password is read from the
-                     terminal, or from ONYX_PASSWORD when stdin is not a terminal.
+                     terminal, or from ONYX_PASSWORD when stdin is not a terminal. Then
+                     asks for your encryption passphrase (see unlock).
+      unlock [--recovery-key]
+                     Enter your encryption passphrase (or ONYX_PASSPHRASE) so the agent can
+                     encrypt what it uploads. Data is end-to-end encrypted; the key is kept
+                     in ~/.config/onyx/credentials.json (mode 600).
       run            Collect usage and upload it (what the systemd service runs).
       status         Show sign-in state, detected desktop session and pending data.
       logout         Forget the tokens. Pending data is kept.
@@ -31,6 +38,7 @@ var logger = loggerFactory.CreateLogger("onyx-agent");
 return args.FirstOrDefault() switch
 {
     "login" => await LoginAsync(args[1..]),
+    "unlock" => await UnlockAsync(args[1..]),
     "run" => await RunAsync(),
     "status" => await StatusAsync(),
     "logout" => await LogoutAsync(),
@@ -78,7 +86,58 @@ async Task<int> LoginAsync(string[] options)
 
     AgentFiles.SaveConfig(config);
     Console.WriteLine($"Signed in to {config.ServerUrl}. This device will appear as \"{config.EffectiveDeviceName}\".");
-    Console.WriteLine("Start collecting with: systemctl --user enable --now onyx-agent");
+    var unlocked = await UnlockAsync([]);
+    if (unlocked == 0)
+        Console.WriteLine("Start collecting with: systemctl --user enable --now onyx-agent");
+    return unlocked;
+}
+
+async Task<int> UnlockAsync(string[] options)
+{
+    if (AgentFiles.LoadConfig() is not { } config)
+    {
+        Console.Error.WriteLine("Not configured. Run 'onyx-agent login' first.");
+        return 78;
+    }
+
+    var client = CreateClient(config);
+    VaultDto? vault;
+    try
+    {
+        vault = await client.GetVaultInfoAsync();
+    }
+    catch (Exception e) when (e is NotSignedInException or HttpRequestException)
+    {
+        Console.Error.WriteLine($"Could not reach the server: {e.Message}");
+        return 1;
+    }
+
+    if (vault is null)
+    {
+        Console.Error.WriteLine("Your account has no encryption set up yet. Sign in once on the web dashboard or in the");
+        Console.Error.WriteLine("Onyx app, which asks you to choose a passphrase, then run: onyx-agent unlock");
+        return 2;
+    }
+
+    var useRecoveryKey = options.Contains("--recovery-key");
+    var secret = Console.IsInputRedirected
+        ? Environment.GetEnvironmentVariable(useRecoveryKey ? "ONYX_RECOVERY_KEY" : "ONYX_PASSPHRASE") ?? Console.ReadLine() ?? ""
+        : ReadSecret(useRecoveryKey ? "Recovery key" : "Encryption passphrase");
+
+    try
+    {
+        var unlocked = useRecoveryKey
+            ? await UserVault.UnlockWithRecoveryKeyAsync(DotNetCrypto.Instance, vault, secret)
+            : await UserVault.UnlockAsync(DotNetCrypto.Instance, vault, secret);
+        await client.StoreVaultKeyAsync(unlocked.Keys.MasterKey);
+    }
+    catch (System.Security.Cryptography.CryptographicException)
+    {
+        Console.Error.WriteLine(useRecoveryKey ? "That is not the recovery key of this account." : "Wrong passphrase.");
+        return 1;
+    }
+
+    Console.WriteLine("Unlocked: uploads are encrypted on this computer before they are sent.");
     return 0;
 }
 
@@ -152,6 +211,8 @@ async Task<int> StatusAsync()
     Console.WriteLine($"Server:    {config?.ServerUrl ?? "(not configured)"}");
     Console.WriteLine($"Device:    {config?.EffectiveDeviceName ?? Environment.MachineName}");
     Console.WriteLine($"Signed in: {(signedIn ? "yes" : "no")}");
+    var credentials = await new FileCredentialStore().LoadAsync();
+    Console.WriteLine($"Encrypted: {(credentials?.VaultKey is null ? "no key yet, run 'onyx-agent unlock'" : "yes, key on this computer")}");
     Console.WriteLine($"Session:   {description}{(source is null ? " (unsupported)" : "")}");
     Console.WriteLine($"Pending:   {new PendingUsageStore(AgentFiles.PendingPath).Count} hourly buckets");
     var hosts = NativeHostRegistration.Installed();
@@ -254,9 +315,11 @@ static string Prompt(string label, string? fallback)
     return string.IsNullOrEmpty(value) ? fallback ?? "" : value;
 }
 
-static string ReadPassword()
+static string ReadPassword() => ReadSecret("Password");
+
+static string ReadSecret(string label)
 {
-    Console.Write("Password: ");
+    Console.Write($"{label}: ");
     var password = new System.Text.StringBuilder();
     while (Console.ReadKey(intercept: true) is var key && key.Key != ConsoleKey.Enter)
     {

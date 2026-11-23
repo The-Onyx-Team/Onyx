@@ -11,8 +11,12 @@ COPY ./src/Onyx.Data/Onyx.Data.DataBaseSchema/Onyx.Data.DataBaseSchema.csproj ./
 RUN dotnet restore ./src/Onyx.Data/Onyx.Data.DataBaseSchema/Onyx.Data.DataBaseSchema.csproj
 COPY ./src/Onyx.Data/Onyx.Data.ApiSchema/Onyx.Data.ApiSchema.csproj ./src/Onyx.Data/Onyx.Data.ApiSchema/Onyx.Data.ApiSchema.csproj
 RUN dotnet restore ./src/Onyx.Data/Onyx.Data.ApiSchema/Onyx.Data.ApiSchema.csproj
+COPY ./src/Onyx.Collector/Onyx.Collector.Core/Onyx.Collector.Core.csproj ./src/Onyx.Collector/Onyx.Collector.Core/Onyx.Collector.Core.csproj
+RUN dotnet restore ./src/Onyx.Collector/Onyx.Collector.Core/Onyx.Collector.Core.csproj
 COPY ./src/Onyx.App/Onyx.App.Shared/Onyx.App.Shared.csproj ./src/Onyx.App/Onyx.App.Shared/Onyx.App.Shared.csproj
 RUN dotnet restore ./src/Onyx.App/Onyx.App.Shared/Onyx.App.Shared.csproj
+COPY ./src/Onyx.App/Onyx.App.Web.Client/Onyx.App.Web.Client.csproj ./src/Onyx.App/Onyx.App.Web.Client/Onyx.App.Web.Client.csproj
+RUN dotnet restore ./src/Onyx.App/Onyx.App.Web.Client/Onyx.App.Web.Client.csproj
 COPY ./src/Onyx.App/Onyx.App.Web/Onyx.App.Web.csproj ./src/Onyx.App/Onyx.App.Web/Onyx.App.Web.csproj
 RUN dotnet restore ./src/Onyx.App/Onyx.App.Web/Onyx.App.Web.csproj --no-cache
 
@@ -21,7 +25,9 @@ COPY ./src/Onyx.Data/Onyx.Data.SQLite/. ./src/Onyx.Data/Onyx.Data.SQLite/
 COPY ./src/Onyx.Data/Onyx.Data.SqlServer/. ./src/Onyx.Data/Onyx.Data.SqlServer/
 COPY ./src/Onyx.Data/Onyx.Data.DataBaseSchema/. ./src/Onyx.Data/Onyx.Data.DataBaseSchema/
 COPY ./src/Onyx.Data/Onyx.Data.ApiSchema/. ./src/Onyx.Data/Onyx.Data.ApiSchema/
+COPY ./src/Onyx.Collector/Onyx.Collector.Core/. ./src/Onyx.Collector/Onyx.Collector.Core/
 COPY ./src/Onyx.App/Onyx.App.Shared/. ./src/Onyx.App/Onyx.App.Shared/
+COPY ./src/Onyx.App/Onyx.App.Web.Client/. ./src/Onyx.App/Onyx.App.Web.Client/
 COPY ./src/Onyx.App/Onyx.App.Web/. ./src/Onyx.App/Onyx.App.Web/
 
 RUN dotnet publish -c Release -o /out ./src/Onyx.App/Onyx.App.Web/Onyx.App.Web.csproj
@@ -34,10 +40,6 @@ WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080 \
     KeyDirectory=/app/data \
     ConnectionStrings__SQLite="Data Source=/app/data/onyx.db"
-# Python with matplotlib renders the charts of the weekly reports (Reports/weekly_report.py).
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3 python3-matplotlib \
-    && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /app/data && chown "$APP_UID" /app/data
 VOLUME /app/data
 EXPOSE 8080

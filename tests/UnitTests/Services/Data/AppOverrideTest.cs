@@ -58,7 +58,7 @@ public sealed class AppOverrideTest : IDisposable
         {
             User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId)], "test"))
         }
-    }, new ServiceCollection().BuildServiceProvider());
+    });
 
     private AppManager Apps(string userId = "user-1") => new(m_Db, User(userId));
 

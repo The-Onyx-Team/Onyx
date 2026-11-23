@@ -2,40 +2,28 @@
 @layout AppLayout
 @inject NavigationManager NavigationManager
 
-<div class="auth-wrapper">
-    <div class="auth-nav" style="color: #A1A1A1">
-        <div class="auth-nav-item">
-            <MudText @onclick="@(() => NavigationManager.NavigateTo("/account/manage/profile"))">
-                Profile
-            </MudText>
-        </div>
-        <div class="auth-nav-item">
-            <MudText @onclick="@(() => NavigationManager.NavigateTo("/account/manage/changepassword"))">
-                Change Password
-            </MudText>
-        </div>
-        <div class="auth-nav-item">
-            <MudText @onclick="@(() => NavigationManager.NavigateTo("/account/manage/changephonenumber"))">
-                Change Phone Number
-            </MudText>
-        </div>
-        <div class="auth-nav-item">
-            <MudText @onclick="@(() => NavigationManager.NavigateTo("/account/manage/2fa"))">
-                2 Factor Authentication
-            </MudText>
-        </div>
-        <div class="auth-nav-item">
-            <MudText @onclick="@(() => NavigationManager.NavigateTo("/account/manage/external"))">
-                External Logins
-            </MudText>
-        </div>
-        <div class="auth-nav-item">
-            <MudText @onclick="@(() => NavigationManager.NavigateTo("TODO"))">
-                Personal Data
-            </MudText>
-        </div>
-    </div>
-    <div class="auth-content" style="overflow:hidden;">
+<div class="account-layout">
+    <nav class="account-nav" aria-label="Account">
+        @foreach (var (name, url) in s_Items)
+        {
+            <a href="@url" class="account-nav-item @(IsSelected(url) ? "selected" : "")">@name</a>
+        }
+    </nav>
+    <div class="account-content">
         @Body
     </div>
 </div>
+
+@code {
+    private static readonly (string Name, string Url)[] s_Items =
+    [
+        ("Profile", "/account/manage/profile"),
+        ("Password", "/account/manage/changepassword"),
+        ("External logins", "/account/manage/external"),
+        ("Two-factor", "/account/manage/2fa"),
+        ("Personal data", "/account/manage/personal-data"),
+    ];
+
+    private bool IsSelected(string url) =>
+        ("/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri)).StartsWith(url, StringComparison.OrdinalIgnoreCase);
+}

@@ -17,5 +17,11 @@ public sealed class OnyxServerOptions
     /// <summary>Contact address for privacy questions and data requests, shown in the privacy policy.</summary>
     public string? ContactEmail { get; set; }
 
+    /// <summary>Where the server runs (country, or hosting provider and country), shown in the privacy policy.</summary>
+    public string? HostingLocation { get; set; }
+
+    /// <summary>The service that delivers emails, if any (e.g. "SMTP2GO, Australia"), shown in the privacy policy.</summary>
+    public string? EmailProvider { get; set; }
+
     public const string RegistrationClosedMessage = "Registration is disabled on this server.";
 }

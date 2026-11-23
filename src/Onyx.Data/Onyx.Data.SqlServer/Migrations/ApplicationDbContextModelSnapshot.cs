@@ -17,7 +17,7 @@ namespace Onyx.Data.SqlServer.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.14")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -174,6 +174,9 @@ namespace Onyx.Data.SqlServer.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
@@ -203,6 +206,13 @@ namespace Onyx.Data.SqlServer.Migrations
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime?>("PrivacyConsentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PrivacyPolicyVersion")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
@@ -323,6 +333,96 @@ namespace Onyx.Data.SqlServer.Migrations
                     b.ToTable("Devices");
                 });
 
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.EncryptedApp", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Tag")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("UserId", "Tag");
+
+                    b.ToTable("EncryptedApps");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.EncryptedUsage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<int>("DeviceId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Hour")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Tag")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId", "Hour", "Tag")
+                        .IsUnique();
+
+                    b.ToTable("EncryptedUsage");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Friendship", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Accepted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("AddresseeId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RequesterId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AddresseeId");
+
+                    b.HasIndex("RequesterId", "AddresseeId")
+                        .IsUnique();
+
+                    b.ToTable("Friendships");
+                });
+
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.GroupHasUser", b =>
                 {
                     b.Property<int>("GroupId")
@@ -333,6 +433,16 @@ namespace Onyx.Data.SqlServer.Migrations
                         .HasMaxLength(450)
                         .HasColumnType("nvarchar(450)")
                         .HasColumnName("UserId");
+
+                    b.Property<bool>("Accepted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Accepted");
+
+                    b.Property<DateTime?>("InvitedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("InvitedAt");
 
                     b.HasKey("GroupId", "UserId");
 
@@ -407,6 +517,33 @@ namespace Onyx.Data.SqlServer.Migrations
                     b.ToTable("RegisteredApps");
                 });
 
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.SharedStat", b =>
+                {
+                    b.Property<string>("OwnerId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("RecipientId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateOnly>("PeriodStart")
+                        .HasColumnType("date");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("OwnerId", "RecipientId", "PeriodStart");
+
+                    b.HasIndex("RecipientId", "PeriodStart");
+
+                    b.ToTable("SharedStats");
+                });
+
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Usage", b =>
                 {
                     b.Property<string>("Id")
@@ -452,6 +589,54 @@ namespace Onyx.Data.SqlServer.Migrations
                         .IsUnique();
 
                     b.ToTable("Usage");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.UserVaultEntity", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("UserId");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("EncryptedPrivateKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("varbinary(256)");
+
+                    b.Property<int>("Iterations")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("PublicKey")
+                        .IsRequired()
+                        .HasMaxLength(65)
+                        .HasColumnType("varbinary(65)");
+
+                    b.Property<byte[]>("Salt")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varbinary(64)");
+
+                    b.Property<byte[]>("Settings")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<int>("SettingsVersion")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("WrappedKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("varbinary(256)");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserVaults");
                 });
 
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.WebsiteExclusion", b =>
@@ -564,6 +749,47 @@ namespace Onyx.Data.SqlServer.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.EncryptedApp", b =>
+                {
+                    b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.EncryptedUsage", b =>
+                {
+                    b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.Device", "Device")
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Device");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Friendship", b =>
+                {
+                    b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "Addressee")
+                        .WithMany()
+                        .HasForeignKey("AddresseeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "Requester")
+                        .WithMany()
+                        .HasForeignKey("RequesterId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Addressee");
+
+                    b.Navigation("Requester");
+                });
+
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.GroupHasUser", b =>
                 {
                     b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.Groups", "Group")
@@ -603,6 +829,25 @@ namespace Onyx.Data.SqlServer.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.SharedStat", b =>
+                {
+                    b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "Recipient")
+                        .WithMany()
+                        .HasForeignKey("RecipientId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Owner");
+
+                    b.Navigation("Recipient");
+                });
+
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Usage", b =>
                 {
                     b.HasOne("Onyx.Data.DataBaseSchema.TableEntities.RegisteredApp", "App")
@@ -626,6 +871,17 @@ namespace Onyx.Data.SqlServer.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("Device");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.UserVaultEntity", b =>
+                {
+                    b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "User")
+                        .WithOne()
+                        .HasForeignKey("Onyx.Data.DataBaseSchema.TableEntities.UserVaultEntity", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.WebsiteExclusion", b =>

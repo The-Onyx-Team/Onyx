@@ -8,7 +8,6 @@ using Onyx.Data.DataBaseSchema.TableEntities;
 namespace Onyx.App.Web.Services.Data;
 
 public class UsageDataService(ApplicationDbContext dbContext, CurrentUser currentUser, TimeProvider timeProvider)
-    : IUsageDataService
 {
     /// <summary>Upper bound for one upload; a collector that has been offline for weeks sends several.</summary>
     public const int MaxEntriesPerUpload = 5000;

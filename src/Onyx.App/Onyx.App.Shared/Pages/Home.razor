@@ -5,8 +5,13 @@
 @layout AppLayout
 @inject IDeviceManager DeviceManager
 @inject IUsageDataService UsageService
-@inject IAppManager AppManager
+@using Onyx.App.Shared.Services.Goals
+@using Onyx.App.Shared.Services.Social
+@inject AppCatalog Catalog
+@inject GoalService Goals
+@inject SocialService Social
 @inject ClientTimeZone ClientTimeZone
+@inject VaultService Vault
 
 <PageTitle>Dashboard</PageTitle>
 
@@ -39,6 +44,29 @@
     @if (m_Error is not null)
     {
         <MudAlert Severity="Severity.Error" Class="mb-4">@m_Error</MudAlert>
+    }
+
+    @if (m_Goals is { Count: > 0 } goals)
+    {
+        <div class="goal-strip mb-4">
+            @foreach (var goal in goals)
+            {
+                <a class="goal-chip @(goal.OnTrack ? "on-track" : "off-track")" href="/goals">
+                    <div class="goal-chip-title">@goal.Title</div>
+                    <div class="goal-chip-meter">
+                        <MudProgressLinear Value="@(Math.Min(goal.Ratio, 1) * 100)" Rounded="true" Size="Size.Small"
+                                           Color="@(goal.OnTrack ? Color.Success : Color.Warning)"/>
+                    </div>
+                    <div class="goal-chip-numbers">
+                        <span>@UsageSummary.Format(goal.Current) of @UsageSummary.Format(goal.Target)</span>
+                        @if (goal.Streak > 0)
+                        {
+                            <span class="streak" title="Streak">🔥 @goal.Streak</span>
+                        }
+                    </div>
+                </a>
+            }
+        </div>
     }
 
     @if (m_Summary is null)
@@ -106,6 +134,7 @@
                               InputData="@m_Summary.Categories.Select(c => c.Time.TotalHours).ToArray()"
                               InputLabels="@m_Summary.Categories.Select(c => $"{c.Name} ({c.Share:P0})").ToArray()"
                               LegendPosition="Position.Bottom"
+                              ChartOptions="@m_DonutOptions"
                               Width="100%" Height="260px"/>
                 </MudPaper>
             </MudItem>
@@ -114,7 +143,7 @@
                 <MudPaper Class="pa-4" Elevation="1">
                     <div class="d-flex align-center justify-space-between mb-2">
                         <MudText Typo="Typo.h6">Apps</MudText>
-                        <MudLink Href="/settings#apps" Typo="Typo.body2">Rename apps</MudLink>
+                        <MudLink Href="/settings#apps" Typo="Typo.body2">Rename, merge or hide apps</MudLink>
                     </div>
                     <MudTable Items="m_Summary.Apps" Dense="true" Hover="true" Elevation="0" RowsPerPage="10">
                         <HeaderContent>
@@ -200,7 +229,9 @@
     private UsageSummary? m_Summary;
     private List<ChartSeries> m_ChartSeries = [];
     private ChartOptions m_ChartOptions = new();
+    private ChartOptions m_DonutOptions = new();
     private Dictionary<int, string> m_Icons = new();
+    private List<GoalProgress>? m_Goals;
     private string? m_Error;
 
     /// <summary>Days of the period up to today, for the daily average of a period that is still running.</summary>
@@ -213,7 +244,7 @@
         : m_Summary.Range switch
         {
             DashboardRange.Day => m_Summary.LocalStart == m_Today ? "today" : m_Summary.LocalStart.ToString("dddd, dd.MM.yyyy"),
-            DashboardRange.Week => $"the week of {m_Summary.LocalStart:dd.MM.}",
+            DashboardRange.Week => Weeks.LongLabel(DateOnly.FromDateTime(m_Summary.LocalStart)),
             _ => m_Summary.LocalStart.ToString("MMMM yyyy")
         };
 
@@ -236,8 +267,36 @@
             m_Error = $"Could not load devices: {e.Message}";
         }
 
-        await LoadAsync();
         await LoadIconsAsync();
+        await LoadAsync();
+        await LoadGoalsAsync();
+        // Friends see the numbers as of the last time the user opened Onyx.
+        _ = PublishAsync();
+    }
+
+    private async Task LoadGoalsAsync()
+    {
+        try
+        {
+            m_Goals = await Goals.EvaluateAsync(m_Zone, DateOnly.FromDateTime(m_Today));
+            StateHasChanged();
+        }
+        catch (Exception)
+        {
+            // Goals are a summary; the dashboard works without them.
+        }
+    }
+
+    private async Task PublishAsync()
+    {
+        try
+        {
+            await Social.PublishAsync(m_Zone, DateOnly.FromDateTime(m_Today));
+        }
+        catch (Exception)
+        {
+            // Sent again next time.
+        }
     }
 
     private async Task OnRangeChanged(DashboardRange range)
@@ -276,7 +335,11 @@
             var highest = m_ChartSeries.Count == 0
                 ? 0
                 : Enumerable.Range(0, m_Summary.PeriodLabels.Length).Max(i => m_ChartSeries.Sum(c => c.Data[i]));
-            m_ChartOptions = new ChartOptions { YAxisTicks = NiceStep(highest), YAxisLines = true };
+            m_ChartOptions = new ChartOptions
+            {
+                YAxisTicks = NiceStep(highest), YAxisLines = true, ChartPalette = Onyx.App.Shared.Services.Reports.ReportCharts.Series
+            };
+            m_DonutOptions = new ChartOptions { ChartPalette = await CategoryPaletteAsync(m_Summary.Categories) };
             m_Error = null;
         }
         catch (Exception e)
@@ -286,6 +349,19 @@
         }
 
         StateHasChanged();
+    }
+
+    /// <summary>The user's category colours, in the order of the chart; others get the series colours.</summary>
+    private async Task<string[]> CategoryPaletteAsync(IReadOnlyList<NamedTotal> categories)
+    {
+        var colors = (await Vault.GetSettingsAsync()).Categories
+            .GroupBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Color, StringComparer.OrdinalIgnoreCase);
+        var series = 0;
+        return categories
+            .Select(c => colors.GetValueOrDefault(c.Name)
+                         ?? Onyx.App.Shared.Services.Reports.ReportCharts.Series[series++ % Onyx.App.Shared.Services.Reports.ReportCharts.Series.Length])
+            .ToArray();
     }
 
     /// <summary>Tick step giving about four to eight grid lines.</summary>
@@ -301,11 +377,9 @@
     {
         try
         {
-            var apps = await AppManager.GetAppsAsync();
-            m_Icons = apps
-                .Where(a => a.IconBitmap.Length > 0)
-                .ToDictionary(a => a.Id, a => $"data:image/png;base64,{Convert.ToBase64String(a.IconBitmap)}");
-            StateHasChanged();
+            m_Icons = (await Catalog.GetGroupsAsync())
+                .Where(g => g.IconDataUrl is not null)
+                .ToDictionary(g => g.Id, g => g.IconDataUrl!);
         }
         catch (Exception)
         {

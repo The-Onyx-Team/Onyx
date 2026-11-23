@@ -3,55 +3,48 @@
 @inject IPlatformService PlatformService
 @inject NavigationManager NavigationManager
 
-@if (PlatformService.IsMaui())
-{
-    @* The apps have no landing page: public pages (privacy policy, downloads) get a plain bar with a way back. *@
-    <MudAppBar Color="Color.Primary" Fixed="true" Dense="true" Elevation="1">
-        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Inherit" Edge="Edge.Start"
-                       OnClick="@(() => NavigationManager.NavigateTo("/home"))" aria-label="Back"/>
-        <img src="_content/Onyx.App.Shared/img/Icon.png" alt="" class="appbar-logo"/>
-        <MudText Typo="Typo.h6">Onyx</MudText>
-    </MudAppBar>
-    <div class="maui-public-page">
-        @Body
-    </div>
-}
-else
-{
-    <MudAppBar Color="Color.Primary" Fixed="true" ToolBarClass="mud-width-full toolbar" Class="mud-width-full logo-container appbar-full">
-        <a href="/" class="pa-0 ma-5 d-flex align-center" style="color: inherit; text-decoration: none">
-            <img src="_content/Onyx.App.Shared/img/Icon.png" alt="Onyx" class="logo mr-7"/>
-            <MudText Typo="Typo.h4">Onyx</MudText>
-        </a>
-        <div>
-            <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Inherit"
-                           Href="/downloads" Size="Size.Large" title="Downloads"/>
-            <MudIconButton Icon="@Icons.Material.Filled.Dashboard" Color="Color.Inherit"
-                           Href="/home" Size="Size.Large" title="Dashboard"/>
-            <MudIconButton Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Inherit"
-                           Href="/account/register" Size="Size.Large" title="Register"/>
-            <MudButton StartIcon="@Icons.Material.Filled.Login" Color="Color.Tertiary" Href="/account/login"
-                       Variant="Variant.Filled">
-                Login
-            </MudButton>
-        </div>
-    </MudAppBar>
-    <MudAppBar Color="Color.Primary" ToolBarClass="mud-width-full toolbar" Class="mud-width-full logo-container appbar-top">
-        <a href="/" class="pa-0 ma-5 d-flex align-center" style="color: inherit; text-decoration: none">
-            <img src="_content/Onyx.App.Shared/img/Icon.png" alt="Onyx" class="logo mr-7"/>
-            <MudText Typo="Typo.h4">Onyx</MudText>
-        </a>
-    </MudAppBar>
-    <MudAppBar Color="Color.Primary" Fixed="true" ToolBarClass="mud-width-full toolbar" Class="mud-width-full logo-container mud-appbar-fixed-bottom appbar-bottom">
-        <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Inherit"
-                       Href="/downloads" Size="Size.Large" title="Downloads"/>
-        <MudIconButton Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Inherit"
-                       Href="/account/register" Size="Size.Large" title="Register"/>
-        <MudIconButton Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit"
-                       Href="/account/login" Size="Size.Large" title="Login"/>
-    </MudAppBar>
+@* Public pages (landing page, privacy policy, downloads). The header is sticky inside the page's own scroll
+   container, so content always starts below it and can never be covered by it. *@
 
-    <div class="content web-landing ma-0 pa-0 mud-width-full">
+<div class="public-shell">
+    @if (PlatformService.IsMaui())
+    {
+        <header class="public-header compact">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Inherit" Edge="Edge.Start"
+                           OnClick="@(() => NavigationManager.NavigateTo("/home"))" aria-label="Back"/>
+            <img src="_content/Onyx.App.Shared/img/Icon.png" alt="" class="public-logo"/>
+            <span class="public-brand">Onyx</span>
+        </header>
+    }
+    else
+    {
+        <header class="public-header">
+            <a href="/" class="public-home" aria-label="Onyx home">
+                <img src="_content/Onyx.App.Shared/img/Icon.png" alt="" class="public-logo"/>
+                <span class="public-brand">Onyx</span>
+            </a>
+            <nav class="public-links">
+                <a href="/#features">Features</a>
+                <a href="/#privacy">Privacy</a>
+                <a href="/downloads">Download</a>
+            </nav>
+            <MudSpacer/>
+            <MudButton Href="/account/login" Variant="Variant.Text" Color="Color.Inherit" Class="public-signin">Sign in</MudButton>
+            <MudButton Href="/account/register" Variant="Variant.Filled" Color="Color.Primary">Get started</MudButton>
+        </header>
+    }
+    <main class="public-main">
         @Body
-    </div>
-}
+    </main>
+    @if (!PlatformService.IsMaui())
+    {
+        <footer class="public-footer">
+            <span>Onyx · open source (AGPL-3.0) · end-to-end encrypted</span>
+            <span class="public-footer-links">
+                <a href="/privacy">Privacy policy</a>
+                <a href="/downloads">Downloads</a>
+                <a href="https://the-onyx-team.github.io/Onyx/" target="_blank" rel="noopener">Documentation</a>
+            </span>
+        </footer>
+    }
+</div>

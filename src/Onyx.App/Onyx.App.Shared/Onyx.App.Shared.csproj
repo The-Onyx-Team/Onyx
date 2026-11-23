@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <SupportedPlatform Include="browser" />
+    <InternalsVisibleTo Include="UnitTests" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,7 +19,6 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.Forms" Version="10.0.15" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.15" />
     <PackageReference Include="Microsoft.AspNetCore.Metadata" Version="10.0.15" />
-    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="10.0.15" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.15" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.15" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.15" />
@@ -31,13 +31,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Onyx.Data\Onyx.Data.ApiSchema\Onyx.Data.ApiSchema.csproj" />
-    <ProjectReference Include="..\..\Onyx.Data\Onyx.Data.DataBaseSchema\Onyx.Data.DataBaseSchema.csproj" />
+    <ProjectReference Include="..\..\Onyx.Collector\Onyx.Collector.Core\Onyx.Collector.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="Microsoft.AspNetCore.WebUtilities">
-      <HintPath>..\..\..\..\..\Program Files\dotnet\shared\Microsoft.AspNetCore.App\9.0.4\Microsoft.AspNetCore.WebUtilities.dll</HintPath>
-    </Reference>
-  </ItemGroup>
 
 </Project>

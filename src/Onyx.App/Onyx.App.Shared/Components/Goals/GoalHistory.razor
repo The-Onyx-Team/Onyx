@@ -1,0 +1,24 @@
+@using Onyx.App.Shared.Services.Dashboard
+@using Onyx.App.Shared.Services.Goals
+@using Onyx.Collector.Core.Crypto
+
+@* The last periods of a goal as small squares: met, missed, and the running one. *@
+<div class="goal-history" aria-label="History">
+    @foreach (var (period, index) in Progress.History.TakeLast(Count).Select((p, i) => (p, i)))
+    {
+        var running = index == Math.Min(Count, Progress.History.Count) - 1;
+        <span class="goal-day @(running ? "running" : period.Met ? "met" : "missed")" title="@Title(period, running)"></span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public GoalProgress Progress { get; set; } = null!;
+    [Parameter] public int Count { get; set; } = 28;
+
+    private string Title(GoalPeriodResult period, bool running) =>
+        $"{Label(period.Start)}: {UsageSummary.Format(period.Time)}{(running ? " so far" : period.Met ? " ✓" : " ✗")}";
+
+    private string Label(DateOnly start) => Progress.Goal.Period == GoalPeriod.Day
+        ? start.ToString("ddd d MMM", System.Globalization.CultureInfo.InvariantCulture)
+        : $"Week {Weeks.Number(start)}";
+}

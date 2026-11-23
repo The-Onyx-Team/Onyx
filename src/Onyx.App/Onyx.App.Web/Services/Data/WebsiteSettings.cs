@@ -7,7 +7,7 @@ using Onyx.Data.DataBaseSchema.TableEntities;
 
 namespace Onyx.App.Web.Services.Data;
 
-public class WebsiteSettings(ApplicationDbContext dbContext, CurrentUser currentUser) : IWebsiteSettings
+public class WebsiteSettings(ApplicationDbContext dbContext, CurrentUser currentUser)
 {
     public const int MaxExclusions = 500;
 

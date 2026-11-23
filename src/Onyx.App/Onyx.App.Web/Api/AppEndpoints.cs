@@ -20,12 +20,12 @@ public static class AppEndpoints
         return group;
     }
 
-    public static async Task<IResult> GetAppsAsync([FromServices] IAppManager appManager) =>
+    public static async Task<IResult> GetAppsAsync([FromServices] Services.Data.AppManager appManager) =>
         Results.Ok(await appManager.GetAppsAsync());
 
     public static async Task<IResult> SetIconAsync(
         [FromBody] AppIconDto dto,
-        [FromServices] IAppManager appManager)
+        [FromServices] Services.Data.AppManager appManager)
     {
         try
         {
@@ -42,7 +42,7 @@ public static class AppEndpoints
     public static async Task<IResult> SetOverrideAsync(
         int appId,
         [FromBody] AppOverrideDto dto,
-        [FromServices] IAppManager appManager)
+        [FromServices] Services.Data.AppManager appManager)
     {
         try
         {

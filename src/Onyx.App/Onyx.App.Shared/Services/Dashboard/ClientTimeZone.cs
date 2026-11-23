@@ -2,11 +2,8 @@ using Microsoft.JSInterop;
 
 namespace Onyx.App.Shared.Services.Dashboard;
 
-/// <summary>
-/// The viewer's time zone. Blazor Server code runs on the server (usually UTC), so "today" and day boundaries
-/// must come from the browser; in the MAUI app the web view reports the device's zone.
-/// </summary>
-public class ClientTimeZone(IJSRuntime js)
+/// <summary>The viewer's time zone, as the browser or the apps' web view reports it.</summary>
+public class ClientTimeZone(OnyxJs js)
 {
     private TimeZoneInfo? m_Zone;
 
@@ -18,9 +15,7 @@ public class ClientTimeZone(IJSRuntime js)
 
         try
         {
-            await using var module = await js.InvokeAsync<IJSObjectReference>("import", "./_content/Onyx.App.Shared/js/timezone.js");
-            var id = await module.InvokeAsync<string>("getTimeZone");
-            m_Zone = TimeZoneInfo.FindSystemTimeZoneById(id);
+            m_Zone = TimeZoneInfo.FindSystemTimeZoneById(await js.InvokeAsync<string>("getTimeZone"));
         }
         catch (Exception e) when (e is JSException or TimeZoneNotFoundException or InvalidOperationException
                                       or InvalidTimeZoneException or JSDisconnectedException)
@@ -30,4 +25,8 @@ public class ClientTimeZone(IJSRuntime js)
 
         return m_Zone;
     }
+
+    /// <summary>Today in the viewer's zone.</summary>
+    public async Task<DateOnly> TodayAsync() =>
+        DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, await GetAsync()));
 }

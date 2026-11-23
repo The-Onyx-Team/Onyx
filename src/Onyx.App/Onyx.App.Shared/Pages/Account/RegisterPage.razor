@@ -1,79 +1,113 @@
 @page "/account/register"
+@using Onyx.Data.ApiSchema
 @inject IUserManager UserManager
+@inject IServerSettings ServerSettings
 @inject ISnackbar Snackbar
-@inject NavigationManager NavManager
+@inject NavigationManager NavigationManager
 
 @layout AuthNavLayout
 
-<PageTitle>Register</PageTitle>
+<PageTitle>Create account · Onyx</PageTitle>
 
-<MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
-               Class="auth-back"
-               Href="/account/login"
-               Color="Color.Primary"/>
+<MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Class="auth-back" Href="/account/login" Color="Color.Primary" aria-label="Back"/>
 
-<MudText Typo="Typo.h4"
-         Class="mb-3">Register</MudText>
+<MudText Typo="Typo.h4" Class="mb-3">Create account</MudText>
 <ServerPicker/>
-<EditForm Model="m_RegisterModel" OnValidSubmit="Submit"
-          FormName="RegisterForm">
-    <DataAnnotationsValidator/>
-    <ValidationSummary/>
 
-    <MudTextField Class="mb-3" Label="Username" Variant="Variant.Outlined"
-                  @bind-Value="m_RegisterModel.Username" Required="true"/>
-    <MudTextField Class="mb-3" Label="Email" Variant="Variant.Outlined"
-                  @bind-Value="m_RegisterModel.Email" Required="true"
-                  InputType="InputType.Email"/>
-    <MudTextField Class="mb-3" Label="Password" Variant="Variant.Outlined"
-                  @bind-Value="m_RegisterModel.Password" Required="true"
-                  InputType="InputType.Password"/>
-    <MudTextField Class="mb-3" Label="Confirm Password" Variant="Variant.Outlined"
-                  @bind-Value="m_RegisterModel.ConfirmPassword" Required="true"
-                  InputType="InputType.Password"/>
-    <MudButton ButtonType="ButtonType.Submit"
-               Variant="Variant.Filled"
-               Class="rounded mud-button-full-width mb-3"
-               Style="background-color: black">
-        Register
-    </MudButton>
-</EditForm>
+@if (m_Info is { AllowRegistration: false })
+{
+    <MudAlert Severity="Severity.Info">This server does not accept new accounts. Ask its operator for one.</MudAlert>
+}
+else if (m_Done)
+{
+    <MudAlert Severity="Severity.Success" Class="mb-3">
+        Your account is ready.@(m_Info?.SendsEmail == true ? " We sent you an email to confirm your address." : "")
+    </MudAlert>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Href="/account/login">Sign in</MudButton>
+}
+else
+{
+    <EditForm Model="m_Model" OnValidSubmit="Submit" FormName="RegisterForm">
+        <DataAnnotationsValidator/>
+
+        <MudTextField Class="mb-3" Label="User name" Variant="Variant.Outlined" @bind-Value="m_Model.Username"
+                      For="@(() => m_Model.Username)" HelperText="Letters and digits; friends find you by it"/>
+        <MudTextField Class="mb-3" Label="Email" Variant="Variant.Outlined" @bind-Value="m_Model.Email"
+                      For="@(() => m_Model.Email)" InputType="InputType.Email"/>
+        <MudTextField Class="mb-3" Label="Password" Variant="Variant.Outlined" @bind-Value="m_Model.Password"
+                      For="@(() => m_Model.Password)" InputType="InputType.Password" HelperText="At least 8 characters"/>
+        <MudTextField Class="mb-3" Label="Repeat password" Variant="Variant.Outlined" @bind-Value="m_Model.ConfirmPassword"
+                      For="@(() => m_Model.ConfirmPassword)" InputType="InputType.Password"/>
+
+        <div class="consent-box mb-3">
+            <MudCheckBox T="bool" @bind-Value="m_Model.AcceptPrivacyPolicy" Color="Color.Primary" Dense="true">
+                I have read the <MudLink Href="/privacy" Target="_blank">privacy policy</MudLink> and agree that Onyx
+                records which apps (and, if I turn it on, which websites) I use and for how long, to show it to me.
+            </MudCheckBox>
+            <MudText Typo="Typo.caption" Class="text-muted d-block mt-1">
+                You can withdraw your consent at any time by deleting your account in the settings.
+            </MudText>
+            @if (m_ConsentMissing)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Error">Please agree to the privacy policy to create an account.</MudText>
+            }
+        </div>
+
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                   Size="Size.Large" Disabled="m_Submitting">
+            @(m_Submitting ? "Creating…" : "Create account")
+        </MudButton>
+    </EditForm>
+}
 
 @code {
-    private readonly RegisterModel m_RegisterModel = new();
+    private readonly RegisterModel m_Model = new();
+    private ServerInfoDto? m_Info;
+    private bool m_Submitting;
+    private bool m_Done;
+    private bool m_ConsentMissing;
+
+    protected override async Task OnInitializedAsync() => m_Info = await ServerSettings.GetInfoAsync();
 
     private async Task Submit()
     {
-        var result = await UserManager.RegisterAsync(m_RegisterModel.Username,
-            m_RegisterModel.Email, m_RegisterModel.Password);
-        if (result.Success)
+        m_ConsentMissing = !m_Model.AcceptPrivacyPolicy;
+        if (m_ConsentMissing)
+            return;
+
+        m_Submitting = true;
+        try
         {
-            Snackbar.Add("Successfully created user! Sending email confirmation link...", Severity.Success);
+            var result = await UserManager.RegisterAsync(m_Model.Username, m_Model.Email, m_Model.Password, true);
+            if (result.Success)
+                m_Done = true;
+            else
+                Snackbar.Add(string.IsNullOrWhiteSpace(result.Message)
+                    ? "The account could not be created."
+                    : result.Message, Severity.Error);
         }
-        else
+        finally
         {
-            Snackbar.Add(string.IsNullOrWhiteSpace(result.Message)
-                ? "Failed to register user!"
-                : $"Failed to register user: {result.Message}", Severity.Error);
-            Console.WriteLine("Error: " + result.Message);
+            m_Submitting = false;
         }
     }
 
     public class RegisterModel
     {
-        [Required]
+        [Required(ErrorMessage = "Choose a user name.")]
+        [RegularExpression("^[a-zA-Z0-9]+$", ErrorMessage = "Use letters and digits only.")]
         public string Username { get; set; } = "";
-        
-        [EmailAddress]
-        [Required]
-        public string Email { get; set; } = "";
-        
-        [Required]
-        public string Password { get; set; } = "";
-        
-        [Required]
-        [Compare(nameof(Password))]
-        public string ConfirmPassword { get; set; } = "";
-    }
 
+        [EmailAddress, Required(ErrorMessage = "Enter your email address.")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Choose a password."), MinLength(8, ErrorMessage = "Use at least 8 characters.")]
+        public string Password { get; set; } = "";
+
+        [Required(ErrorMessage = "Repeat the password.")]
+        [Compare(nameof(Password), ErrorMessage = "The passwords don't match.")]
+        public string ConfirmPassword { get; set; } = "";
+
+        public bool AcceptPrivacyPolicy { get; set; }
+    }
 }

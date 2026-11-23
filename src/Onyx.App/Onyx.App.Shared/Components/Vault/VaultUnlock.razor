@@ -1,0 +1,101 @@
+@using Onyx.App.Shared.Services.Client
+@inject VaultService Vault
+
+<div class="gate-card">
+    <div class="gate-icon"><MudIcon Icon="@Icons.Material.Outlined.LockOpen" Size="Size.Large"/></div>
+    @if (!m_Recover)
+    {
+        <MudText Typo="Typo.h5" Class="mb-2">Unlock your data</MudText>
+        <MudText Class="mb-4">Your data is end-to-end encrypted. Enter your passphrase to read it on this device.</MudText>
+        <EditForm Model="this" OnValidSubmit="UnlockAsync">
+            <MudTextField T="string" Label="Passphrase" @bind-Value="m_Passphrase" InputType="InputType.Password"
+                          Variant="Variant.Outlined" Immediate="true" AutoFocus="true"
+                          Error="@(m_Error is not null)" ErrorText="@m_Error"/>
+            @if (Vault.CanChooseRemember)
+            {
+                <MudCheckBox T="bool" Value="Vault.Remember" ValueChanged="@(v => Vault.Remember = v)" Color="Color.Primary"
+                             Class="mt-2" Label="Stay unlocked in this browser (only on a device nobody else uses)"/>
+            }
+            <div class="d-flex flex-wrap align-center gap-2 mt-3">
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                           Disabled="@(m_Busy || string.IsNullOrEmpty(m_Passphrase))">
+                    @(m_Busy ? "Unlocking…" : "Unlock")
+                </MudButton>
+                <MudButton Variant="Variant.Text" OnClick="() => m_Recover = true">Forgot your passphrase?</MudButton>
+            </div>
+        </EditForm>
+    }
+    else
+    {
+        <MudText Typo="Typo.h5" Class="mb-2">Use your recovery key</MudText>
+        <MudText Class="mb-4">Enter the recovery key you saved when you turned on encryption, and choose a new passphrase.</MudText>
+        <MudTextField T="string" Label="Recovery key" @bind-Value="m_RecoveryKey" Variant="Variant.Outlined"
+                      Placeholder="XXXX-XXXX-…" Class="mb-3 recovery-input" Immediate="true"/>
+        <MudTextField T="string" Label="New passphrase" @bind-Value="m_NewPassphrase" InputType="InputType.Password"
+                      Variant="Variant.Outlined" Class="mb-1" Immediate="true" HelperText="At least 10 characters."/>
+        @if (m_Error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="my-2">@m_Error</MudAlert>
+        }
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="RecoverAsync"
+                       Disabled="@(m_Busy || string.IsNullOrWhiteSpace(m_RecoveryKey) || (m_NewPassphrase?.Length ?? 0) < 10)">
+                @(m_Busy ? "Checking…" : "Unlock and set passphrase")
+            </MudButton>
+            <MudButton Variant="Variant.Text" OnClick="() => { m_Recover = false; m_Error = null; }">Back</MudButton>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback Done { get; set; }
+
+    private string? m_Passphrase;
+    private string? m_RecoveryKey;
+    private string? m_NewPassphrase;
+    private string? m_Error;
+    private bool m_Busy;
+    private bool m_Recover;
+
+    private async Task UnlockAsync()
+    {
+        m_Busy = true;
+        m_Error = null;
+        try
+        {
+            if (await Vault.UnlockAsync(m_Passphrase ?? ""))
+                await Done.InvokeAsync();
+            else
+                m_Error = "That passphrase is not right.";
+        }
+        catch (Exception e)
+        {
+            m_Error = e.Message;
+        }
+        finally
+        {
+            m_Busy = false;
+        }
+    }
+
+    private async Task RecoverAsync()
+    {
+        m_Busy = true;
+        m_Error = null;
+        try
+        {
+            if (await Vault.RecoverAsync(m_RecoveryKey ?? "", m_NewPassphrase ?? ""))
+                await Done.InvokeAsync();
+            else
+                m_Error = "That is not the recovery key of this account.";
+        }
+        catch (Exception e)
+        {
+            m_Error = e.Message;
+        }
+        finally
+        {
+            m_Busy = false;
+        }
+    }
+}

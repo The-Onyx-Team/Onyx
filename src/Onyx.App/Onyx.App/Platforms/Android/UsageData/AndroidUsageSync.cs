@@ -52,10 +52,9 @@ public class AndroidUsageSync(OnyxApiClient client, AndroidUsageReader reader, I
             var entries = reader.ReadBuckets(from, now);
             if (entries.Count > 0)
             {
-                var missingIcons = await client.UploadUsageAsync(entries, DeviceIdentity.Name, DeviceIdentity.Platform, ct);
-                foreach (var app in missingIcons)
-                    if (reader.GetIconPng(app) is { } png)
-                        await client.UploadIconAsync(app, png, ct);
+                // Encrypted with the key the app stores after the passphrase was entered; without it this throws
+                // VaultLockedException and the data stays in Android's history until the user unlocks.
+                await client.UploadUsageAsync(entries, DeviceIdentity.Name, DeviceIdentity.Platform, reader, ct);
             }
 
             Preferences.Default.Set(SyncedUntilKey, currentHour.Ticks);

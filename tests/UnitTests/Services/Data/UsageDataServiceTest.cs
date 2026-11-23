@@ -65,7 +65,7 @@ public sealed class UsageDataServiceTest : IDisposable
         var time = new Mock<TimeProvider>();
         time.Setup(t => t.GetUtcNow()).Returns(new DateTimeOffset(s_Now));
 
-        return new UsageDataService(m_Db, new CurrentUser(accessor, new ServiceCollection().BuildServiceProvider()),
+        return new UsageDataService(m_Db, new CurrentUser(accessor),
             time.Object);
     }
 

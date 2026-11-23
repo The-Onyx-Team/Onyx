@@ -7,7 +7,7 @@ using Onyx.Data.DataBaseSchema.TableEntities;
 
 namespace Onyx.App.Web.Services.Data;
 
-public class AppManager(ApplicationDbContext dbContext, CurrentUser currentUser) : IAppManager
+public class AppManager(ApplicationDbContext dbContext, CurrentUser currentUser)
 {
     public const int MaxIconBytes = 256 * 1024;
 

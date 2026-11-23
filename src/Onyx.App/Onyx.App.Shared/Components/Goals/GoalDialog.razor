@@ -1,0 +1,152 @@
+@using Onyx.App.Shared.Services.Goals
+@using Onyx.App.Shared.Services.Usage
+@using Onyx.Collector.Core.Crypto
+@using Onyx.Data.ApiSchema
+@inject GoalService Goals
+@inject IDeviceManager Devices
+@inject AppCatalog Catalog
+@inject VaultService Vault
+
+<MudDialog>
+    <DialogContent>
+        <MudRadioGroup T="GoalDirection" @bind-Value="m_Goal.Direction" Class="mb-2">
+            <MudRadio T="GoalDirection" Value="GoalDirection.AtMost" Color="Color.Primary">Limit (at most)</MudRadio>
+            <MudRadio T="GoalDirection" Value="GoalDirection.AtLeast" Color="Color.Primary">Target (at least)</MudRadio>
+        </MudRadioGroup>
+
+        <div class="d-flex gap-2 mb-3">
+            <MudNumericField T="int" Label="Hours" @bind-Value="m_Hours" Min="0" Max="168" Variant="Variant.Outlined"/>
+            <MudNumericField T="int" Label="Minutes" @bind-Value="m_Minutes" Min="0" Max="59" Step="5" Variant="Variant.Outlined"/>
+            <MudSelect T="GoalPeriod" Label="per" @bind-Value="m_Goal.Period" Variant="Variant.Outlined">
+                <MudSelectItem T="GoalPeriod" Value="GoalPeriod.Day">day</MudSelectItem>
+                <MudSelectItem T="GoalPeriod" Value="GoalPeriod.Week">week</MudSelectItem>
+            </MudSelect>
+        </div>
+
+        <MudSelect T="GoalScope" Label="For" Value="m_Goal.Scope" ValueChanged="ScopeChanged" Variant="Variant.Outlined" Class="mb-3">
+            <MudSelectItem T="GoalScope" Value="GoalScope.Total">All screen time</MudSelectItem>
+            <MudSelectItem T="GoalScope" Value="GoalScope.Device">One device</MudSelectItem>
+            <MudSelectItem T="GoalScope" Value="GoalScope.Category">One category</MudSelectItem>
+            <MudSelectItem T="GoalScope" Value="GoalScope.App">One app</MudSelectItem>
+        </MudSelect>
+
+        @if (m_Goal.Scope != GoalScope.Total)
+        {
+            <MudSelect T="string" Label="@TargetLabel" @bind-Value="m_Goal.Target" Variant="Variant.Outlined">
+                @foreach (var (value, text) in Targets)
+                {
+                    <MudSelectItem T="string" Value="@value">@text</MudSelectItem>
+                }
+            </MudSelect>
+        }
+
+        <MudText Typo="Typo.body2" Class="mt-4 text-muted">@GoalEvaluator.Title(Preview, m_DeviceNames)</MudText>
+        @if (m_Error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-3" Dense="true">@m_Error</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAsync" Disabled="@(m_Saving || !Valid)">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public GoalSettings? Goal { get; set; }
+    [Parameter] public DateOnly Today { get; set; }
+
+    private GoalSettings m_Goal = new();
+    private int m_Hours = 2;
+    private int m_Minutes;
+    private bool m_Saving;
+    private string? m_Error;
+    private List<DeviceDto> m_Devices = [];
+    private Dictionary<int, string> m_DeviceNames = [];
+    private List<string> m_Categories = [];
+    private List<string> m_Apps = [];
+
+    private int TotalMinutes => m_Hours * 60 + m_Minutes;
+    private bool Valid => TotalMinutes > 0 && (m_Goal.Scope == GoalScope.Total || !string.IsNullOrEmpty(m_Goal.Target));
+
+    private GoalSettings Preview => new()
+    {
+        Scope = m_Goal.Scope, Target = m_Goal.Target, Period = m_Goal.Period, Direction = m_Goal.Direction,
+        Minutes = TotalMinutes
+    };
+
+    private string TargetLabel => m_Goal.Scope switch
+    {
+        GoalScope.Device => "Device",
+        GoalScope.Category => "Category",
+        _ => "App"
+    };
+
+    private IEnumerable<(string Value, string Text)> Targets => m_Goal.Scope switch
+    {
+        GoalScope.Device => m_Devices.Select(d => (d.Id.ToString(), d.Name)),
+        GoalScope.Category => m_Categories.Select(c => (c, c)),
+        _ => m_Apps.Select(a => (a, a))
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Goal is not null)
+        {
+            m_Goal = new GoalSettings
+            {
+                Id = Goal.Id, Scope = Goal.Scope, Target = Goal.Target, Period = Goal.Period,
+                Direction = Goal.Direction, Minutes = Goal.Minutes, Since = Goal.Since
+            };
+            m_Hours = Goal.Minutes / 60;
+            m_Minutes = Goal.Minutes % 60;
+        }
+        else
+        {
+            m_Goal.Since = Today;
+        }
+
+        try
+        {
+            m_Devices = await Devices.GetDevices();
+            m_DeviceNames = m_Devices.ToDictionary(d => d.Id, d => d.Name);
+            var groups = await Catalog.GetGroupsAsync();
+            m_Apps = groups.Where(g => !g.Hidden).Select(g => g.Name).ToList();
+            m_Categories = (await Vault.GetSettingsAsync()).Categories.Select(c => c.Name)
+                .Concat(groups.Select(g => g.Category).OfType<string>())
+                .Distinct(StringComparer.OrdinalIgnoreCase).Order().ToList();
+        }
+        catch (Exception e)
+        {
+            m_Error = e.Message;
+        }
+    }
+
+    private void ScopeChanged(GoalScope scope)
+    {
+        m_Goal.Scope = scope;
+        m_Goal.Target = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        m_Saving = true;
+        try
+        {
+            m_Goal.Minutes = TotalMinutes;
+            if (m_Goal.Scope == GoalScope.Total)
+                m_Goal.Target = null;
+            await Goals.SaveAsync(m_Goal);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception e)
+        {
+            m_Error = $"Could not save: {e.Message}";
+        }
+        finally
+        {
+            m_Saving = false;
+        }
+    }
+}

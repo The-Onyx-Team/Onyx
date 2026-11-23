@@ -1,0 +1,69 @@
+@using Onyx.App.Shared.Services.Documents
+
+@* The preview of a ReportDocument: the same content as its PDF, as a paper sheet. *@
+<article class="doc-sheet">
+    <header class="doc-header">
+        <div class="doc-brand">ONYX</div>
+        <h1>@Document.Title</h1>
+        @if (Document.Subtitle is not null)
+        {
+            <p class="doc-subtitle">@Document.Subtitle</p>
+        }
+    </header>
+    @foreach (var (part, index) in Document.Sections.Select((s, i) => (s, i + 1)))
+    {
+        <section class="doc-section">
+            <h2><span class="doc-number">@index</span> @part.Heading</h2>
+            @foreach (var block in part.Blocks)
+            {
+                @switch (block)
+                {
+                    case ParagraphBlock p:
+                        <p>@p.Text</p>
+                        break;
+                    case KeyValueBlock kv:
+                        <dl class="doc-values">
+                            @foreach (var (key, value) in kv.Values)
+                            {
+                                <dt>@key</dt>
+                                <dd>@value</dd>
+                            }
+                        </dl>
+                        break;
+                    case TableBlock table:
+                        <div class="doc-table-wrap">
+                            <table class="doc-table">
+                                <thead><tr>@for (var c = 0; c < table.Headers.Length; c++) { <th class="@(table.AlignRight.Contains(c) ? "num" : "")">@table.Headers[c]</th> }</tr></thead>
+                                <tbody>
+                                    @if (table.Rows.Count == 0)
+                                    {
+                                        <tr><td colspan="@table.Headers.Length" class="doc-empty">none</td></tr>
+                                    }
+                                    @foreach (var row in table.Rows)
+                                    {
+                                        <tr>@for (var c = 0; c < row.Length; c++) { <td class="@(table.AlignRight.Contains(c) ? "num" : "")">@row[c]</td> }</tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        break;
+                    case BarsBlock bars:
+                        var max = bars.Bars.Select(b => b.Value).DefaultIfEmpty(0).Max();
+                        <div class="doc-bars">
+                            @foreach (var (label, value, text) in bars.Bars)
+                            {
+                                <div class="doc-bar-label">@label</div>
+                                <div class="doc-bar"><span style="width: @((max > 0 ? value / max * 100 : 0).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%"></span></div>
+                                <div class="doc-bar-value">@text</div>
+                            }
+                        </div>
+                        break;
+                }
+            }
+        </section>
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public ReportDocument Document { get; set; } = null!;
+}

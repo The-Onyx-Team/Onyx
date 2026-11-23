@@ -1,140 +1,105 @@
-﻿@page "/account/manage/external"
-@inject IUserProvider UserProvider
+@page "/account/manage/external"
+@using Onyx.Collector.Core
+@using Onyx.Data.ApiSchema
+@inject OnyxApiClient Api
 @inject IUserManager UserManager
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IPlatformService PlatformService
 
-<MudContainer Fluid="true" MaxWidth="MaxWidth.False" Class="mt-4">
-    @if (m_User is null)
-    {
-        <MudText Typo="Typo.body1">Loading...</MudText>
-    }
-    else
-    {
-        <MudText Typo="Typo.h4" Class="mb-1">Manage External Logins</MudText>
-        <MudText Typo="Typo.subtitle1" Class="mb-4">Welcome @m_User.Name</MudText>
+<PageTitle>External logins · Onyx</PageTitle>
 
-        @if (m_CurrentLogins?.Count > 0)
+<MudText Typo="Typo.h5" Class="mb-1">External logins</MudText>
+<MudText Typo="Typo.body2" Class="text-muted mb-4">Sign in with Google, Microsoft or GitHub instead of your password.</MudText>
+
+@if (m_Logins is null)
+{
+    <MudProgressLinear Indeterminate="true"/>
+}
+else
+{
+    <MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true">
+        <MudText Typo="Typo.h6" Class="mb-2">Linked</MudText>
+        @if (m_Logins.Count == 0)
         {
-            <MudCard Class="mb-4 px-4 py-4" Outlined="true">
-                <MudCardContent>
-                    <MudText Typo="Typo.h6" Class="mb-2">Registered Logins</MudText>
-                    <MudTable Items="@m_CurrentLogins" T="ExternalLoginData">
-                        <HeaderContent>
-                            <MudTh>Provider</MudTh>
-                            <MudTh>Actions</MudTh>
-                        </HeaderContent>
-                        <RowTemplate Context="login">
-                            <MudTr>
-                                <MudTd>@login.ProviderDisplayName</MudTd>
-                                <MudTd>
-                                    <EditForm Context="_" OnValidSubmit="OnSubmit">
-                                        <AntiforgeryToken/>
-                                        <input type="hidden" name="@nameof(LoginProvider)" value="@login.LoginProvider" />
-                                        <input type="hidden" name="@nameof(ProviderKey)" value="@login.ProviderKey" />
-                                        <MudButton ButtonType="ButtonType.Submit"
-                                                   Color="Color.Error"
-                                                   Variant="Variant.Outlined"
-                                                   Title="Remove this login">
-                                            Remove
-                                        </MudButton>
-                                    </EditForm>
-                                </MudTd>
-                            </MudTr>
-                        </RowTemplate>
-                    </MudTable>
-                </MudCardContent>
-            </MudCard>
+            <MudText Typo="Typo.body2">None.</MudText>
         }
-
-        @if (m_OtherLogins?.Count > 0)
+        @foreach (var login in m_Logins)
         {
-            <MudCard Class="mb-4 px-4 py-4" Outlined="true">
-                <MudCardContent>
-                    <MudText Typo="Typo.h6" Class="mb-2">Add another service to log in</MudText>
-                    <form action="account/manage/link-external-login" method="post">
-                        <AntiforgeryToken/>
-                        <MudStack Direction="Row" Spacing="2">
-                            @foreach (var provider in m_OtherLogins)
-                            {
-                                <MudButton Type="Submit"
-                                           Color="Color.Primary"
-                                           Name="Provider"
-                                           Value="@provider.Name"
-                                           Title="@($"Log in using your {provider.DisplayName} account")">
-                                    <MudIcon Icon="@GetProviderIcon(provider.Name)" Class="mr-1" />
-                                    @provider.DisplayName
-                                </MudButton>
-                            }
-                        </MudStack>
-                    </form>
-                </MudCardContent>
-            </MudCard>
+            <div class="d-flex align-center gap-2 mb-2">
+                <MudText>@login.DisplayName</MudText>
+                <MudSpacer/>
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" OnClick="() => RemoveAsync(login)">Remove</MudButton>
+            </div>
         }
+    </MudPaper>
+
+    @if (m_Other.Count > 0)
+    {
+        <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-2">Add</MudText>
+            @if (m_Ticket is null)
+            {
+                <MudButton Variant="Variant.Outlined" OnClick="PrepareAsync">Link another login…</MudButton>
+            }
+            else
+            {
+                <form action="/account/link-external-login" method="post" class="d-flex flex-wrap gap-2">
+                    <input type="hidden" name="ticket" value="@m_Ticket"/>
+                    @foreach (var scheme in m_Other)
+                    {
+                        <button type="submit" name="provider" value="@scheme.Name" class="external-login-button">@scheme.DisplayName</button>
+                    }
+                </form>
+            }
+        </MudPaper>
     }
-</MudContainer>
+}
 
 @code {
-    public const string LinkLoginCallbackAction = "LinkLoginCallback";
-
-    private User? m_User;
-    private IList<ExternalLoginData>? m_CurrentLogins;
-    private IList<AuthenticationScheme>? m_OtherLogins;
-
-
-    [SupplyParameterFromForm] private string? LoginProvider { get; set; }
-    [SupplyParameterFromForm] private string? ProviderKey { get; set; }
-    [SupplyParameterFromQuery] private string? Action { get; set; }
+    private List<ExternalLoginDto>? m_Logins;
+    private List<ExternalSchemeDto> m_Other = [];
+    private string? m_Ticket;
 
     protected override async Task OnInitializedAsync()
     {
-        m_User = await UserProvider.GetRequiredUserAsync();
+        var fragment = new Uri(NavigationManager.Uri).Fragment;
+        if (fragment.StartsWith("#status=linked"))
+            Snackbar.Add("The login was linked.", Severity.Success);
+        else if (fragment.StartsWith("#error="))
+            Snackbar.Add(Uri.UnescapeDataString(fragment["#error=".Length..]), Severity.Error);
+        await LoadAsync();
+    }
 
-        if (Action == LinkLoginCallbackAction)
+    private async Task LoadAsync()
+    {
+        try
         {
-            await OnGetLinkLoginCallbackAsync();
+            m_Logins = await Api.SendAuthorizedAsync<List<ExternalLoginDto>>(HttpMethod.Get, "/api/user/logins");
+            m_Other = (await UserManager.GetExternalSchemesAsync())
+                .Where(s => m_Logins.All(l => l.Provider != s.Name)).ToList();
         }
-
-        m_OtherLogins = (await UserManager.GetExternalAuthenticationSchemas()).ToList();
-        m_CurrentLogins = (await UserManager.GetLoginsAsync(m_User))?.ToList();
-    }
-
-    private void OnSubmit()
-    {
-        //var toRemove = (LoginProvider!, ProviderKey!);
-        // TODO
-    }
-
-    private Task OnGetLinkLoginCallbackAsync()
-    {
-        return Task.CompletedTask;
-        // var userId = await UserManager.GetUserIdAsync(user);
-        // var info = await SignInManager.GetExternalLoginInfoAsync(userId);
-        // if (info is null)
-        // {
-        //     RedirectManager.RedirectToCurrentPageWithStatus("Error: Could not load external login info.", HttpContext);
-        // }
-        //
-        // var result = await UserManager.AddLoginAsync(user, info);
-        // if (!result.Succeeded)
-        // {
-        //     RedirectManager.RedirectToCurrentPageWithStatus("Error: The external login was not added. External logins can only be associated with one account.", HttpContext);
-        // }
-        //
-        // // Clear the existing external cookie to ensure a clean login process
-        // await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-        //
-        // RedirectManager.RedirectToCurrentPageWithStatus("The external login was added.", HttpContext);
-    }
-    
-    private string GetProviderIcon(string provider)
-    {
-        return provider.ToLower() switch
+        catch (Exception e)
         {
-            "google" => Icons.Custom.Brands.Google, // Für Google
-            "googleopenidconnect" => Icons.Custom.Brands.Google, // Google OpenID Connect
-            "microsoft" => Icons.Custom.Brands.Microsoft,
-            "github" => Icons.Custom.Brands.GitHub,
-            _ => Icons.Material.Filled.AccountCircle
-        };
+            m_Logins = [];
+            Snackbar.Add(OnyxApiClient.ErrorMessage(e), Severity.Error);
+        }
     }
 
+    /// <summary>A short-lived ticket lets the form post (which carries no token) link to this account.</summary>
+    private async Task PrepareAsync() =>
+        m_Ticket = (await Api.SendAuthorizedAsync<LinkTicketDto>(HttpMethod.Post, "/api/user/logins/link-ticket")).Ticket;
+
+    private async Task RemoveAsync(ExternalLoginDto login)
+    {
+        try
+        {
+            await Api.SendAuthorizedAsync<object?>(HttpMethod.Delete, $"/api/user/logins/{Uri.EscapeDataString(login.Provider)}");
+            await LoadAsync();
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add(OnyxApiClient.ErrorMessage(e), Severity.Error);
+        }
+    }
 }

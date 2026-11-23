@@ -11,4 +11,9 @@ public class GroupHasUser
     public ApplicationUser? User { get; set; }
     [Column("GroupId")] public int GroupId { get; set; }
     public Groups? Group { get; set; }
+
+    /// <summary>False while the user has not accepted the invitation yet.</summary>
+    [Column("Accepted")] public bool Accepted { get; set; } = true;
+
+    [Column("InvitedAt")] public DateTime? InvitedAt { get; set; }
 }

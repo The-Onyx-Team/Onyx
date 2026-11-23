@@ -1,0 +1,22 @@
+@* The recovery key in large monospaced groups, easy to copy by hand. *@
+<div class="recovery-key" aria-label="Recovery key">
+    @foreach (var group in Key.Split('-'))
+    {
+        <span>@group</span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Key { get; set; } = "";
+
+    public static string FileText(string key) =>
+        $"""
+         Onyx recovery key
+         =================
+
+         {key}
+
+         This key unlocks your Onyx data if you forget your passphrase. Anyone who has it and can sign in to
+         your account can read your data, so keep it private. Created {DateTime.Now:yyyy-MM-dd}.
+         """;
+}

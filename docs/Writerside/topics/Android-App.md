@@ -35,7 +35,9 @@ that app (Files, browser, ...).
 
 ## After installing
 
-1. Open Onyx, check the server shown on the login page, then register or sign in.
+1. Open Onyx, check the server shown on the login page, then register or sign in. Enter your encryption
+   passphrase (or choose one, if this is your first device). The app keeps the key in Android's secure storage, so
+   the background upload can encrypt.
 2. On the **Devices** page, tap **Grant usage access** and allow Onyx. Without it nothing can be collected.
 3. Usage is uploaded every 30 minutes when a network is available. **Upload now** on the Devices page uploads at once.
 
@@ -56,3 +58,6 @@ packaging/android/build-apk.sh --server https://onyx.example.com --install   # a
 An update only installs if it is signed with **the same key** (`~/.config/onyx-build/onyx-sideload.keystore`)
 and has a higher version code; the script takes care of the version code. Without adb, open the new APK on the
 phone and choose **Update**.
+
+The first update to the version with end-to-end encryption asks for the passphrase once. Until then nothing is
+uploaded; Android keeps the history, and the app uploads it after you unlock.

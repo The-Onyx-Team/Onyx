@@ -13,10 +13,11 @@
     <ProjectReference Include="..\..\Onyx.Data\Onyx.Data.SQLite\Onyx.Data.SQLite.csproj" />
     <ProjectReference Include="..\..\Onyx.Data\Onyx.Data.SqlServer\Onyx.Data.SqlServer.csproj" />
     <ProjectReference Include="..\Onyx.App.Shared\Onyx.App.Shared.csproj" />
+    <ProjectReference Include="..\Onyx.App.Web.Client\Onyx.App.Web.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.15" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Analyzers" Version="10.0.15" />
     <PackageReference Include="AspNet.Security.OAuth.GitHub" Version="10.1.0" />
     <PackageReference Include="Google.Apis.Auth.AspNetCore3" Version="1.78.0" />
@@ -30,8 +31,4 @@
     <PackageReference Include="System.IO.Abstractions" Version="22.3.0" />
   </ItemGroup>
   
-    <!-- Chart rendering for weekly reports (Python 3 + matplotlib, see ReportChartRenderer). -->
-    <ItemGroup>
-        <None Update="Reports\weekly_report.py" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
-    </ItemGroup>
 </Project>

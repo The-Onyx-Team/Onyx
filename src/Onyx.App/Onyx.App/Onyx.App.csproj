@@ -73,9 +73,6 @@
         <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)"/>
         <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)"/>
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.15"/>
-        <PackageReference Include="OneOf" Version="3.0.271"/>
-        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1"/>
-        <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.9.0" />
     </ItemGroup>
 
     <ItemGroup>

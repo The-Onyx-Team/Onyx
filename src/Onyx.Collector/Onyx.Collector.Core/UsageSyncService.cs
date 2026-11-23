@@ -16,7 +16,6 @@ public sealed class UsageSyncService(
     BrowserActivity? browserActivity = null)
 {
     private readonly ILogger m_Logger = logger ?? NullLogger.Instance;
-    private readonly HashSet<string> m_IconsSent = new();
 
     public DateTimeOffset? LastSuccess { get; private set; }
     public string? LastError { get; private set; }
@@ -54,11 +53,9 @@ public sealed class UsageSyncService(
 
         try
         {
-            var missingIcons = await client.UploadUsageAsync(snapshot, deviceName, platform, cancellationToken);
+            await client.UploadUsageAsync(snapshot, deviceName, platform, iconSource, cancellationToken);
             store.Acknowledge(snapshot, UsageBuckets.HourOf(timeProvider.GetUtcNow()));
             store.Save();
-
-            await UploadIconsAsync(missingIcons, cancellationToken);
 
             LastSuccess = timeProvider.GetUtcNow();
             LastError = null;
@@ -71,6 +68,7 @@ public sealed class UsageSyncService(
         }
         catch (NotSignedInException e)
         {
+            // Includes a locked vault: the data stays queued until the user signs in or enters the passphrase.
             LastError = e.Message;
             m_Logger.LogWarning("Not uploading: {Reason}", e.Message);
             return false;
@@ -84,37 +82,19 @@ public sealed class UsageSyncService(
         }
     }
 
-    /// <summary>Picks up websites the user excluded in the dashboard. The server drops them as well, so a failed
-    /// refresh only means they are filtered there instead of here.</summary>
+    /// <summary>Picks up websites the user excluded in the dashboard. They are part of the encrypted settings,
+    /// so the server can't filter them; a failed refresh keeps the list from the last refresh.</summary>
     private async Task RefreshExcludedDomainsAsync(BrowserActivity activity, CancellationToken ct)
     {
         try
         {
-            activity.SetExcludedDomains(await client.GetWebsiteExclusionsAsync(ct));
+            if (await client.GetVaultSettingsAsync(ct) is { } settings)
+                activity.SetExcludedDomains(settings.ExcludedDomains);
         }
-        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or NotSignedInException)
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or NotSignedInException
+                                      or System.Security.Cryptography.CryptographicException)
         {
             m_Logger.LogDebug("Could not refresh excluded websites: {Reason}", e.Message);
-        }
-    }
-
-    private async Task UploadIconsAsync(IEnumerable<string> appIdentifiers, CancellationToken ct)
-    {
-        if (iconSource is null)
-            return;
-
-        foreach (var app in appIdentifiers.Where(a => !m_IconsSent.Contains(a)))
-        {
-            m_IconsSent.Add(app);
-            try
-            {
-                if (iconSource.GetIconPng(app) is { Length: > 0 } png)
-                    await client.UploadIconAsync(app, png, ct);
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                m_Logger.LogDebug(e, "Could not upload icon for {App}", app);
-            }
         }
     }
 }

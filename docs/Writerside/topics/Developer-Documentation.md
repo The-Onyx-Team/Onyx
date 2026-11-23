@@ -36,8 +36,8 @@ Items marked **Done** are implemented; the note says where.
   Category. *(Settings → Apps: own name and category per user, used by dashboard and reports.)*
 - **Done:** Print weekly reports with plots describing usage data overall, for each device and analyse trends in the
   app usage. Keep the report in the Onyx design scheme and use python charts to give it a good look. These reports
-  get a complete page on their own. *(`/reports`; charts rendered by `Reports/weekly_report.py` with matplotlib;
-  Print / PDF on the web.)*
+  get a complete page on their own. *(`/reports`; charts were first drawn with matplotlib on the server, and are now drawn as SVG on the device,
+  because the data is end-to-end encrypted; Print / PDF on the web.)*
 
 # Developer Documentation
 
@@ -50,7 +50,6 @@ It provides an overview of the project's architecture, the technologies used, an
 
 - .NET 10 SDK (https://dotnet.microsoft.com/download/dotnet/10.0)
 - Dotnet ef tools (10.x)
-- Python 3 with matplotlib, for the weekly report charts (`pacman -S python-matplotlib`, `apt install python3-matplotlib`)
 - VS2022 (Developed on 17.14 Preview)
 - Docker (Engine 27.+, https://docs.docker.com/desktop/)
 - A modern web browser (Chrome, Firefox, etc.)
@@ -65,7 +64,8 @@ It provides an overview of the project's architecture, the technologies used, an
 ## Architecture
 
 The UI is built as a Blazor Hybrid App with both Web and App versions. 
-The backend is a .NET 9 Web API with an SQL Server database.
+The backend is a .NET 10 Web API with an SQL Server or SQLite database. The web UI runs in the browser (Blazor
+WebAssembly), and all usage data is end-to-end encrypted (see Encryption.md).
 To make development easier, we support both SQL Server and SQLite databases in local environments.
 
 ## Building the Project

@@ -14,4 +14,7 @@ public interface IProfileService
     Task<string?> SetAvatarAsync(byte[] data, string contentType);
 
     Task<string?> DeleteAvatarAsync();
+
+    /// <summary>Records that the user agreed to the current <see cref="PrivacyPolicy"/>.</summary>
+    Task<string?> ConsentAsync();
 }

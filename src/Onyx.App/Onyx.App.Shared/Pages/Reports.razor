@@ -17,7 +17,7 @@
     <div class="d-flex flex-wrap align-center gap-2 mb-4 no-print">
         <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="() => MoveAsync(-1)" Disabled="m_Loading"
                        aria-label="Previous week"/>
-        <MudText Typo="Typo.h6" Style="min-width: 210px; text-align: center">@WeekText</MudText>
+        <MudText Typo="Typo.h6" Style="min-width: 260px; text-align: center">@WeekText</MudText>
         <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" OnClick="() => MoveAsync(1)"
                        Disabled="@(m_Loading || m_WeekStart >= ThisWeek)" aria-label="Next week"/>
         @if (m_WeekStart != ThisWeek)
@@ -44,11 +44,14 @@
     else if (m_Report is { } report)
     {
         <div class="report-sheet">
-            <div class="d-flex align-center mb-4">
+            <div class="report-header mb-4">
                 <img src="_content/Onyx.App.Shared/img/Icon.png" alt="" style="height: 44px" class="mr-3"/>
                 <div>
                     <MudText Typo="Typo.h5" Style="font-weight: 700">Weekly report</MudText>
-                    <MudText Typo="Typo.body2" Style="color: #494C3B">@WeekText</MudText>
+                    <MudText Typo="Typo.body2" Class="report-muted">@WeekText</MudText>
+                </div>
+                <div class="report-lock" title="Built on this device from your encrypted data">
+                    <MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Small"/> end-to-end encrypted
                 </div>
             </div>
 
@@ -106,7 +109,7 @@
                     </MudItem>
                     <MudItem xs="12" md="7">
                         <ReportChart Report="report" Key="trend" Title="Trend"
-                                     Caption="@($"Screen time per week over the last {WeeklyReportDto.TrendWeeks} weeks.")"/>
+                                     Caption="@($"Screen time per week over the last {WeeklyReportDto.TrendWeeks} weeks (labels: Monday of each week).")"/>
                         <div class="report-section">
                             <MudText Typo="Typo.body2" Class="mt-2">@TrendText(report)</MudText>
                         </div>
@@ -122,7 +125,7 @@
                     <div class="report-section mb-4">
                         <MudText Typo="Typo.subtitle1" Style="font-weight: 600">
                             @device.Name: @UsageSummary.Format(device.Time)
-                            <span style="color: #494C3B; font-weight: 400">(@Change(device.Time, device.PreviousTime) vs. the week before)</span>
+                            <span class="report-muted" style="font-weight: 400">(@Change(device.Time, device.PreviousTime) vs. the week before)</span>
                         </MudText>
                         <ReportChart Report="report" Key="@($"device-{device.Id}")"/>
                     </div>
@@ -142,9 +145,7 @@
 
     private DateOnly ThisWeek => m_Today.AddDays(-(((int)m_Today.DayOfWeek + 6) % 7));
 
-    private string WeekText => m_WeekStart == default
-        ? ""
-        : $"{m_WeekStart.ToString("dd.MM.", CultureInfo.InvariantCulture)} – {m_WeekStart.AddDays(6).ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)}";
+    private string WeekText => m_WeekStart == default ? "" : Weeks.LongLabel(m_WeekStart);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

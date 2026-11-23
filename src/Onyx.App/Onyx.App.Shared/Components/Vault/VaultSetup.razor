@@ -1,0 +1,98 @@
+@using Onyx.App.Shared.Services.Client
+@inject VaultService Vault
+@inject IFileSaver FileSaver
+
+<div class="gate-card">
+    @if (m_RecoveryKey is null)
+    {
+        <div class="gate-icon"><MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Large"/></div>
+        <MudText Typo="Typo.h5" Class="mb-2">Protect your data with a passphrase</MudText>
+        <MudText Class="mb-2">
+            Onyx encrypts everything it records (apps, websites, times, your goals and settings) on your devices
+            before it is uploaded. The server stores it but can't read it, and neither can whoever runs the server.
+        </MudText>
+        <MudText Class="mb-4">
+            Your passphrase unlocks your data on a new device. It is never sent to the server, so nobody can reset it
+            for you. You also get a recovery key in case you forget it.
+        </MudText>
+        <EditForm Model="m_Model" OnValidSubmit="CreateAsync">
+            <DataAnnotationsValidator/>
+            <MudTextField T="string" Label="Passphrase" @bind-Value="m_Model.Passphrase" For="@(() => m_Model.Passphrase)"
+                          InputType="InputType.Password" Variant="Variant.Outlined" Immediate="true" Class="mb-3"
+                          HelperText="At least 10 characters. A few random words are easy to remember and hard to guess."/>
+            <MudTextField T="string" Label="Repeat passphrase" @bind-Value="m_Model.Repeat" For="@(() => m_Model.Repeat)"
+                          InputType="InputType.Password" Variant="Variant.Outlined" Immediate="true" Class="mb-3"/>
+            <MudCheckBox T="bool" @bind-Value="m_Model.Understood" Color="Color.Primary"
+                         Label="I understand that my data can't be recovered without my passphrase or recovery key."/>
+            @if (m_Error is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="my-2">@m_Error</MudAlert>
+            }
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-3"
+                       Disabled="@(m_Busy || !m_Model.Understood)">
+                @(m_Busy ? "Creating keys…" : "Turn on encryption")
+            </MudButton>
+        </EditForm>
+    }
+    else
+    {
+        <div class="gate-icon"><MudIcon Icon="@Icons.Material.Outlined.Key" Size="Size.Large"/></div>
+        <MudText Typo="Typo.h5" Class="mb-2">Save your recovery key</MudText>
+        <MudText Class="mb-3">
+            If you forget your passphrase, this key is the only way back to your data. Keep it somewhere safe, such as
+            a password manager or printed out. It is shown only now.
+        </MudText>
+        <RecoveryKeyView Key="@m_RecoveryKey"/>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Download" OnClick="SaveKeyAsync">
+                Save as file
+            </MudButton>
+        </div>
+        <MudCheckBox T="bool" @bind-Value="m_Saved" Color="Color.Primary" Class="mt-3" Label="I have saved my recovery key."/>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-2" Disabled="!m_Saved" OnClick="Done">Continue</MudButton>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback Done { get; set; }
+
+    private readonly PassphraseModel m_Model = new();
+    private string? m_RecoveryKey;
+    private string? m_Error;
+    private bool m_Busy;
+    private bool m_Saved;
+
+    private async Task CreateAsync()
+    {
+        m_Busy = true;
+        m_Error = null;
+        try
+        {
+            m_RecoveryKey = await Vault.SetupAsync(m_Model.Passphrase);
+        }
+        catch (Exception e)
+        {
+            m_Error = $"Encryption could not be set up: {e.Message}";
+        }
+        finally
+        {
+            m_Busy = false;
+        }
+    }
+
+    private Task SaveKeyAsync() => FileSaver.SaveAsync("onyx-recovery-key.txt", "text/plain",
+        System.Text.Encoding.UTF8.GetBytes(RecoveryKeyView.FileText(m_RecoveryKey!)));
+
+    public sealed class PassphraseModel
+    {
+        [Required(ErrorMessage = "Choose a passphrase.")]
+        [MinLength(10, ErrorMessage = "Use at least 10 characters.")]
+        public string Passphrase { get; set; } = "";
+
+        [Required(ErrorMessage = "Repeat the passphrase.")]
+        [Compare(nameof(Passphrase), ErrorMessage = "The passphrases don't match.")]
+        public string Repeat { get; set; } = "";
+
+        public bool Understood { get; set; }
+    }
+}

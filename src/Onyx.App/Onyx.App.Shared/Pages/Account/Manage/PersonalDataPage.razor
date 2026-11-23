@@ -1,0 +1,80 @@
+@page "/account/manage/personal-data"
+@using Onyx.App.Shared.Services.Dashboard
+@using Onyx.App.Shared.Services.Documents
+@inject PersonalDataService DataService
+@inject ClientTimeZone ClientTimeZone
+@inject IFileSaver FileSaver
+@inject IPlatformService PlatformService
+@inject OnyxJs Js
+
+<PageTitle>Personal data · Onyx</PageTitle>
+
+<div class="d-flex align-center flex-wrap gap-2 mb-4 no-print">
+    <div>
+        <MudText Typo="Typo.h5">Personal data</MudText>
+        <MudText Typo="Typo.body2" Class="text-muted">
+            Everything Onyx stores about you, decrypted on this device. Check the preview, then download it.
+        </MudText>
+    </div>
+    <MudSpacer/>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.PictureAsPdf"
+               Disabled="@(m_Export is null)" OnClick="DownloadPdfAsync">Download PDF</MudButton>
+    @if (!PlatformService.IsMaui())
+    {
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.OpenInNew" Disabled="@(m_Export is null)"
+                   OnClick="OpenPdfAsync">Open PDF</MudButton>
+    }
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.DataObject" Disabled="@(m_Export is null)"
+               OnClick="DownloadJsonAsync">Download JSON</MudButton>
+</div>
+
+@if (m_Error is not null)
+{
+    <MudAlert Severity="Severity.Error">@m_Error</MudAlert>
+}
+else if (m_Export is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-2"/>
+    <MudText Typo="Typo.body2">@m_Progress</MudText>
+}
+else
+{
+    <DocumentView Document="m_Export.Document"/>
+}
+
+@code {
+    private PersonalDataExport? m_Export;
+    private byte[]? m_Pdf;
+    private string? m_Error;
+    private string m_Progress = "Starting…";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+        try
+        {
+            m_Export = await DataService.CreateAsync(await ClientTimeZone.GetAsync(), p =>
+            {
+                m_Progress = p;
+                StateHasChanged();
+            });
+        }
+        catch (Exception e)
+        {
+            m_Error = $"The report could not be created: {e.Message}";
+        }
+
+        StateHasChanged();
+    }
+
+    private byte[] Pdf => m_Pdf ??= DocumentPdf.Render(m_Export!.Document, DateTime.UtcNow);
+
+    private string FileName(string extension) => $"onyx-personal-data-{DateTime.Now:yyyy-MM-dd}.{extension}";
+
+    private Task DownloadPdfAsync() => FileSaver.SaveAsync(FileName("pdf"), "application/pdf", Pdf);
+
+    private async Task OpenPdfAsync() => await Js.InvokeVoidAsync("openInNewTab", "application/pdf", Pdf);
+
+    private Task DownloadJsonAsync() => FileSaver.SaveAsync(FileName("json"), "application/json", m_Export!.Json);
+}

@@ -33,7 +33,6 @@ public class AuthEndpointsTest
     private readonly Mock<IUserClaimsPrincipalFactory<ApplicationUser>> m_ClaimsFactory;
     private readonly Mock<HttpContext> m_HttpContext;
     private readonly KeyAccessor m_KeyAccessor;
-    private readonly AuthEndpoints.WebLoginModel m_ValidWebLoginModel;
     private readonly ApplicationUser m_TestUser;
 
     public AuthEndpointsTest()
@@ -105,13 +104,6 @@ public class AuthEndpointsTest
 
         m_UserManager.Setup(x => x.FindByIdAsync(m_TestUser.Id))
             .ReturnsAsync(m_TestUser);
-
-        m_ValidWebLoginModel = new AuthEndpoints.WebLoginModel
-        {
-            Email = "test@example.com",
-            Password = "password123",
-            Redirect = "/dashboard"
-        };
     }
 
     /// <summary>Empty in-memory SQLite database (account deletion runs a bulk delete, which mocks can't do).</summary>
@@ -397,86 +389,118 @@ public class AuthEndpointsTest
 
     private static readonly IOptions<OnyxServerOptions> s_OpenRegistration = Options.Create(new OnyxServerOptions());
 
+    private static DefaultHttpContext RequestContext()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Scheme = "https";
+        context.Request.Host = new HostString("onyx.example.com");
+        return context;
+    }
+
+    private Task<IResult> RegisterAsync(RegisterDto request, IOptions<OnyxServerOptions> options,
+        Mock<IEmailSender<ApplicationUser>>? emailSender = null) =>
+        AuthEndpoints.RegisterHandler(request, RequestContext(), m_UserManager.Object,
+            (emailSender ?? new Mock<IEmailSender<ApplicationUser>>()).Object, options, TimeProvider.System);
+
     [Fact]
     public async Task RegisterHandler_WhenRegistrationIsDisabled_ReturnsForbiddenWithoutCreatingUser()
     {
-        var request = new RegisterDto(Name: "newuser", Email: "newuser@example.com", Password: "ValidPassword123!");
+        var request = new RegisterDto("newuser", "newuser@example.com", "ValidPassword123!", AcceptPrivacyPolicy: true);
         var closed = Options.Create(new OnyxServerOptions { AllowRegistration = false });
 
-        var result = await AuthEndpoints.RegisterHandler(request, m_UserManager.Object, closed);
+        var result = await RegisterAsync(request, closed);
 
         result.ShouldBeOfType<ProblemHttpResult>().StatusCode.ShouldBe(StatusCodes.Status403Forbidden);
         m_UserManager.Verify(x => x.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
-    public async Task RegisterHandler_WithValidData_ReturnsOk()
+    public async Task RegisterHandler_WithoutConsent_ReturnsBadRequestWithoutCreatingUser()
     {
-        // Arrange
-        var request = new RegisterDto(Name: "newuser", Email: "newuser@example.com", Password: "ValidPassword123!");
+        var request = new RegisterDto("newuser", "newuser@example.com", "ValidPassword123!");
 
+        var result = await RegisterAsync(request, s_OpenRegistration);
+
+        result.ShouldBeOfType<ProblemHttpResult>().StatusCode.ShouldBe(StatusCodes.Status400BadRequest);
+        m_UserManager.Verify(x => x.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RegisterHandler_WithValidData_RecordsConsentAndSendsConfirmation()
+    {
+        var request = new RegisterDto("newuser", "newuser@example.com", "ValidPassword123!", true, "2026-11-23");
         m_UserManager.Setup(x => x.CreateAsync(It.IsAny<ApplicationUser>(), request.Password))
             .ReturnsAsync(IdentityResult.Success);
+        m_UserManager.Setup(x => x.GenerateEmailConfirmationTokenAsync(It.IsAny<ApplicationUser>()))
+            .ReturnsAsync("code+/=");
+        var emailSender = new Mock<IEmailSender<ApplicationUser>>();
 
-        // Act
-        var result = await AuthEndpoints.RegisterHandler(request, m_UserManager.Object, s_OpenRegistration);
+        var result = await RegisterAsync(request, s_OpenRegistration, emailSender);
 
-        // Assert
         result.ShouldBeOfType<Ok<object>>();
-
         m_UserManager.Verify(x => x.CreateAsync(
-            It.Is<ApplicationUser>(u =>
-                u.Email == request.Email &&
-                u.UserName == request.Name
-            ),
-            request.Password
-        ), Times.Once);
+            It.Is<ApplicationUser>(u => u.Email == request.Email && u.UserName == request.Name
+                                        && u.PrivacyConsentAt != null && u.PrivacyPolicyVersion == "2026-11-23"
+                                        && u.CreatedAt != null),
+            request.Password), Times.Once);
+        emailSender.Verify(x => x.SendConfirmationLinkAsync(It.IsAny<ApplicationUser>(), request.Email,
+            It.Is<string>(link => link.StartsWith("https://onyx.example.com/account/confirmEmail?userId=")
+                                  && link.Contains("code=code%2B%2F%3D"))), Times.Once);
     }
 
     [Fact]
     public async Task RegisterHandler_WithInvalidData_ReturnsBadRequestWithErrors()
     {
-        // Arrange
-        var request = new RegisterDto(Name: "newuser", Email: "newuser@example.com", Password: "weak");
-
+        var request = new RegisterDto("newuser", "newuser@example.com", "weak", AcceptPrivacyPolicy: true);
         var identityErrors = new List<IdentityError>
         {
             new() { Code = "PasswordTooShort", Description = "Password must be at least 6 characters" }
         };
-        var failedResult = IdentityResult.Failed(identityErrors.ToArray());
-
         m_UserManager.Setup(x => x.CreateAsync(It.IsAny<ApplicationUser>(), request.Password))
-            .ReturnsAsync(failedResult);
+            .ReturnsAsync(IdentityResult.Failed(identityErrors.ToArray()));
 
-        // Act
-        var result = await AuthEndpoints.RegisterHandler(request, m_UserManager.Object, s_OpenRegistration);
+        var result = await RegisterAsync(request, s_OpenRegistration);
 
-        // Assert
-        var badRequestResult = result.ShouldBeOfType<BadRequest<IEnumerable<IdentityError>>>();
-        badRequestResult.Value.ShouldBe(identityErrors);
+        result.ShouldBeOfType<BadRequest<IEnumerable<IdentityError>>>().Value.ShouldBe(identityErrors);
     }
 
     [Fact]
-    public async Task RegisterHandler_WithDuplicateEmail_ReturnsBadRequest()
+    public async Task ConfirmEmailHandler_WithValidCode_ReturnsOk()
     {
-        // Arrange
-        var request = new RegisterDto(Name: "newuser", Email: "existing@example.com", Password: "ValidPassword123!");
+        m_UserManager.Setup(x => x.ConfirmEmailAsync(m_TestUser, "valid-token")).ReturnsAsync(IdentityResult.Success);
 
-        var identityErrors = new List<IdentityError>
-        {
-            new() { Code = "DuplicateEmail", Description = "Email 'existing@example.com' is already taken." }
-        };
-        var failedResult = IdentityResult.Failed(identityErrors.ToArray());
+        var result = await AuthEndpoints.ConfirmEmailHandler(new ConfirmEmailDto(m_TestUser.Id, "valid-token"),
+            m_UserManager.Object);
 
-        m_UserManager.Setup(x => x.CreateAsync(It.IsAny<ApplicationUser>(), request.Password))
-            .ReturnsAsync(failedResult);
+        result.ShouldBeOfType<Ok>();
+        m_UserManager.Verify(x => x.ConfirmEmailAsync(m_TestUser, "valid-token"), Times.Once);
+    }
 
-        // Act
-        var result = await AuthEndpoints.RegisterHandler(request, m_UserManager.Object, s_OpenRegistration);
+    [Fact]
+    public async Task ConfirmEmailHandler_WithUnknownUserOrBadCode_ReturnsBadRequest()
+    {
+        m_UserManager.Setup(x => x.FindByIdAsync("unknown")).ReturnsAsync((ApplicationUser)null!);
+        m_UserManager.Setup(x => x.ConfirmEmailAsync(m_TestUser, "bad"))
+            .ReturnsAsync(IdentityResult.Failed(new IdentityError { Code = "InvalidToken" }));
 
-        // Assert
-        var badRequestResult = result.ShouldBeOfType<BadRequest<IEnumerable<IdentityError>>>();
-        badRequestResult.Value.ShouldBe(identityErrors);
+        (await AuthEndpoints.ConfirmEmailHandler(new ConfirmEmailDto("unknown", "x"), m_UserManager.Object))
+            .ShouldBeOfType<BadRequest<string>>();
+        (await AuthEndpoints.ConfirmEmailHandler(new ConfirmEmailDto(m_TestUser.Id, "bad"), m_UserManager.Object))
+            .ShouldBeOfType<BadRequest<string>>();
+    }
+
+    [Fact]
+    public async Task ResetPasswordHandler_ChecksTheEmailedCode()
+    {
+        m_UserManager.Setup(x => x.ResetPasswordAsync(m_TestUser, "code", "NewPassword1"))
+            .ReturnsAsync(IdentityResult.Success);
+        m_UserManager.Setup(x => x.ResetPasswordAsync(m_TestUser, "wrong", It.IsAny<string>()))
+            .ReturnsAsync(IdentityResult.Failed(new IdentityError { Code = "InvalidToken" }));
+
+        (await AuthEndpoints.ResetPasswordHandler(new ResetPasswordDto(m_TestUser.Id, "code", "NewPassword1"),
+            m_UserManager.Object)).ShouldBeOfType<Ok>();
+        (await AuthEndpoints.ResetPasswordHandler(new ResetPasswordDto(m_TestUser.Id, "wrong", "NewPassword1"),
+            m_UserManager.Object)).ShouldBeOfType<BadRequest<IEnumerable<IdentityError>>>();
     }
 
     [Fact]
@@ -714,106 +738,6 @@ public class AuthEndpointsTest
     }
 
     [Fact]
-    public async Task ConfirmEmailHandler_WithValidToken_ReturnsOk()
-    {
-        // Arrange
-        var userId = "test-id";
-        var token = "valid-token";
-
-        m_UserManager.Setup(x => x.FindByIdAsync(userId))
-            .ReturnsAsync(m_TestUser);
-        m_UserManager.Setup(x => x.ConfirmEmailAsync(m_TestUser, token))
-            .ReturnsAsync(IdentityResult.Success);
-
-        // Act
-        var result = await AuthEndpoints.ConfirmEmailHandler(userId, token, m_UserManager.Object);
-
-        // Assert
-        result.ShouldBeOfType<RedirectHttpResult>();
-        m_UserManager.Verify(x => x.ConfirmEmailAsync(m_TestUser, token), Times.Once);
-    }
-
-    [Fact]
-    public async Task ConfirmEmailHandler_WithNonExistentUser_ReturnsNotFound()
-    {
-        // Arrange
-        var userId = "non-existent-id";
-        var token = "valid-token";
-
-        m_UserManager.Setup(x => x.FindByIdAsync(userId))
-            .ReturnsAsync((ApplicationUser)null!);
-
-        // Act
-        var result = await AuthEndpoints.ConfirmEmailHandler(userId, token, m_UserManager.Object);
-
-        // Assert
-        result.ShouldBeOfType<NotFound>();
-        m_UserManager.Verify(x => x.ConfirmEmailAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task ConfirmEmailHandler_WithInvalidToken_ReturnsBadRequestWithErrors()
-    {
-        // Arrange
-        var userId = "test-id";
-        var token = "invalid-token";
-
-        var identityErrors = new List<IdentityError>
-        {
-            new() { Code = "InvalidToken", Description = "The confirmation token is invalid" }
-        };
-        var failedResult = IdentityResult.Failed(identityErrors.ToArray());
-
-        m_UserManager.Setup(x => x.FindByIdAsync(userId))
-            .ReturnsAsync(m_TestUser);
-        m_UserManager.Setup(x => x.ConfirmEmailAsync(m_TestUser, token))
-            .ReturnsAsync(failedResult);
-
-        // Act
-        var result = await AuthEndpoints.ConfirmEmailHandler(userId, token, m_UserManager.Object);
-
-        // Assert
-        var badRequestResult = result.ShouldBeOfType<BadRequest<IEnumerable<IdentityError>>>();
-        badRequestResult.Value.ShouldBe(identityErrors);
-    }
-
-    [Fact]
-    public async Task RegenerateRecoveryCodesHandler_WithValidUser_ReturnsOkWithCodes()
-    {
-        // Arrange
-        var expectedCodes = new[] { "code1", "code2", "code3" };
-
-        m_UserManager.Setup(x => x.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
-            .ReturnsAsync(m_TestUser);
-        m_UserManager.Setup(x => x.GenerateNewTwoFactorRecoveryCodesAsync(m_TestUser, 10))
-            .ReturnsAsync(expectedCodes);
-
-        // Act
-        var result = await AuthEndpoints.RegenerateRecoveryCodesHandler(m_HttpContext.Object, m_UserManager.Object);
-
-        // Assert
-        var okResult = result.ShouldBeOfType<Ok<IEnumerable<string>>>();
-        okResult.Value.ShouldBe(expectedCodes);
-        m_UserManager.Verify(x => x.GenerateNewTwoFactorRecoveryCodesAsync(m_TestUser, 10), Times.Once);
-    }
-
-    [Fact]
-    public async Task RegenerateRecoveryCodesHandler_WithNonExistentUser_ReturnsNotFound()
-    {
-        // Arrange
-        m_UserManager.Setup(x => x.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
-            .ReturnsAsync((ApplicationUser)null!);
-
-        // Act
-        var result = await AuthEndpoints.RegenerateRecoveryCodesHandler(m_HttpContext.Object, m_UserManager.Object);
-
-        // Assert
-        result.ShouldBeOfType<NotFound>();
-        m_UserManager.Verify(
-            x => x.GenerateNewTwoFactorRecoveryCodesAsync(It.IsAny<ApplicationUser>(), It.IsAny<int>()), Times.Never);
-    }
-
-    [Fact]
     public async Task WebLogOutHandler_SignsOutUserAndRedirectsToHomePage()
     {
         // Arrange
@@ -835,126 +759,6 @@ public class AuthEndpointsTest
         // Verify redirect result
         var redirectResult = result.ShouldBeOfType<RedirectHttpResult>();
         redirectResult.Url.ShouldBe("/");
-    }
-
-    [Fact]
-    public async Task LoginHandler_WithValidCredentials_ShouldRedirect()
-    {
-        // Arrange
-        m_UserManager.Setup(x => x.FindByEmailAsync(m_ValidWebLoginModel.Email))
-            .ReturnsAsync(m_TestUser);
-
-        m_SignInManager.Setup(x => x.PasswordSignInAsync(m_TestUser, m_ValidWebLoginModel.Password, true, false))
-            .ReturnsAsync(SignInResult.Success);
-
-        m_ClaimsFactory.Setup(x => x.CreateAsync(m_TestUser))
-            .ReturnsAsync(new ClaimsPrincipal());
-
-        // Act
-        var result = await AuthEndpoints.WebLoginHandler(
-            m_ValidWebLoginModel,
-            m_SignInManager.Object,
-            m_ClaimsFactory.Object,
-            m_HttpContext.Object);
-
-        // Assert
-        var redirectResult = result.ShouldBeOfType<RedirectHttpResult>();
-        redirectResult.Url.ShouldBe(m_ValidWebLoginModel.Redirect);
-    }
-
-    [Fact]
-    public async Task LoginHandler_WithExternalRedirect_GoesToTheDashboardInstead()
-    {
-        m_UserManager.Setup(x => x.FindByEmailAsync(m_ValidWebLoginModel.Email)).ReturnsAsync(m_TestUser);
-        m_SignInManager.Setup(x => x.PasswordSignInAsync(m_TestUser, m_ValidWebLoginModel.Password, true, false))
-            .ReturnsAsync(SignInResult.Success);
-        m_ClaimsFactory.Setup(x => x.CreateAsync(m_TestUser)).ReturnsAsync(new ClaimsPrincipal());
-        var model = new AuthEndpoints.WebLoginModel
-        {
-            Email = m_ValidWebLoginModel.Email, Password = m_ValidWebLoginModel.Password,
-            Redirect = "https://evil.example/phish"
-        };
-
-        var result = await AuthEndpoints.WebLoginHandler(model, m_SignInManager.Object, m_ClaimsFactory.Object,
-            m_HttpContext.Object);
-
-        result.ShouldBeOfType<RedirectHttpResult>().Url.ShouldBe("/home");
-    }
-
-    [Fact]
-    public async Task LoginHandler_WithNonExistentUser_ShouldReturnUnauthorized()
-    {
-        // Arrange
-        m_UserManager.Setup(x => x.FindByEmailAsync(m_ValidWebLoginModel.Email))
-            .ReturnsAsync((ApplicationUser)null!);
-
-        // Act
-        var result = await AuthEndpoints.WebLoginHandler(
-            m_ValidWebLoginModel,
-            m_SignInManager.Object,
-            m_ClaimsFactory.Object,
-            m_HttpContext.Object);
-
-        // Assert
-        result.ShouldBeOfType<RedirectHttpResult>();
-    }
-
-    [Fact]
-    public async Task LoginHandler_WithInvalidPassword_ShouldReturnUnauthorized()
-    {
-        // Arrange
-        m_UserManager.Setup(x => x.FindByEmailAsync(m_ValidWebLoginModel.Email))
-            .ReturnsAsync(m_TestUser);
-
-        m_SignInManager.Setup(x => x.PasswordSignInAsync(m_TestUser, m_ValidWebLoginModel.Password, true, false))
-            .ReturnsAsync(SignInResult.Failed);
-
-        // Act
-        var result = await AuthEndpoints.WebLoginHandler(
-            m_ValidWebLoginModel,
-            m_SignInManager.Object,
-            m_ClaimsFactory.Object,
-            m_HttpContext.Object);
-
-        // Assert
-        result.ShouldBeOfType<RedirectHttpResult>();
-    }
-
-    [Fact]
-    public async Task LoginHandler_WithValidCredentials_ShouldSignInUser()
-    {
-        // Arrange
-        m_UserManager.Setup(x => x.FindByEmailAsync(m_ValidWebLoginModel.Email))
-            .ReturnsAsync(m_TestUser);
-
-        m_SignInManager.Setup(x => x.PasswordSignInAsync(m_TestUser, m_ValidWebLoginModel.Password, true, false))
-            .ReturnsAsync(SignInResult.Success);
-
-        var principal = new ClaimsPrincipal();
-        m_ClaimsFactory.Setup(x => x.CreateAsync(m_TestUser))
-            .ReturnsAsync(principal);
-
-#pragma warning disable CS8634 // The type cannot be used as type parameter in the generic type or method. Nullability of type argument doesn't match 'class' constraint.
-        var authService =
-            Mock.Get(
-                m_HttpContext.Object.RequestServices.GetService(
-                    typeof(IAuthenticationService)) as IAuthenticationService);
-#pragma warning restore CS8634 // The type cannot be used as type parameter in the generic type or method. Nullability of type argument doesn't match 'class' constraint.
-
-        // Act
-        await AuthEndpoints.WebLoginHandler(
-            m_ValidWebLoginModel,
-            m_SignInManager.Object,
-            m_ClaimsFactory.Object,
-            m_HttpContext.Object);
-
-        // Assert
-        authService.Verify(x => x!.SignInAsync(
-            m_HttpContext.Object,
-            IdentityConstants.ApplicationScheme,
-            principal,
-            It.IsAny<AuthenticationProperties>()
-        ), Times.Once);
     }
 
     [Fact]

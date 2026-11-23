@@ -1,6 +1,5 @@
-@using System.Text
 @using Onyx.Data.ApiSchema
-@* One chart of a weekly report. The SVG comes from the server and is shown as an image, so nothing in it runs. *@
+@* One chart of a weekly report. The SVG is drawn on this device by ReportCharts, which escapes all text. *@
 
 @if (Report.Charts.TryGetValue(Key, out var svg))
 {
@@ -11,10 +10,9 @@
         }
         @if (Caption is not null)
         {
-            <MudText Typo="Typo.body2" Class="mb-2" Style="color: #494C3B">@Caption</MudText>
+            <MudText Typo="Typo.body2" Class="mb-2 report-muted">@Caption</MudText>
         }
-        <img class="report-chart" alt="@(Title ?? "Chart")"
-             src="@($"data:image/svg+xml;base64,{Convert.ToBase64String(Encoding.UTF8.GetBytes(svg))}")"/>
+        <div class="report-chart" role="img" aria-label="@(Title ?? "Chart")">@((MarkupString)svg)</div>
     </div>
 }
 

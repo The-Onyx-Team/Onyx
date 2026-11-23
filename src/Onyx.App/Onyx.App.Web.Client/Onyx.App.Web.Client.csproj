@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+    <!-- The web dashboard, running in the browser. It decrypts the user's data there, so the server never sees it.
+         The web host (Onyx.App.Web) serves it; the pages come from Onyx.App.Shared, like in the native apps. -->
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <NoDefaultLaunchSettingsFile>true</NoDefaultLaunchSettingsFile>
+        <StaticWebAssetProjectMode>Default</StaticWebAssetProjectMode>
+        <!-- Time zones come from the browser; keep the zone data so TimeZoneInfo can convert. -->
+        <InvariantTimezone>false</InvariantTimezone>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.15" />
+        <PackageReference Include="MudBlazor" Version="8.4.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Onyx.App.Shared\Onyx.App.Shared.csproj" />
+    </ItemGroup>
+
+</Project>

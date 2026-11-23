@@ -20,12 +20,12 @@ public static class WebsiteEndpoints
         return group;
     }
 
-    public static async Task<IResult> GetExclusionsAsync([FromServices] IWebsiteSettings settings) =>
+    public static async Task<IResult> GetExclusionsAsync([FromServices] Services.Data.WebsiteSettings settings) =>
         Results.Ok(new WebsiteExclusionsDto(await settings.GetExcludedDomainsAsync()));
 
     public static async Task<IResult> SetExclusionsAsync(
         [FromBody] WebsiteExclusionsDto dto,
-        [FromServices] IWebsiteSettings settings)
+        [FromServices] Services.Data.WebsiteSettings settings)
     {
         try
         {
@@ -37,7 +37,7 @@ public static class WebsiteEndpoints
         }
     }
 
-    public static async Task<IResult> DeleteHistoryAsync([FromServices] IWebsiteSettings settings)
+    public static async Task<IResult> DeleteHistoryAsync([FromServices] Services.Data.WebsiteSettings settings)
     {
         await settings.DeleteWebsiteHistoryAsync();
         return Results.NoContent();

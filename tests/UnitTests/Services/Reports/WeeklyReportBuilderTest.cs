@@ -1,5 +1,5 @@
 using JetBrains.Annotations;
-using Onyx.App.Web.Services.Reports;
+using Onyx.App.Shared.Services.Reports;
 using Onyx.Data.ApiSchema;
 using Shouldly;
 using Xunit;

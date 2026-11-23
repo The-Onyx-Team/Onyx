@@ -1,0 +1,392 @@
+@page "/friends"
+@using Onyx.App.Shared.Services.Dashboard
+@using Onyx.App.Shared.Services.Social
+@using Onyx.Collector.Core.Crypto
+@using Onyx.Data.ApiSchema
+@layout AppLayout
+@attribute [Authorize]
+@inject SocialService Social
+@inject ClientTimeZone ClientTimeZone
+@inject IProfileService ProfileService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Friends · Onyx</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+    <MudText Typo="Typo.h5">Friends</MudText>
+    <MudText Typo="Typo.body2" Class="text-muted mb-4">
+        Compare screen time with friends and groups. You only see what they chose to share (and they what you chose
+        in <MudLink Href="/settings#sharing" Typo="Typo.body2">Settings</MudLink>); it is encrypted for each person, so
+        the server can't read it. Apps and websites are never shared.
+    </MudText>
+
+    <MudGrid Spacing="3">
+        <MudItem xs="12" md="7">
+            <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                <div class="d-flex align-center flex-wrap gap-2 mb-3">
+                    <MudText Typo="Typo.h6">@(m_LastWeek ? "Last week" : "This week")</MudText>
+                    <MudSpacer/>
+                    @if (m_Groups is { Count: > 0 })
+                    {
+                        <MudSelect T="int" Value="m_GroupFilter" ValueChanged="g => m_GroupFilter = g" Dense="true"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 200px">
+                            <MudSelectItem T="int" Value="0">Everyone</MudSelectItem>
+                            @foreach (var group in m_Groups.Where(g => g.Accepted))
+                            {
+                                <MudSelectItem T="int" Value="group.Id">@group.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+                    <MudToggleGroup T="bool" @bind-Value="m_LastWeek" Outlined="true" Color="Color.Primary">
+                        <MudToggleItem Value="false" Text="This week"/>
+                        <MudToggleItem Value="true" Text="Last week"/>
+                    </MudToggleGroup>
+                </div>
+
+                @if (m_People is null)
+                {
+                    <MudProgressLinear Indeterminate="true"/>
+                }
+                else
+                {
+                    var people = Compared.ToList();
+                    var max = people.Select(p => p.Week?.TotalMinutes ?? 0).DefaultIfEmpty(0).Max();
+                    @if (people.Count <= 1)
+                    {
+                        <MudText Typo="Typo.body2" Class="text-muted">
+                            Nobody shares with you yet. Add friends below: once they accept, you see each other's numbers.
+                        </MudText>
+                    }
+                    @foreach (var person in people)
+                    {
+                        <div class="compare-row @(person.Person.IsMe ? "me" : "")">
+                            <MudAvatar Size="Size.Small" Color="Color.Secondary">
+                                @if (person.Person.AvatarDataUrl is { } avatar)
+                                {
+                                    <MudImage Src="@avatar" Alt=""/>
+                                }
+                                else
+                                {
+                                    @Initial(person.Person.UserName)
+                                }
+                            </MudAvatar>
+                            <div class="compare-body">
+                                <div class="d-flex align-center">
+                                    <span class="compare-name">@(person.Person.IsMe ? "You" : person.Person.UserName)</span>
+                                    <MudSpacer/>
+                                    <span class="compare-value">@Value(person.Week)</span>
+                                </div>
+                                @if (person.Week is { Level: not ShareLevel.Nothing } week)
+                                {
+                                    <div class="compare-bar"><span style="width: @Percent(week.TotalMinutes, max)"></span></div>
+                                    <div class="compare-days">
+                                        @{ var dayMax = Math.Max(1, week.DailyMinutes.DefaultIfEmpty(0).Max()); }
+                                        @for (var i = 0; i < week.DailyMinutes.Length; i++)
+                                        {
+                                            <span title="@s_Days[i]: @UsageSummary.Format(TimeSpan.FromMinutes(week.DailyMinutes[i]))"
+                                                  style="height: @Percent(week.DailyMinutes[i], dayMax)"></span>
+                                        }
+                                    </div>
+                                    @if (week.CategoryMinutes is { Count: > 0 } categories)
+                                    {
+                                        <div class="compare-categories">
+                                            @foreach (var (name, minutes) in categories.OrderByDescending(c => c.Value).Take(4))
+                                            {
+                                                <span>@name @UsageSummary.Format(TimeSpan.FromMinutes(minutes))</span>
+                                            }
+                                        </div>
+                                    }
+                                    @if (week.Goals is { Count: > 0 } goals)
+                                    {
+                                        <div class="compare-categories">
+                                            @foreach (var goal in goals)
+                                            {
+                                                <span title="@goal.Title">🔥 @goal.Streak · @goal.Title</span>
+                                            }
+                                        </div>
+                                    }
+                                }
+                                @if (!person.Person.IsMe && person.Person.UpdatedAt is { } updated)
+                                {
+                                    <div class="compare-updated">updated @Ago(updated)</div>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="5">
+            <MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true">
+                <MudText Typo="Typo.h6" Class="mb-2">Add a friend</MudText>
+                <div class="d-flex align-center gap-2">
+                    <MudTextField T="string" @bind-Value="m_FriendName" Label="User name or email" Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" Immediate="true"
+                                  OnKeyDown="@(async e => { if (e.Key == "Enter") await AddFriendAsync(); })"/>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddFriendAsync"
+                               Disabled="string.IsNullOrWhiteSpace(m_FriendName)">Add</MudButton>
+                </div>
+
+                @if (m_Friends is { Count: > 0 })
+                {
+                    <MudList T="string" Dense="true" Class="mt-3">
+                        @foreach (var friend in m_Friends)
+                        {
+                            <MudListItem T="string">
+                                <div class="d-flex align-center gap-2">
+                                    <MudAvatar Size="Size.Small" Color="Color.Secondary">
+                                        @if (friend.AvatarDataUrl is { } avatar)
+                                        {
+                                            <MudImage Src="@avatar" Alt=""/>
+                                        }
+                                        else
+                                        {
+                                            @Initial(friend.UserName)
+                                        }
+                                    </MudAvatar>
+                                    <div style="flex: 1; min-width: 0">
+                                        <div>@friend.UserName</div>
+                                        <MudText Typo="Typo.caption" Class="text-muted">
+                                            @(friend.Accepted ? $"safety code {m_SafetyCodes.GetValueOrDefault(friend.UserId) ?? "–"}"
+                                                : friend.Incoming ? "wants to be your friend" : "waiting for an answer")
+                                        </MudText>
+                                    </div>
+                                    @if (!friend.Accepted && friend.Incoming)
+                                    {
+                                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                                   OnClick="() => RunAsync(Social.AcceptFriendAsync(friend.Id))">Accept</MudButton>
+                                    }
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Close" Size="Size.Small"
+                                                   aria-label="@(friend.Accepted ? "Remove friend" : "Decline")"
+                                                   OnClick="() => RemoveFriendAsync(friend)"/>
+                                </div>
+                            </MudListItem>
+                        }
+                    </MudList>
+                    <MudText Typo="Typo.caption" Class="text-muted">
+                        Compare safety codes with your friends in person: if they match, nobody (not even the server)
+                        swapped the keys that protect what you share.
+                    </MudText>
+                }
+            </MudPaper>
+
+            <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                <MudText Typo="Typo.h6" Class="mb-2">Groups</MudText>
+                <div class="d-flex align-center gap-2">
+                    <MudTextField T="string" @bind-Value="m_GroupName" Label="New group" Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" Immediate="true" MaxLength="100"/>
+                    <MudButton Variant="Variant.Outlined" OnClick="CreateGroupAsync"
+                               Disabled="string.IsNullOrWhiteSpace(m_GroupName)">Create</MudButton>
+                </div>
+                @foreach (var group in m_Groups ?? [])
+                {
+                    <div class="group-card mt-3">
+                        <div class="d-flex align-center">
+                            <MudText Typo="Typo.subtitle1" Style="font-weight: 600">@group.Name</MudText>
+                            <MudSpacer/>
+                            @if (!group.Accepted)
+                            {
+                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                           OnClick="() => RunAsync(Social.AcceptInvitationAsync(group.Id))">Join</MudButton>
+                            }
+                            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true" Size="Size.Small">
+                                @if (group.IsAdmin)
+                                {
+                                    <MudMenuItem OnClick="() => DeleteGroupAsync(group)">Delete group</MudMenuItem>
+                                }
+                                else
+                                {
+                                    <MudMenuItem OnClick="() => LeaveAsync(group)">@(group.Accepted ? "Leave" : "Decline")</MudMenuItem>
+                                }
+                            </MudMenu>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1 my-1">
+                            @foreach (var member in group.Members)
+                            {
+                                @if (group.IsAdmin && !member.IsAdmin)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="@(member.Accepted ? Variant.Filled : Variant.Outlined)"
+                                             OnClose="@(_ => RemoveMemberAsync(group, member))">
+                                        @MemberLabel(member)
+                                    </MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="@(member.Accepted ? Variant.Filled : Variant.Outlined)">
+                                        @MemberLabel(member)
+                                    </MudChip>
+                                }
+                            }
+                        </div>
+                        @if (group.IsAdmin)
+                        {
+                            <div class="d-flex align-center gap-2">
+                                <MudTextField T="string" Value="@m_Invites.GetValueOrDefault(group.Id)"
+                                              ValueChanged="@(v => m_Invites[group.Id] = v)" Label="Invite (user name or email)"
+                                              Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true"/>
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => InviteAsync(group)"
+                                           Disabled="@string.IsNullOrWhiteSpace(m_Invites.GetValueOrDefault(group.Id))">Invite</MudButton>
+                            </div>
+                        }
+                    </div>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private static readonly string[] s_Days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+    private List<PersonWeeks>? m_People;
+    private List<FriendDto>? m_Friends;
+    private List<GroupDto>? m_Groups;
+    private Dictionary<string, string> m_SafetyCodes = [];
+    private readonly Dictionary<int, string?> m_Invites = [];
+    private string? m_FriendName;
+    private string? m_GroupName;
+    private bool m_LastWeek;
+    private int m_GroupFilter;
+    private TimeZoneInfo m_Zone = TimeZoneInfo.Local;
+    private DateOnly m_Today;
+
+    private DateOnly SelectedWeek => Weeks.StartOf(m_Today).AddDays(m_LastWeek ? -7 : 0);
+
+    private IEnumerable<(PersonWeeks Person, SharedWeek? Week)> Compared
+    {
+        get
+        {
+            var members = m_GroupFilter == 0
+                ? null
+                : m_Groups?.FirstOrDefault(g => g.Id == m_GroupFilter)?.Members.Select(m => m.UserId).ToHashSet();
+            return (m_People ?? [])
+                .Where(p => p.IsMe || members is null || members.Contains(p.UserId))
+                .Select(p => (p, p.Weeks.GetValueOrDefault(SelectedWeek)))
+                .OrderBy(x => x.Item2 is null || x.Item2.Level == ShareLevel.Nothing ? int.MaxValue : x.Item2.TotalMinutes);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+        m_Zone = await ClientTimeZone.GetAsync();
+        m_Today = await ClientTimeZone.TodayAsync();
+        await LoadAsync(publish: true);
+    }
+
+    private async Task LoadAsync(bool publish = false)
+    {
+        try
+        {
+            m_Friends = await Social.GetFriendsAsync();
+            m_Groups = await Social.GetGroupsAsync();
+            if (publish)
+                await Social.PublishAsync(m_Zone, m_Today);
+            m_SafetyCodes = await Social.GetSafetyCodesAsync();
+            var me = (await ProfileService.GetAsync()).UserName ?? "You";
+            m_People = await Social.GetComparisonAsync(m_Zone, m_Today, me);
+        }
+        catch (Exception e)
+        {
+            m_People ??= [];
+            Snackbar.Add($"Could not load: {e.Message}", Severity.Error);
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task RunAsync(Task<string?> action)
+    {
+        if (await action is { } error)
+            Snackbar.Add(error, Severity.Error);
+        await LoadAsync(publish: true);
+    }
+
+    private async Task AddFriendAsync()
+    {
+        if (string.IsNullOrWhiteSpace(m_FriendName))
+            return;
+        if (await Social.RequestFriendAsync(m_FriendName) is { } error)
+        {
+            Snackbar.Add(error, Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Request sent.", Severity.Success);
+        m_FriendName = null;
+        await LoadAsync(publish: true);
+    }
+
+    private async Task RemoveFriendAsync(FriendDto friend)
+    {
+        if (friend.Accepted && await DialogService.ShowMessageBox("Remove friend",
+                $"Remove {friend.UserName}? You stop seeing each other's numbers.", yesText: "Remove", cancelText: "Cancel") != true)
+            return;
+        await RunAsync(Social.RemoveFriendAsync(friend.Id));
+    }
+
+    private async Task CreateGroupAsync()
+    {
+        if (await Social.CreateGroupAsync(m_GroupName!) is { } error)
+            Snackbar.Add(error, Severity.Error);
+        m_GroupName = null;
+        await LoadAsync();
+    }
+
+    private async Task InviteAsync(GroupDto group)
+    {
+        if (await Social.InviteAsync(group.Id, m_Invites[group.Id]!) is { } error)
+        {
+            Snackbar.Add(error, Severity.Error);
+            return;
+        }
+
+        m_Invites[group.Id] = null;
+        Snackbar.Add("Invitation sent.", Severity.Success);
+        await LoadAsync();
+    }
+
+    private async Task RemoveMemberAsync(GroupDto group, GroupMemberDto member) =>
+        await RunAsync(Social.RemoveMemberAsync(group.Id, member.UserId));
+
+    private async Task LeaveAsync(GroupDto group)
+    {
+        var me = group.Members.FirstOrDefault(m => m.UserId == m_People?.FirstOrDefault(p => p.IsMe)?.UserId);
+        if (me is not null)
+            await RunAsync(Social.RemoveMemberAsync(group.Id, me.UserId));
+    }
+
+    private async Task DeleteGroupAsync(GroupDto group)
+    {
+        if (await DialogService.ShowMessageBox("Delete group", $"Delete \"{group.Name}\" for everyone?",
+                yesText: "Delete", cancelText: "Cancel") == true)
+            await RunAsync(Social.DeleteGroupAsync(group.Id));
+    }
+
+    private static string Value(SharedWeek? week) => week switch
+    {
+        null => "nothing shared yet",
+        { Level: ShareLevel.Nothing } => "doesn't share numbers",
+        _ => UsageSummary.Format(TimeSpan.FromMinutes(week.TotalMinutes))
+    };
+
+    private static string Percent(int value, int max) =>
+        $"{(max > 0 ? Math.Max(2, value * 100.0 / max) : 0).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)}%";
+
+    private static string MemberLabel(GroupMemberDto member) =>
+        member.UserName + (member.IsAdmin ? " (admin)" : member.Accepted ? "" : " (invited)");
+
+    private static string Initial(string name) => string.IsNullOrEmpty(name) ? "?" : name[..1].ToUpperInvariant();
+
+    private static string Ago(DateTime utc)
+    {
+        var age = DateTime.UtcNow - utc;
+        return age.TotalMinutes < 2 ? "just now"
+            : age.TotalHours < 1 ? $"{(int)age.TotalMinutes} min ago"
+            : age.TotalDays < 1 ? $"{(int)age.TotalHours} h ago"
+            : $"{(int)age.TotalDays} days ago";
+    }
+}

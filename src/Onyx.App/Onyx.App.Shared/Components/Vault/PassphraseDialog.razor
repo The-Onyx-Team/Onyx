@@ -1,0 +1,96 @@
+@using Onyx.App.Shared.Services.Client
+@inject VaultService Vault
+@inject IFileSaver FileSaver
+
+@* Checks the current passphrase, then either sets a new one or shows the recovery key. *@
+<MudDialog>
+    <DialogContent>
+        @if (m_RecoveryKey is not null)
+        {
+            <MudText Class="mb-3">Keep this key somewhere safe. With it and access to your account, your data can be read.</MudText>
+            <RecoveryKeyView Key="@m_RecoveryKey"/>
+        }
+        else
+        {
+            <MudTextField T="string" Label="Current passphrase" @bind-Value="m_Current" InputType="InputType.Password"
+                          Variant="Variant.Outlined" Class="mb-3" Immediate="true" AutoFocus="true"/>
+            @if (!ShowRecoveryKey)
+            {
+                <MudTextField T="string" Label="New passphrase" @bind-Value="m_New" InputType="InputType.Password"
+                              Variant="Variant.Outlined" Class="mb-3" Immediate="true" HelperText="At least 10 characters."/>
+                <MudTextField T="string" Label="Repeat new passphrase" @bind-Value="m_Repeat" InputType="InputType.Password"
+                              Variant="Variant.Outlined" Immediate="true"/>
+            }
+            @if (m_Error is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3" Dense="true">@m_Error</MudAlert>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (m_RecoveryKey is not null)
+        {
+            <MudButton StartIcon="@Icons.Material.Outlined.Download" OnClick="SaveAsync">Save as file</MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => MudDialog.Close()">Done</MudButton>
+        }
+        else
+        {
+            <MudButton OnClick="() => MudDialog.Cancel()">Cancel</MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="ConfirmAsync" Disabled="@(m_Busy || !Valid)">
+                @(m_Busy ? "Checking…" : ShowRecoveryKey ? "Show" : "Change")
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    /// <summary>Show the recovery key instead of changing the passphrase.</summary>
+    [Parameter] public bool ShowRecoveryKey { get; set; }
+
+    private string? m_Current;
+    private string? m_New;
+    private string? m_Repeat;
+    private string? m_Error;
+    private string? m_RecoveryKey;
+    private bool m_Busy;
+
+    private bool Valid => !string.IsNullOrEmpty(m_Current)
+                          && (ShowRecoveryKey || (m_New?.Length >= 10 && m_New == m_Repeat));
+
+    private async Task ConfirmAsync()
+    {
+        m_Busy = true;
+        m_Error = null;
+        try
+        {
+            if (!await Vault.VerifyPassphraseAsync(m_Current!))
+            {
+                m_Error = "The current passphrase is not right.";
+                return;
+            }
+
+            if (ShowRecoveryKey)
+            {
+                m_RecoveryKey = await Vault.GetRecoveryKeyAsync();
+            }
+            else
+            {
+                await Vault.ChangePassphraseAsync(m_New!);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+        }
+        catch (Exception e)
+        {
+            m_Error = e.Message;
+        }
+        finally
+        {
+            m_Busy = false;
+        }
+    }
+
+    private Task SaveAsync() => FileSaver.SaveAsync("onyx-recovery-key.txt", "text/plain",
+        System.Text.Encoding.UTF8.GetBytes(RecoveryKeyView.FileText(m_RecoveryKey!)));
+}

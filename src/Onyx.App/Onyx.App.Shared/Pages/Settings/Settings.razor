@@ -1,209 +1,399 @@
 @page "/settings"
 @using Onyx.App.Shared.Services.Usage
 @using Onyx.App.Shared.Components.Apps
-@using Onyx.Data.ApiSchema
+@using Onyx.Collector.Core.Crypto
+@layout AppLayout
+@attribute [Authorize]
 @inject IWebsiteSettings WebsiteSettings
-@inject IAppManager AppManager
+@inject AppCatalog Catalog
+@inject VaultService Vault
 @inject IUserManager UserManager
-@inject IPlatformService PlatformService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
 
-@layout AppLayout
+<PageTitle>Settings · Onyx</PageTitle>
 
-<PageTitle>Settings</PageTitle>
-
-<AuthorizeView>
-    <Authorized>
-        <MudContainer MaxWidth="MaxWidth.Medium" Class="py-6">
-            <MudPaper Class="pa-4 mb-6" Elevation="1">
-                <MudText Typo="Typo.h6">Data collection</MudText>
-                <MudText Class="mt-2">
-                    Android uploads in the background about every 30 minutes when online. Windows and the Linux agent
-                    record continuously while running and upload every 5 minutes; anything recorded offline is sent later.
-                    The <MudLink Href="/devices">Devices</MudLink> page shows each device's last upload and can upload this device now.
-                </MudText>
-                <MudText Class="mt-2">
-                    What is collected: see the <MudLink Href="/privacy">privacy policy</MudLink>.
-                </MudText>
-            </MudPaper>
-
-            <MudPaper Class="pa-4 mb-6" Elevation="1" id="apps">
-                <MudText Typo="Typo.h6">Apps</MudText>
-                <MudText Class="mt-2 mb-3">
-                    Give apps your own name or category, for example packages the device could not translate to a
-                    name. This only changes what you see, everywhere in Onyx.
-                </MudText>
-                @if (m_Apps is null)
-                {
-                    <MudProgressLinear Indeterminate="true"/>
-                }
-                else if (m_Apps.Count == 0)
-                {
-                    <MudText Typo="Typo.body2">No apps yet. They appear once a device uploads usage.</MudText>
-                }
-                else
-                {
-                    <MudTextField T="string" @bind-Value="m_AppFilter" Placeholder="Search apps" Immediate="true"
-                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                                  Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2" Clearable="true"/>
-                    <MudTable Items="FilteredApps" Dense="true" Hover="true" Elevation="0" RowsPerPage="10"
-                              OnRowClick="@((TableRowClickEventArgs<AppDto> e) => EditAppAsync(e.Item!))" Style="cursor: pointer">
-                        <HeaderContent>
-                            <MudTh>App</MudTh>
-                            <MudTh>Category</MudTh>
-                            <MudTh Style="width: 48px"></MudTh>
-                        </HeaderContent>
-                        <RowTemplate Context="app">
-                            <MudTd DataLabel="App">
-                                <div class="app-name-cell">
-                                    <AppIcon Src="@IconSrc(app)" Name="@app.Name"/>
-                                    <div style="min-width: 0">
-                                        <div>@app.Name</div>
-                                        @if (app.IsCustomized && app.Name != app.ReportedName)
-                                        {
-                                            <MudText Typo="Typo.caption">reported as @app.ReportedName</MudText>
-                                        }
-                                    </div>
-                                </div>
-                            </MudTd>
-                            <MudTd DataLabel="Category">@(app.Category ?? "-")</MudTd>
-                            <MudTd>
-                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Rename"
-                                               OnClick="@(() => EditAppAsync(app))"/>
-                            </MudTd>
-                        </RowTemplate>
-                        <PagerContent>
-                            <MudTablePager HideRowsPerPage="true"/>
-                        </PagerContent>
-                    </MudTable>
-                }
-            </MudPaper>
-
-            <MudPaper Class="pa-4 mb-6" Elevation="1" id="websites">
-                <MudText Typo="Typo.h6">Websites</MudText>
-                <MudText Class="mt-2">
-                    Computers with website recording turned on (on the Devices page or with
-                    <code>onyx-agent websites on</code>) split browser time by website, using the Onyx Websites browser
-                    extension. Only domains are stored.
-                </MudText>
-
-                <MudText Typo="Typo.subtitle1" Class="mt-4">Never record these websites</MudText>
-                <MudText Typo="Typo.body2" Class="mb-2">
-                    Subdomains are included. Time on them still counts for the browser, without the website. Adding a
-                    website also removes it from the history already recorded.
-                </MudText>
-                @if (m_Excluded is null)
-                {
-                    <MudProgressLinear Indeterminate="true"/>
-                }
-                else
-                {
-                    <MudChipSet T="string" AllClosable="true" OnClose="RemoveExclusionAsync">
-                        @foreach (var domain in m_Excluded)
+<MudContainer MaxWidth="MaxWidth.Medium" Class="py-6 settings-page">
+    <MudPaper Class="pa-4 mb-6 settings-section" Elevation="0" Outlined="true" id="apps">
+        <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+            <MudText Typo="Typo.h6">Apps</MudText>
+            <MudSwitch T="bool" @bind-Value="m_ShowHidden" Color="Color.Primary" Label="Show hidden apps"/>
+        </div>
+        <MudText Class="mt-1 mb-3" Typo="Typo.body2">
+            Rename apps, give them a category or icon, or hide them. Apps with the same name are shown as one, so the
+            same app on your phone and your computer counts together.
+        </MudText>
+        @if (m_Groups is null)
+        {
+            <MudProgressLinear Indeterminate="true"/>
+        }
+        else if (m_Groups.Count == 0)
+        {
+            <MudText Typo="Typo.body2">No apps yet. They appear once a device uploads usage.</MudText>
+        }
+        else
+        {
+            <MudTextField T="string" @bind-Value="m_AppFilter" Placeholder="Search apps" Immediate="true"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2" Clearable="true"/>
+            <MudTable Items="FilteredApps" Dense="true" Hover="true" Elevation="0" RowsPerPage="10"
+                      OnRowClick="@((TableRowClickEventArgs<AppGroup> e) => EditAppAsync(e.Item!))" Style="cursor: pointer">
+                <HeaderContent>
+                    <MudTh>App</MudTh>
+                    <MudTh>Category</MudTh>
+                    <MudTh Style="width: 48px"></MudTh>
+                </HeaderContent>
+                <RowTemplate Context="app">
+                    <MudTd DataLabel="App">
+                        <div class="app-name-cell @(app.Hidden ? "app-hidden" : "")">
+                            <AppIcon Src="@app.IconDataUrl" Name="@app.Name"/>
+                            <div style="min-width: 0">
+                                <div>@app.Name @if (app.Hidden) { <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">hidden</MudChip> }</div>
+                                <MudText Typo="Typo.caption" Class="text-muted">
+                                    @app.Platforms@(app.Members.Count > 1 ? $" · {app.Members.Count} apps merged" : "")
+                                </MudText>
+                            </div>
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="Category">
+                        @if (app.Category is { } category)
                         {
-                            <MudChip T="string" Value="domain" Text="@domain"/>
+                            <span class="category-dot" style="background: @ColorOf(category)"></span>@category
                         }
-                    </MudChipSet>
-                    <div class="d-flex align-center gap-2 mt-2">
-                        <MudTextField T="string" @bind-Value="m_NewExclusion" Label="Website, e.g. example.com"
-                                      Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true"
-                                      OnKeyDown="@(async e => { if (e.Key == "Enter") await AddExclusionAsync(); })"/>
-                        <MudButton Variant="Variant.Outlined" OnClick="AddExclusionAsync"
-                                   Disabled="string.IsNullOrWhiteSpace(m_NewExclusion)">Exclude</MudButton>
+                        else
+                        {
+                            <span class="text-muted">–</span>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="Edit"
+                                       OnClick="@(() => EditAppAsync(app))"/>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager HideRowsPerPage="true"/>
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mb-6 settings-section" Elevation="0" Outlined="true" id="categories">
+        <MudText Typo="Typo.h6">Categories</MudText>
+        <MudText Class="mt-1 mb-3" Typo="Typo.body2">
+            Your own categories and their colours, used on the dashboard, in reports and for goals. Renaming one
+            renames it everywhere.
+        </MudText>
+        @if (m_Settings is not null)
+        {
+            <div class="category-list">
+                @foreach (var category in m_Settings.Categories)
+                {
+                    <div class="category-row">
+                        <MudMenu Dense="true" AnchorOrigin="Origin.BottomLeft" aria-label="Colour">
+                            <ActivatorContent>
+                                <button class="category-swatch" style="background: @category.Color" title="Change colour"></button>
+                            </ActivatorContent>
+                            <ChildContent>
+                                <div class="swatch-grid">
+                                    @foreach (var color in s_Swatches)
+                                    {
+                                        <button class="category-swatch" style="background: @color"
+                                                @onclick="@(() => SetColorAsync(category.Name, color))" title="@color"></button>
+                                    }
+                                </div>
+                            </ChildContent>
+                        </MudMenu>
+                        <span class="category-name">@category.Name</span>
+                        <MudSpacer/>
+                        <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="Rename"
+                                       OnClick="@(() => RenameCategoryAsync(category.Name))"/>
+                        <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" aria-label="Delete"
+                                       OnClick="@(() => DeleteCategoryAsync(category.Name))"/>
                     </div>
                 }
+            </div>
+            <div class="d-flex align-center gap-2 mt-3">
+                <MudTextField T="string" @bind-Value="m_NewCategory" Label="New category" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" Immediate="true" MaxLength="50"
+                              OnKeyDown="@(async e => { if (e.Key == "Enter") await AddCategoryAsync(); })"/>
+                <MudButton Variant="Variant.Outlined" OnClick="AddCategoryAsync"
+                           Disabled="string.IsNullOrWhiteSpace(m_NewCategory)">Add</MudButton>
+            </div>
+        }
+    </MudPaper>
 
-                <MudText Typo="Typo.subtitle1" Class="mt-4">Website history</MudText>
-                <MudText Typo="Typo.body2" Class="mb-2">
-                    Removes the website from all recorded usage on all devices. Browser time is kept.
-                </MudText>
-                <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="m_DeletingHistory"
-                           OnClick="DeleteWebsiteHistoryAsync">
-                    @(m_DeletingHistory ? "Deleting..." : "Delete website history")
-                </MudButton>
-            </MudPaper>
+    <MudPaper Class="pa-4 mb-6 settings-section" Elevation="0" Outlined="true" id="websites">
+        <MudText Typo="Typo.h6">Websites</MudText>
+        <MudText Class="mt-1" Typo="Typo.body2">
+            Computers with website recording turned on (on the <MudLink Href="/devices" Typo="Typo.body2">Devices</MudLink>
+            page or with <code>onyx-agent websites on</code>) split browser time by website, using the Onyx Websites
+            browser extension. Only domains are recorded.
+        </MudText>
 
-            <MudPaper Class="pa-4" Elevation="1">
-                <MudText Typo="Typo.h6" Color="Color.Error">Delete account</MudText>
-                <MudText Class="mt-2 mb-3">
-                    Deletes your account, all registered devices and all usage data. This cannot be undone.
-                </MudText>
-                <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="m_Deleting" OnClick="DeleteAccountAsync">
-                    @(m_Deleting ? "Deleting..." : "Delete my account")
-                </MudButton>
-            </MudPaper>
-        </MudContainer>
-    </Authorized>
-</AuthorizeView>
+        <MudText Typo="Typo.subtitle1" Class="mt-4">Never record these websites</MudText>
+        <MudText Typo="Typo.body2" Class="mb-2">
+            Subdomains are included. Time on them still counts for the browser, without the website. Adding a
+            website also removes it from the history already recorded.
+        </MudText>
+        @if (m_Excluded is null)
+        {
+            <MudProgressLinear Indeterminate="true"/>
+        }
+        else
+        {
+            <MudChipSet T="string" AllClosable="true" OnClose="RemoveExclusionAsync">
+                @foreach (var domain in m_Excluded)
+                {
+                    <MudChip T="string" Value="domain" Text="@domain"/>
+                }
+            </MudChipSet>
+            <div class="d-flex align-center gap-2 mt-2">
+                <MudTextField T="string" @bind-Value="m_NewExclusion" Label="Website, e.g. example.com"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true"
+                              OnKeyDown="@(async e => { if (e.Key == "Enter") await AddExclusionAsync(); })"/>
+                <MudButton Variant="Variant.Outlined" OnClick="AddExclusionAsync"
+                           Disabled="@(string.IsNullOrWhiteSpace(m_NewExclusion) || m_WebsiteBusy is not null)">Exclude</MudButton>
+            </div>
+        }
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4">Website history</MudText>
+        <MudText Typo="Typo.body2" Class="mb-2">
+            Removes the websites from all recorded usage on all devices. Browser time is kept.
+        </MudText>
+        <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="@(m_WebsiteBusy is not null)"
+                   OnClick="DeleteWebsiteHistoryAsync">Delete website history</MudButton>
+        @if (m_WebsiteBusy is not null)
+        {
+            <MudText Typo="Typo.body2" Class="mt-2"><MudProgressCircular Size="Size.Small" Indeterminate="true"/> @m_WebsiteBusy</MudText>
+        }
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mb-6 settings-section" Elevation="0" Outlined="true" id="sharing">
+        <MudText Typo="Typo.h6">Sharing with friends</MudText>
+        <MudText Class="mt-1 mb-3" Typo="Typo.body2">
+            What your <MudLink Href="/friends" Typo="Typo.body2">friends and groups</MudLink> see. It is encrypted
+            for each of them; the server can't read it. Apps and websites are never shared.
+        </MudText>
+        @if (m_Settings is not null)
+        {
+            <MudRadioGroup T="ShareLevel" Value="m_Settings.Sharing.Level" ValueChanged="SetShareLevelAsync">
+                <MudRadio T="ShareLevel" Value="ShareLevel.Nothing" Color="Color.Primary">Nothing</MudRadio>
+                <MudRadio T="ShareLevel" Value="ShareLevel.Total" Color="Color.Primary">Screen time per day</MudRadio>
+                <MudRadio T="ShareLevel" Value="ShareLevel.Categories" Color="Color.Primary">Screen time and categories</MudRadio>
+                <MudRadio T="ShareLevel" Value="ShareLevel.CategoriesAndGoals" Color="Color.Primary">Screen time, categories, goals and streaks</MudRadio>
+            </MudRadioGroup>
+        }
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mb-6 settings-section" Elevation="0" Outlined="true" id="encryption">
+        <MudText Typo="Typo.h6">Encryption</MudText>
+        <MudText Class="mt-1 mb-3" Typo="Typo.body2">
+            Your data is end-to-end encrypted: only your devices, which hold your key, can read it. Other devices
+            keep working when you change the passphrase.
+        </MudText>
+        <div class="d-flex flex-wrap gap-2">
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Password" OnClick="ChangePassphraseAsync">Change passphrase</MudButton>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Key" OnClick="ShowRecoveryKeyAsync">Show recovery key</MudButton>
+            @if (Vault.CanChooseRemember)
+            {
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Lock" OnClick="LockAsync">Lock this browser</MudButton>
+            }
+        </div>
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mb-6 settings-section" Elevation="0" Outlined="true">
+        <MudText Typo="Typo.h6">Your data</MudText>
+        <MudText Class="mt-1 mb-3" Typo="Typo.body2">
+            Android uploads about every 30 minutes when online; Windows and the Linux agent every 5 minutes.
+            What is collected and why: <MudLink Href="/privacy" Typo="Typo.body2">privacy policy</MudLink>.
+        </MudText>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Description" Href="/account/manage/personal-data">
+            Personal data report
+        </MudButton>
+    </MudPaper>
+
+    <MudPaper Class="pa-4 settings-section danger-zone" Elevation="0" Outlined="true">
+        <MudText Typo="Typo.h6" Color="Color.Error">Delete account</MudText>
+        <MudText Class="mt-1 mb-3" Typo="Typo.body2">
+            Deletes your account, all devices, all usage data, goals, friendships and groups you run. This can't be undone.
+        </MudText>
+        <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="m_Deleting" OnClick="DeleteAccountAsync">
+            @(m_Deleting ? "Deleting…" : "Delete my account")
+        </MudButton>
+    </MudPaper>
+</MudContainer>
 
 @code {
+    private static readonly string[] s_Swatches =
+    [
+        "#B4532A", "#D98E5F", "#C9A27E", "#8E9A7B", "#5E7F5A", "#2F6F73", "#6F8594", "#3B4048",
+        "#9AA0A8", "#7A4A6B", "#B3261E", "#C08A2E", "#5C2E1B", "#131518"
+    ];
+
     private bool m_Deleting;
-    private bool m_DeletingHistory;
+    private string? m_WebsiteBusy;
     private List<string>? m_Excluded;
     private string? m_NewExclusion;
+    private string? m_NewCategory;
+    private VaultSettings? m_Settings;
 
-    private List<AppDto>? m_Apps;
+    private IReadOnlyList<AppGroup>? m_Groups;
     private string? m_AppFilter;
+    private bool m_ShowHidden;
 
-    private IEnumerable<AppDto> FilteredApps => (m_Apps ?? [])
+    private IEnumerable<AppGroup> FilteredApps => (m_Groups ?? [])
+        .Where(a => m_ShowHidden || !a.Hidden)
         .Where(a => string.IsNullOrWhiteSpace(m_AppFilter)
                     || a.Name.Contains(m_AppFilter, StringComparison.OrdinalIgnoreCase)
-                    || (a.ReportedName?.Contains(m_AppFilter, StringComparison.OrdinalIgnoreCase) ?? false)
-                    || (a.Identifier?.Contains(m_AppFilter, StringComparison.OrdinalIgnoreCase) ?? false));
+                    || a.Members.Any(m => m.ReportedName.Contains(m_AppFilter, StringComparison.OrdinalIgnoreCase)
+                                          || m.Identifier.Contains(m_AppFilter, StringComparison.OrdinalIgnoreCase)));
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
+            m_Settings = await Vault.GetSettingsAsync(refresh: true);
             m_Excluded = await WebsiteSettings.GetExcludedDomainsAsync();
         }
         catch (Exception e)
         {
             m_Excluded = [];
-            Snackbar.Add($"Could not load excluded websites: {e.Message}", Severity.Error);
+            Snackbar.Add($"Could not load the settings: {e.Message}", Severity.Error);
         }
 
         await LoadAppsAsync();
+
+        // Links like /settings#websites
+        var fragment = new Uri(NavigationManager.Uri).Fragment;
+        if (fragment.Length > 1)
+            NavigationManager.NavigateTo(NavigationManager.Uri, replace: true);
     }
 
     private async Task LoadAppsAsync()
     {
         try
         {
-            m_Apps = (await AppManager.GetAppsAsync()).OrderBy(a => a.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+            m_Groups = await Catalog.GetGroupsAsync(refresh: true);
+            m_Settings = await Vault.GetSettingsAsync();
         }
         catch (Exception e)
         {
-            m_Apps = [];
+            m_Groups = [];
             Snackbar.Add($"Could not load apps: {e.Message}", Severity.Error);
         }
     }
 
-    private static string? IconSrc(AppDto app) =>
-        app.IconBitmap.Length > 0 ? $"data:image/png;base64,{Convert.ToBase64String(app.IconBitmap)}" : null;
+    private string ColorOf(string category) =>
+        m_Settings?.Categories.FirstOrDefault(c => c.Name.Equals(category, StringComparison.OrdinalIgnoreCase))?.Color
+        ?? "#9AA0A8";
 
-    private async Task EditAppAsync(AppDto app)
+    private async Task EditAppAsync(AppGroup app)
     {
-        var categories = (m_Apps ?? []).SelectMany(a => new[] { a.Category, a.ReportedCategory })
-            .Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c!)
-            .Distinct(StringComparer.OrdinalIgnoreCase).Order().ToList();
+        var categories = (m_Settings?.Categories.Select(c => c.Name) ?? [])
+            .Concat(m_Groups?.Select(g => g.Category).OfType<string>() ?? [])
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
         var dialog = await DialogService.ShowAsync<AppEditDialog>(null, new DialogParameters<AppEditDialog>
         {
-            { d => d.App, app },
-            { d => d.IconSrc, IconSrc(app) },
+            { d => d.Group, app },
             { d => d.Categories, categories },
         }, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
 
-        var result = await dialog.Result;
-        if (result is { Canceled: false })
+        if (await dialog.Result is { Canceled: false })
         {
-            Snackbar.Add("Saved. The dashboard and reports use the new name.", Severity.Success);
+            Snackbar.Add("Saved. The dashboard and reports use it from now on.", Severity.Success);
             await LoadAppsAsync();
         }
     }
+
+    // Categories
+
+    private async Task AddCategoryAsync()
+    {
+        var name = m_NewCategory?.Trim();
+        if (string.IsNullOrEmpty(name))
+            return;
+        if (m_Settings!.Categories.Any(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        {
+            Snackbar.Add("That category exists already.", Severity.Warning);
+            return;
+        }
+
+        var color = s_Swatches[m_Settings.Categories.Count % s_Swatches.Length];
+        await SaveSettingsAsync(s => s.Categories.Add(new CategorySettings { Name = name, Color = color }));
+        m_NewCategory = null;
+    }
+
+    private Task SetColorAsync(string name, string color) => SaveSettingsAsync(s =>
+    {
+        foreach (var c in s.Categories.Where(c => c.Name == name))
+            c.Color = color;
+    });
+
+    private async Task RenameCategoryAsync(string name)
+    {
+        var parameters = new DialogParameters<TextPromptDialog>
+        {
+            { d => d.Label, "Name" }, { d => d.Value, name }, { d => d.ConfirmText, "Rename" }
+        };
+        var dialog = await DialogService.ShowAsync<TextPromptDialog>("Rename category", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
+        if (await dialog.Result is not { Canceled: false, Data: string newName } || string.IsNullOrWhiteSpace(newName))
+            return;
+        newName = newName.Trim();
+
+        await SaveSettingsAsync(s =>
+        {
+            foreach (var c in s.Categories.Where(c => c.Name == name))
+                c.Name = newName;
+            foreach (var app in s.Apps.Values.Where(a => a.Category == name))
+                app.Category = newName;
+            foreach (var goal in s.Goals.Where(g => g.Scope == GoalScope.Category && g.Target == name))
+                goal.Target = newName;
+        });
+        // Apps that only had the reported category get it renamed as their own.
+        var reported = (m_Groups ?? []).SelectMany(g => g.Members)
+            .Where(m => m.Category == name && m.Settings?.Category is null)
+            .ToDictionary(m => m.Identifier, m => new AppSettings
+                { Name = m.Settings?.Name, Category = newName, Hidden = m.Hidden });
+        if (reported.Count > 0)
+            await Catalog.SetSettingsAsync(reported);
+        await LoadAppsAsync();
+    }
+
+    private async Task DeleteCategoryAsync(string name)
+    {
+        var confirmed = await DialogService.ShowMessageBox("Delete category",
+            $"Delete \"{name}\"? Apps in it keep their data and lose the category.", yesText: "Delete", cancelText: "Cancel");
+        if (confirmed != true)
+            return;
+        await SaveSettingsAsync(s =>
+        {
+            s.Categories.RemoveAll(c => c.Name == name);
+            foreach (var app in s.Apps.Values.Where(a => a.Category == name))
+                app.Category = null;
+        });
+        Catalog.Invalidate();
+        await LoadAppsAsync();
+    }
+
+    private Task SetShareLevelAsync(ShareLevel level) => SaveSettingsAsync(s => s.Sharing.Level = level);
+
+    private async Task SaveSettingsAsync(Action<VaultSettings> change)
+    {
+        try
+        {
+            m_Settings = await Vault.UpdateSettingsAsync(change);
+            Catalog.Invalidate();
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"Could not save: {e.Message}", Severity.Error);
+        }
+    }
+
+    // Websites
 
     private async Task AddExclusionAsync()
     {
@@ -221,6 +411,7 @@
 
     private async Task<bool> SaveExclusionsAsync(List<string> domains)
     {
+        m_WebsiteBusy = "Saving…";
         try
         {
             m_Excluded = await WebsiteSettings.SetExcludedDomainsAsync(domains);
@@ -231,21 +422,29 @@
             Snackbar.Add(e is ArgumentException ? e.Message : $"Could not save: {e.Message}", Severity.Error);
             return false;
         }
+        finally
+        {
+            m_WebsiteBusy = null;
+        }
     }
 
     private async Task DeleteWebsiteHistoryAsync()
     {
         var confirmed = await DialogService.ShowMessageBox("Delete website history",
-            "Remove the website from all recorded usage? Browser time is kept. This cannot be undone. " +
+            "Remove the websites from all recorded usage? Browser time is kept. This can't be undone. " +
             "Devices that still record websites keep adding new history.",
             yesText: "Delete", cancelText: "Cancel");
         if (confirmed != true)
             return;
 
-        m_DeletingHistory = true;
+        m_WebsiteBusy = "Starting…";
         try
         {
-            await WebsiteSettings.DeleteWebsiteHistoryAsync();
+            await WebsiteSettings.DeleteWebsiteHistoryAsync(p =>
+            {
+                m_WebsiteBusy = p;
+                StateHasChanged();
+            });
             Snackbar.Add("Website history deleted.", Severity.Success);
         }
         catch (Exception e)
@@ -254,14 +453,37 @@
         }
         finally
         {
-            m_DeletingHistory = false;
+            m_WebsiteBusy = null;
         }
+    }
+
+    // Encryption
+
+    private async Task ChangePassphraseAsync()
+    {
+        var dialog = await DialogService.ShowAsync<PassphraseDialog>("Change passphrase",
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
+        if (await dialog.Result is { Canceled: false })
+            Snackbar.Add("Passphrase changed.", Severity.Success);
+    }
+
+    private async Task ShowRecoveryKeyAsync()
+    {
+        var parameters = new DialogParameters<PassphraseDialog> { { d => d.ShowRecoveryKey, true } };
+        await DialogService.ShowAsync<PassphraseDialog>("Recovery key", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+    }
+
+    private async Task LockAsync()
+    {
+        await Vault.LockAsync();
+        NavigationManager.NavigateTo("/home");
     }
 
     private async Task DeleteAccountAsync()
     {
         var confirmed = await DialogService.ShowMessageBox("Delete account",
-            "Delete your account with all devices and usage data? This cannot be undone.",
+            "Delete your account with all devices and data? This can't be undone.",
             yesText: "Delete everything", cancelText: "Cancel");
         if (confirmed != true)
             return;
@@ -276,8 +498,6 @@
             return;
         }
 
-        // The web implementation already navigated to the sign-out endpoint.
-        if (PlatformService.IsMaui())
-            NavigationManager.NavigateTo("/account/login", forceLoad: true);
+        NavigationManager.NavigateTo("/account/login", forceLoad: true);
     }
 }

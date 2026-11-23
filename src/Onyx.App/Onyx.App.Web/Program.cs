@@ -2,16 +2,12 @@ using System.IO.Abstractions;
 using System.Net.Mail;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
-using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
-using MudBlazor.Services;
 using Onyx.App.Shared.Services;
-using Onyx.App.Shared.Services.Auth;
 using Onyx.App.Shared.Services.Usage;
 using Onyx.App.Web.Api;
 using Onyx.App.Web.Components;
@@ -57,12 +53,13 @@ var key = new RsaSecurityKey(rsa);
 
 builder.AddServiceDefaults();
 
+// The UI runs in the browser (WebAssembly): it decrypts the user's data there, so the server never sees it.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveWebAssemblyComponents();
+builder.Services.AddMemoryCache();
 
 builder.Services.AddSingleton<IFileSystem, FileSystem>();
 builder.Services.AddOpenApi();
-builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
 
 builder.Services.AddDataProtection()
@@ -70,12 +67,6 @@ builder.Services.AddDataProtection()
     .SetApplicationName("OnyxApp");
 
 builder.Services.AddSingleton(new KeyAccessor(key));
-
-// UI
-
-builder.Services.AddMudServices();
-builder.Services.AddBlazoredLocalStorage();
-builder.Services.TryAddScoped<IStorage, WebStorage>();
 
 // Database
 
@@ -204,15 +195,6 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
     .AddDefaultTokenProviders();
 
 builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, ApplicationUserClaimsPrincipalFactory>();
-builder.Services.AddCascadingAuthenticationState();
-
-builder.Services.AddScoped<IUserManager, UserManager>();
-builder.Services.AddScoped<IUserProvider, UserProvider>();
-builder.Services.AddScoped<IProfileService, ProfileService>();
-
-// Platform Service
-builder.Services.AddScoped<IPlatformService, WebPlatformService>();
-builder.Services.AddScoped<IServerSettings, WebServerSettings>();
 builder.Services.Configure<OnyxServerOptions>(config.GetSection(OnyxServerOptions.Section));
 
 // e-mail
@@ -228,24 +210,29 @@ if (!string.IsNullOrWhiteSpace(smtpServer))
 else
     builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
-// Usage Data
+// Usage data. UsageDataService, AppManager and WebsiteSettings serve the plain-text data of app versions before
+// end-to-end encryption, until each user's client has moved it into encrypted rows.
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<CurrentUser>();
-builder.Services.AddScoped<IUsageDataService, UsageDataService>();
+builder.Services.AddScoped<UsageDataService>();
 builder.Services.AddScoped<IDeviceManager, DeviceManager>();
-builder.Services.AddScoped<IAppManager, AppManager>();
-builder.Services.AddScoped<IWebsiteSettings, WebsiteSettings>();
-builder.Services.AddSingleton<IStatsService, WebStatsService>();
-builder.Services.AddScoped<Onyx.App.Shared.Services.Dashboard.ClientTimeZone>();
-builder.Services.AddSingleton<Onyx.App.Web.Services.Reports.ReportChartRenderer>();
-builder.Services.AddScoped<IReportService, Onyx.App.Web.Services.Reports.ReportService>();
+builder.Services.AddScoped<AppManager>();
+builder.Services.AddScoped<WebsiteSettings>();
 
 var app = builder.Build();
 
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    app.UseWebAssemblyDebugging();
+}
+else
+{
+    app.UseExceptionHandler(error => error.Run(context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        return context.Response.WriteAsync("Something went wrong on the server.");
+    }));
     app.UseHsts();
     app.UseHttpsRedirection();
 }
@@ -266,13 +253,17 @@ app.MapDataEndpoints();
 app.MapDeviceEndpoints();
 app.MapAppEndpoints();
 app.MapWebsiteEndpoints();
-app.MapReportEndpoints();
+app.MapE2EEndpoints();
+app.MapSocialEndpoints();
+app.MapIconProxy();
 // Public: the apps show it on the privacy and register pages before anyone signs in.
 app.MapGet("/api/info", (Microsoft.Extensions.Options.IOptionsSnapshot<OnyxServerOptions> options) =>
-    WebServerSettings.Info(options.Value)).AllowAnonymous();
+    ServerInfo.Create(options.Value, !string.IsNullOrWhiteSpace(smtpServer))).AllowAnonymous();
+// Unknown API paths are 404s, not the app's HTML page.
+app.Map("/api/{**rest}", () => Results.NotFound());
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode()
-    .AddAdditionalAssemblies(typeof(Onyx.App.Shared._Imports).Assembly);
+    .AddInteractiveWebAssemblyRenderMode()
+    .AddAdditionalAssemblies(typeof(Onyx.App.Web.Client._Imports).Assembly, typeof(Onyx.App.Shared._Imports).Assembly);
 
 app.Run();
 return 0;

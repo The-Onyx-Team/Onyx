@@ -1,6 +1,6 @@
 namespace Onyx.App.Shared.Services.Usage;
 
-/// <summary>The signed-in user's website recording settings (shared by all their devices).</summary>
+/// <summary>The signed-in user's website recording settings (shared by all their devices, encrypted).</summary>
 public interface IWebsiteSettings
 {
     /// <summary>Websites never recorded, normalized and sorted.</summary>
@@ -13,5 +13,6 @@ public interface IWebsiteSettings
     Task<List<string>> SetExcludedDomainsAsync(IReadOnlyList<string> domains);
 
     /// <summary>Removes the website from all recorded usage. Browser time is kept.</summary>
-    Task DeleteWebsiteHistoryAsync();
+    /// <param name="progress">Called with a short status while rows are rewritten.</param>
+    Task DeleteWebsiteHistoryAsync(Action<string>? progress = null);
 }

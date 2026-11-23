@@ -2,7 +2,7 @@
 @inject IUserProvider UserProvider
 @inject UrlEncoder UrlEncoder
 
-<MudContainer Fluid="true" MaxWidth="MaxWidth.False" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     @if (m_User is null)
     {
     <MudText Typo="Typo.body1">Loading...</MudText>
@@ -16,7 +16,7 @@
 
     <MudGrid>
         <MudItem xs="12" md="10" lg="6">
-            <MudCard Class="mt-1 px-4 py-4" Style="min-width: 25vw;" Outlined="true" Justify="Justify.Center">
+            <MudCard Class="mt-1 px-4 py-4" Style="min-width: 25vw;" Outlined="true">
                 <MudCardContent>
                     <MudText Typo="Typo.h5" Class="mb-2">Welcome @m_User.Name</MudText>
                     <MudText Typo="Typo.body1" Class="mb-4">

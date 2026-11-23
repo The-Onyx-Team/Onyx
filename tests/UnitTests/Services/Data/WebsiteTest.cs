@@ -71,7 +71,7 @@ public sealed class WebsiteTest : IDisposable
                 User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "user-1")], "test"))
             }
         };
-        m_User = new CurrentUser(accessor, new ServiceCollection().BuildServiceProvider());
+        m_User = new CurrentUser(accessor);
     }
 
     public void Dispose()

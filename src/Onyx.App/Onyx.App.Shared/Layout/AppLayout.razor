@@ -2,97 +2,84 @@
 @layout MainLayout
 @inject NavigationManager NavigationManager
 @inject IUserManager UserManager
+@implements IDisposable
 
+@* The signed-in app: navigation rail (bottom bar on phones), app bar, and the page behind the vault gate, which
+   asks for the passphrase until this device can decrypt the user's data. *@
 
-<div id="app-container" style="overflow: hidden;">
-    <div id="nav">
-        @foreach (var item in NavItems)
+<div id="app-container">
+    <nav id="nav" aria-label="Main">
+        <a href="/home" class="nav-brand" aria-label="Onyx home">
+            <img src="_content/Onyx.App.Shared/img/Icon.png" alt=""/>
+        </a>
+        @foreach (var item in s_NavItems)
         {
-            var isSelected = item.Url is not null && NavigationManager.Uri.EndsWith(item.Url);
-            <div class="nav-item @(isSelected ? "selected-nav-item" : "")"
-                 style="@(item.ExtraStyle ?? "")"
-                 @onclick="@(() => NavigationManager.NavigateTo(item.Url ?? NavigationManager.Uri))">
-                <MudTooltip Text="@item.DisplayName">
-                    <MudIcon Icon="@item.Icon"/>
-                </MudTooltip>
-            </div>
+            <a href="@item.Url" class="nav-item @(IsSelected(item) ? "selected-nav-item" : "")" title="@item.Name"
+               aria-current="@(IsSelected(item) ? "page" : null)">
+                <MudIcon Icon="@item.Icon"/>
+                <span class="nav-label">@item.Name</span>
+            </a>
         }
-    </div>
-    <div id="app-box" style="width: 100%">
-        <MudAppBar Class="app-bar" Color="Color.Primary">
-            <img src="_content/Onyx.App.Shared/img/Icon.png" alt="" class="appbar-logo"/>
-            <MudText Typo="Typo.h6">Onyx</MudText>
+    </nav>
+    <div id="app-box">
+        <MudAppBar Class="app-bar" Elevation="0" Dense="true">
+            <MudText Typo="Typo.h6" Class="app-bar-title">@Title</MudText>
             <MudSpacer/>
-            <MudToggleIconButton @bind-Toggled="@MainLayout.IsDarkMode"
-                                 Icon="@Icons.Material.Filled.LightMode"
-                                 ToggledIcon="@Icons.Material.Filled.DarkMode"
-                                 Class="mud-theme-primary"
-                                 ToggledColor="@Color.Tertiary"
-                                 title="@(MainLayout.IsDarkMode ? "On" : "Off")"/>
-            <form action="Account/Logout" method="post">
-                <AntiforgeryToken/>
-                <MudIconButton OnClick="Logout" Icon="@Icons.Material.Filled.Logout"
-                               Color="Color.Tertiary" ButtonType="ButtonType.Submit"/>
-            </form>
+            <MudTooltip Text="@(MainLayout.IsDarkMode ? "Light theme" : "Dark theme")">
+                <MudIconButton Icon="@(MainLayout.IsDarkMode ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)"
+                               Color="Color.Inherit" OnClick="@(() => MainLayout.IsDarkMode = !MainLayout.IsDarkMode)"
+                               aria-label="Switch theme"/>
+            </MudTooltip>
+            <MudTooltip Text="Account">
+                <MudIconButton Icon="@Icons.Material.Outlined.AccountCircle" Color="Color.Inherit"
+                               Href="/account/manage/profile" aria-label="Account"/>
+            </MudTooltip>
+            <MudTooltip Text="Sign out">
+                <MudIconButton Icon="@Icons.Material.Outlined.Logout" Color="Color.Inherit" OnClick="Logout"
+                               aria-label="Sign out"/>
+            </MudTooltip>
         </MudAppBar>
-        <MudMainContent>
-            @Body
+        <MudMainContent Class="app-main">
+            <VaultGate>
+                @Body
+            </VaultGate>
         </MudMainContent>
     </div>
 </div>
-
 
 @code
 {
     [CascadingParameter] public required MainLayout MainLayout { get; set; }
 
-    public struct NavItem
-    {
-        public string? Icon;
-        public string? Url;
-        public required string DisplayName;
-        public string? ExtraStyle;
-    }
+    private sealed record NavItem(string Name, string Url, string Icon);
 
-    public readonly List<NavItem> NavItems =
+    private static readonly NavItem[] s_NavItems =
     [
-        new()
-        {
-            Icon = Icons.Material.Filled.Home,
-            DisplayName = "Home",
-            Url = "/home"
-        },
-        new()
-        {
-            Icon = Icons.Material.Filled.Devices,
-            DisplayName = "Devices",
-            Url = "/devices"
-        },
-        new()
-        {
-            Icon = Icons.Material.Filled.Assessment,
-            DisplayName = "Weekly report",
-            Url = "/reports"
-        },
-        new()
-        {
-            Icon = Icons.Material.Filled.AccountCircle,
-            DisplayName = "Profile",
-            Url = "/account/manage/profile",
-            ExtraStyle = "margin-top: auto"
-        },
-        new()
-        {
-            Icon = Icons.Material.Filled.Settings,
-            DisplayName = "Settings",
-            Url = "/settings"
-        },
+        new("Home", "/home", Icons.Material.Outlined.SpaceDashboard),
+        new("Goals", "/goals", Icons.Material.Outlined.Flag),
+        new("Friends", "/friends", Icons.Material.Outlined.Group),
+        new("Reports", "/reports", Icons.Material.Outlined.Assessment),
+        new("Devices", "/devices", Icons.Material.Outlined.Devices),
+        new("Settings", "/settings", Icons.Material.Outlined.Settings),
     ];
+
+    private string Path => "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri).Split('?', '#')[0];
+
+    private bool IsSelected(NavItem item) => Path.StartsWith(item.Url, StringComparison.OrdinalIgnoreCase);
+
+    private string Title => s_NavItems.FirstOrDefault(IsSelected)?.Name
+                            ?? (Path.StartsWith("/account", StringComparison.OrdinalIgnoreCase) ? "Account" : "Onyx");
+
+    protected override void OnInitialized() => NavigationManager.LocationChanged += OnLocationChanged;
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) =>
+        InvokeAsync(StateHasChanged);
 
     private async Task Logout()
     {
         await UserManager.LogoutAsync();
-        NavigationManager.NavigateTo("/account/login", forceLoad: true);
+        NavigationManager.NavigateTo("/account/login");
     }
-}
 
+    public void Dispose() => NavigationManager.LocationChanged -= OnLocationChanged;
+}

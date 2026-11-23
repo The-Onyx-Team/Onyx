@@ -51,49 +51,81 @@
             m_IsDarkMode = await Storage.GetItemAsync<bool>("darkMode");
     }
 
+    /// <summary>
+    /// The Onyx palette, after the gem: black onyx with grey and pearl bands, and sardonyx's red-brown as the
+    /// accent. Dark is the default; the light theme is the pearl band with onyx ink.
+    /// </summary>
     private readonly MudTheme m_MyCustomTheme = new()
     {
-        
-        PaletteLight = new PaletteLight()
+        PaletteLight = new PaletteLight
         {
-            Primary = "#9D4D27",       
-            Secondary = "#C58848",     
-            Tertiary = "#494C3B",      
-            Background = "#F6F2E9",    
-            DrawerBackground = "#CBCBBF",
-            DrawerText = "#111213",
-            AppbarBackground = "#C58848",
-            AppbarText = "#111213",
-            TextPrimary = "#111213",  
-            TextSecondary = "#494C3B",  
-            ActionDefault = "#494C3B",
-            ActionDisabled = "#9F9B8A",
-            ActionDisabledBackground = "#CBCBBF"
+            Primary = "#B4532A",
+            PrimaryContrastText = "#FFFFFF",
+            Secondary = "#6F8594",
+            Tertiary = "#3B4048",
+            Info = "#6F8594",
+            Success = "#5E7F5A",
+            Warning = "#C08A2E",
+            Error = "#B3261E",
+            Black = "#0B0C0E",
+            Background = "#F7F5F1",
+            BackgroundGray = "#EEEBE5",
+            Surface = "#FFFFFF",
+            DrawerBackground = "#EEEBE5",
+            DrawerText = "#131518",
+            AppbarBackground = "#131518",
+            AppbarText = "#F7F5F1",
+            TextPrimary = "#131518",
+            TextSecondary = "#5B616B",
+            ActionDefault = "#3B4048",
+            ActionDisabled = "#A7ACB4",
+            ActionDisabledBackground = "#E2DED6",
+            LinesDefault = "#DAD6CE",
+            LinesInputs = "#A7ACB4",
+            TableLines = "#E2DED6",
+            Divider = "#DAD6CE",
         },
-        PaletteDark = new PaletteDark()
+        PaletteDark = new PaletteDark
         {
-            Primary = "#9D4D27",        
-            Secondary = "#C58848",      
-            Tertiary = "#F6F2E9",      
-            Background = "#111213",     
-            Surface = "#525453",        
-            DrawerBackground = "#111213",
-            DrawerText = "#F6F2E9",     
-            AppbarBackground = "#C58848",
-            AppbarText = "#111213",
-            TextPrimary = "#F6F2E9",    
-            TextSecondary = "#CBCBBF",  
-            ActionDefault = "#CBCBBF",
-            ActionDisabled = "#494C3B",
-            ActionDisabledBackground = "#9F9B8A",
-            Dark = "#323233"
+            Primary = "#D9774A",
+            PrimaryContrastText = "#0B0C0E",
+            Secondary = "#8FA3B1",
+            Tertiary = "#C9A27E",
+            Info = "#8FA3B1",
+            Success = "#8DB38A",
+            Warning = "#E0B25C",
+            Error = "#F2867E",
+            Black = "#0B0C0E",
+            Background = "#0B0C0E",
+            BackgroundGray = "#131518",
+            Surface = "#16181C",
+            DrawerBackground = "#0F1013",
+            DrawerText = "#EEEBE5",
+            AppbarBackground = "#0F1013",
+            AppbarText = "#EEEBE5",
+            TextPrimary = "#EEEBE5",
+            TextSecondary = "#A7ACB4",
+            ActionDefault = "#C9CDD3",
+            ActionDisabled = "#5B616B",
+            ActionDisabledBackground = "#2A2E35",
+            LinesDefault = "#2A2E35",
+            LinesInputs = "#4A505A",
+            TableLines = "#23262C",
+            TableHover = "#1C1F24",
+            Divider = "#2A2E35",
+            Dark = "#1C1F24",
         },
-        Typography = new Typography()
+        Typography = new Typography
         {
-            H4 = new H4Typography()
+            Default = new DefaultTypography
             {
-                FontWeight = "bold"
-            }
+                FontFamily = ["Inter", "Segoe UI", "Roboto", "Helvetica", "Arial", "sans-serif"]
+            },
+            H4 = new H4Typography { FontWeight = "700", LetterSpacing = "-0.01em" },
+            H5 = new H5Typography { FontWeight = "700" },
+            H6 = new H6Typography { FontWeight = "600" },
+            Button = new ButtonTypography { TextTransform = "none", FontWeight = "600" },
         },
+        LayoutProperties = new LayoutProperties { DefaultBorderRadius = "10px" },
     };
 }

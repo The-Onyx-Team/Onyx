@@ -1,83 +1,219 @@
 @using Onyx.App.Shared.Services.Usage
-@using Onyx.Data.ApiSchema
-@inject IAppManager AppManager
+@using Onyx.Collector.Core.Crypto
+@inject AppCatalog Catalog
+@inject OnyxJs Js
+@inject IIconFetcher IconFetcher
 
 <MudDialog>
     <TitleContent>
         <div class="app-name-cell">
-            <AppIcon Src="@IconSrc" Name="@App.Name"/>
-            <MudText Typo="Typo.h6">Rename app</MudText>
+            <AppIcon Src="@(m_Icon is { } icon ? AppCatalog.DataUrl(icon) : Group.IconDataUrl)" Name="@Group.Name"/>
+            <MudText Typo="Typo.h6">@Group.Name</MudText>
         </div>
     </TitleContent>
     <DialogContent>
         <MudText Typo="Typo.body2" Class="mb-3">
-            Reported as <b>@(App.ReportedName ?? App.Name)</b> (@(App.ReportedCategory ?? "no category")),
-            identifier <code>@App.Identifier</code>. Your names only change what you see.
+            Your changes only affect what you see. Apps with the same name are shown as one app: give two apps the
+            same name to merge them, or a different name to split them.
         </MudText>
-        <MudTextField T="string" Label="Name" @bind-Value="m_Name" Placeholder="@App.ReportedName"
-                      Variant="Variant.Outlined" MaxLength="200" Class="mb-3" Immediate="true"/>
-        <MudAutocomplete T="string" Label="Category" @bind-Value="m_Category" SearchFunc="SearchCategories"
-                         Placeholder="@App.ReportedCategory" Variant="Variant.Outlined" MaxLength="500"
-                         CoerceText="false" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true"/>
+
+        @if (Group.Members.Count > 1)
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-1">This app combines</MudText>
+            <div class="mb-3">
+                @foreach (var member in Group.Members)
+                {
+                    <MudCheckBox T="bool" Value="@m_Selected.Contains(member.Identifier)"
+                                 ValueChanged="@(v => Toggle(member.Identifier, v))" Dense="true" Color="Color.Primary">
+                        <span>@member.Platform: <code>@member.Identifier</code> (reported as @member.ReportedName)</span>
+                    </MudCheckBox>
+                }
+                <MudText Typo="Typo.caption">Changes apply to the ticked ones. Untick one and rename it to split it off.</MudText>
+            </div>
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Class="mb-3">
+                @Group.Members[0].Platform: <code>@Group.Members[0].Identifier</code>, reported as
+                <b>@Group.Members[0].ReportedName</b> (@(Group.Members[0].ReportedCategory ?? "no category")).
+            </MudText>
+        }
+
+        <MudTextField T="string" Label="Name" @bind-Value="m_Name" Variant="Variant.Outlined" MaxLength="200"
+                      Class="mb-3" Immediate="true" HelperText="Use the name of another app to merge them"/>
+        <MudSelect T="string" Label="Category" @bind-Value="m_Category" Variant="Variant.Outlined" Clearable="true"
+                   Class="mb-3" HelperText="Manage categories in Settings">
+            @foreach (var category in Categories)
+            {
+                <MudSelectItem T="string" Value="@category">@category</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSwitch T="bool" @bind-Value="m_Hidden" Color="Color.Primary" Label="Hide on the dashboard and in reports"/>
+
+        <MudText Typo="Typo.subtitle2" Class="mt-4 mb-1">Icon</MudText>
+        <div class="d-flex flex-wrap align-center gap-2">
+            <MudFileUpload T="IBrowserFile" FilesChanged="UploadIconAsync" Accept=".png,.jpg,.jpeg,.webp,.svg,.ico,.gif">
+                <ActivatorContent>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Upload" Size="Size.Small">Upload</MudButton>
+                </ActivatorContent>
+            </MudFileUpload>
+            @if (Group.HasCustomIcon || m_Icon is not null)
+            {
+                <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="ResetIcon">Use the device's icon</MudButton>
+            }
+        </div>
+        <div class="d-flex align-center gap-2 mt-2">
+            <MudTextField T="string" @bind-Value="m_IconUrl" Label="or from a web address" Placeholder="https://…/icon.png"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true"/>
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="FetchIconAsync"
+                       Disabled="@(m_Fetching || string.IsNullOrWhiteSpace(m_IconUrl))">
+                @(m_Fetching ? "Loading…" : "Load")
+            </MudButton>
+        </div>
+        @if (IconFetcher.UsesServer)
+        {
+            <MudText Typo="Typo.caption">Your server downloads the picture for the browser, so it sees the address.</MudText>
+        }
+
         @if (m_Error is not null)
         {
             <MudAlert Severity="Severity.Error" Class="mt-3" Dense="true">@m_Error</MudAlert>
         }
     </DialogContent>
     <DialogActions>
-        @if (App.IsCustomized)
+        @if (Group.IsCustomized)
         {
-            <MudButton Color="Color.Secondary" OnClick="ResetAsync" Disabled="m_Saving" Class="mr-auto">Use reported</MudButton>
+            <MudButton Color="Color.Secondary" OnClick="ResetAsync" Disabled="m_Saving" Class="mr-auto">Undo my changes</MudButton>
         }
         <MudButton OnClick="() => MudDialog.Cancel()">Cancel</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAsync" Disabled="m_Saving">Save</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAsync" Disabled="@(m_Saving || m_Selected.Count == 0)">Save</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
+    /// <summary>Icons are stored at this size.</summary>
+    private const int IconSize = 128;
+
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
 
-    [Parameter, EditorRequired] public AppDto App { get; set; } = null!;
-    [Parameter] public string? IconSrc { get; set; }
+    [Parameter, EditorRequired] public AppGroup Group { get; set; } = null!;
     [Parameter] public IReadOnlyList<string> Categories { get; set; } = [];
 
+    private readonly HashSet<string> m_Selected = [];
     private string? m_Name;
     private string? m_Category;
+    private bool m_Hidden;
+    private byte[]? m_Icon;
+    private bool m_ResetIcon;
+    private string? m_IconUrl;
     private string? m_Error;
     private bool m_Saving;
+    private bool m_Fetching;
 
     protected override void OnInitialized()
     {
-        // Only the user's own values go into the fields; the reported ones are shown as placeholders.
-        m_Name = App.IsCustomized && App.Name != App.ReportedName ? App.Name : null;
-        m_Category = App.IsCustomized && App.Category != App.ReportedCategory ? App.Category : null;
+        foreach (var member in Group.Members)
+            m_Selected.Add(member.Identifier);
+        m_Name = Group.Name;
+        m_Category = Group.Category;
+        m_Hidden = Group.Hidden;
     }
 
-    private Task<IEnumerable<string>> SearchCategories(string? text, CancellationToken _) =>
-        Task.FromResult(Categories
-            .Where(c => string.IsNullOrWhiteSpace(text) || c.Contains(text, StringComparison.OrdinalIgnoreCase))
-            .Append(text ?? "")
-            .Where(c => !string.IsNullOrWhiteSpace(c))
-            .Distinct(StringComparer.OrdinalIgnoreCase));
+    private void Toggle(string identifier, bool selected)
+    {
+        if (selected)
+            m_Selected.Add(identifier);
+        else
+            m_Selected.Remove(identifier);
+    }
 
-    private Task SaveAsync() => StoreAsync(m_Name, m_Category);
+    private async Task UploadIconAsync(IBrowserFile? file)
+    {
+        if (file is null)
+            return;
+        m_Error = null;
+        try
+        {
+            using var stream = new MemoryStream();
+            await file.OpenReadStream(2 * 1024 * 1024).CopyToAsync(stream);
+            m_Icon = await Js.ResizeImageAsync(stream.ToArray(), IconSize);
+            m_ResetIcon = false;
+        }
+        catch (Exception e)
+        {
+            m_Error = $"The picture could not be read: {e.Message}";
+        }
+    }
 
-    private Task ResetAsync() => StoreAsync(null, null);
+    private async Task FetchIconAsync()
+    {
+        m_Fetching = true;
+        m_Error = null;
+        try
+        {
+            var bytes = await IconFetcher.FetchAsync(m_IconUrl!.Trim());
+            m_Icon = await Js.ResizeImageAsync(bytes, IconSize);
+            m_ResetIcon = false;
+        }
+        catch (InvalidOperationException e)
+        {
+            m_Error = e.Message;
+        }
+        catch (Exception e)
+        {
+            m_Error = $"That is not a picture Onyx can use: {e.Message}";
+        }
+        finally
+        {
+            m_Fetching = false;
+        }
+    }
 
-    private async Task StoreAsync(string? name, string? category)
+    private void ResetIcon()
+    {
+        m_Icon = null;
+        m_ResetIcon = true;
+    }
+
+    private async Task SaveAsync()
+    {
+        var name = string.IsNullOrWhiteSpace(m_Name) ? null : m_Name.Trim();
+        var selected = Group.Members.Where(m => m_Selected.Contains(m.Identifier)).ToList();
+        // A name equal to the reported one is no change of its own.
+        await StoreAsync(async () =>
+        {
+            await Catalog.SetSettingsAsync(selected.ToDictionary(m => m.Identifier, m => new AppSettings
+            {
+                Name = name is not null && name != m.ReportedName ? name : null,
+                Category = m_Category != AppCatalog.MapReportedCategory(m.ReportedCategory) ? m_Category : null,
+                Hidden = m_Hidden
+            }));
+
+            if (m_Icon is not null || m_ResetIcon)
+                await Catalog.SetCustomIconAsync(selected.Select(m => m.Identifier), m_Icon);
+        });
+    }
+
+    private Task ResetAsync() => StoreAsync(async () =>
+    {
+        var ids = Group.Members.Select(m => m.Identifier).ToList();
+        await Catalog.SetSettingsAsync(ids.ToDictionary(id => id, _ => new AppSettings()));
+        if (Group.HasCustomIcon)
+            await Catalog.SetCustomIconAsync(ids, null);
+    });
+
+    private async Task StoreAsync(Func<Task> change)
     {
         m_Saving = true;
         m_Error = null;
         try
         {
-            if (await AppManager.SetOverrideAsync(App.Id, name, category))
-                MudDialog.Close(DialogResult.Ok(true));
-            else
-                m_Error = "This app is no longer in your data.";
+            await change();
+            MudDialog.Close(DialogResult.Ok(true));
         }
         catch (Exception e)
         {
-            m_Error = e is ArgumentException ? e.Message : $"Could not save: {e.Message}";
+            m_Error = $"Could not save: {e.Message}";
         }
         finally
         {

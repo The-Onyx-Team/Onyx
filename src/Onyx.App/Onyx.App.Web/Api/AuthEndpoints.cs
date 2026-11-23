@@ -6,10 +6,9 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
-using Onyx.App.Shared.Pages.Account;
-using Onyx.App.Shared.Pages.Account.Manage;
 using Onyx.App.Shared.Services.Auth;
 using Onyx.App.Web.Services;
 using Onyx.App.Web.Services.Auth;
@@ -24,16 +23,14 @@ public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this IEndpointRouteBuilder routes)
     {
+        // Browser redirects for external logins (Google, Microsoft, GitHub). Everything else is API.
         var accountGroup = routes.MapGroup("/account");
-        accountGroup.MapPost("/perform-external-login", ExternalLoginHandler);
-        accountGroup.MapPost("/login", WebLoginHandler);
-        accountGroup.MapPost("/logout", WebLogOutHandler);
-        // Landing page after the web UI deleted the account: clears the now orphaned auth cookie.
-        accountGroup.MapGet("/deleted", WebLogOutHandler);
-
-        var manageGroup = accountGroup.MapGroup("/manage").RequireAuthorization();
-        manageGroup.MapPost("/link-external-login", LinkExternalLoginHandler);
-        manageGroup.MapPost("/download-personal-data", DownloadPersonalDataHandler);
+        // Plain form posts from the WebAssembly app, which has no antiforgery token; they only start a redirect.
+        accountGroup.MapPost("/perform-external-login", ExternalLogins.StartAsync).DisableAntiforgery();
+        accountGroup.MapGet("/external-callback", ExternalLogins.CallbackAsync);
+        accountGroup.MapPost("/link-external-login", ExternalLogins.StartLinkAsync).DisableAntiforgery();
+        accountGroup.MapGet("/link-external-callback", ExternalLogins.LinkCallbackAsync);
+        accountGroup.MapPost("/logout", WebLogOutHandler).DisableAntiforgery();
 
         var api = routes.MapGroup("/api");
 
@@ -43,6 +40,12 @@ public static class AuthEndpoints
         auth.MapPost("/refresh", RefreshHandler);
         auth.MapPost("/register", RegisterHandler);
         auth.MapPost("/forgot-password", ForgotPasswordHandler);
+        auth.MapPost("/reset-password", ResetPasswordHandler);
+        auth.MapPost("/confirm-email", ConfirmEmailHandler);
+        auth.MapGet("/schemes", ExternalLogins.SchemesAsync);
+        auth.MapPost("/external/exchange", ExternalLogins.ExchangeAsync);
+        auth.MapGet("/external/pending", ExternalLogins.PendingAsync);
+        auth.MapPost("/external/register", ExternalLogins.RegisterAsync);
 
         var authorized = api.MapGroup("/user").RequireAuthorization(Program.ApiPolicy);
         authorized.MapGet("/profile", GetProfileHandler);
@@ -51,70 +54,18 @@ public static class AuthEndpoints
         authorized.MapDelete("/avatar", DeleteAvatarHandler);
         authorized.MapPut("/password", ChangePasswordHandler);
         authorized.MapDelete("/account", DeleteAccountHandler);
+        authorized.MapPost("/consent", ConsentHandler);
+        authorized.MapGet("/personal-data", PersonalDataHandler).Produces<PersonalDataDto>();
+
+        authorized.MapGet("/logins", ExternalLogins.ListAsync).Produces<List<ExternalLoginDto>>();
+        authorized.MapDelete("/logins/{provider}", ExternalLogins.RemoveAsync);
+        authorized.MapPost("/logins/link-ticket", ExternalLogins.LinkTicketAsync).Produces<LinkTicketDto>();
 
         authorized.MapPost("/email/change", RequestEmailChangeHandler);
-        authorized.MapGet("/email/confirm", ConfirmEmailHandler);
 
+        authorized.MapGet("/2fa/key", AuthenticatorKeyHandler);
         authorized.MapPost("/2fa/enable", Enable2FaHandler);
         authorized.MapPost("/2fa/disable", Disable2FaHandler);
-        authorized.MapPost("/2fa/recovery-codes", RegenerateRecoveryCodesHandler);
-    }
-
-    private static async Task<IResult> DownloadPersonalDataHandler(HttpContext context,
-        [FromServices] UserManager<ApplicationUser> userManager,
-        [FromServices] AuthenticationStateProvider authenticationStateProvider)
-    {
-        var user = await userManager.GetUserAsync(context.User);
-        if (user is null)
-        {
-            return Results.NotFound($"Unable to load user with ID '{userManager.GetUserId(context.User)}'.");
-        }
-
-        var userId = await userManager.GetUserIdAsync(user);
-
-        var personalDataProps = typeof(ApplicationUser).GetProperties()
-            .Where(prop => Attribute.IsDefined(prop, typeof(PersonalDataAttribute)));
-        var personalData = personalDataProps.ToDictionary(p => p.Name, p => p.GetValue(user)?.ToString() ?? "null");
-
-        var logins = await userManager.GetLoginsAsync(user);
-        foreach (var l in logins)
-        {
-            personalData.Add($"{l.LoginProvider} external login provider key", l.ProviderKey);
-        }
-
-        personalData.Add("Authenticator Key", (await userManager.GetAuthenticatorKeyAsync(user))!);
-        var fileBytes = JsonSerializer.SerializeToUtf8Bytes(personalData);
-
-        context.Response.Headers.TryAdd("Content-Disposition", "attachment; filename=PersonalData.json");
-        return TypedResults.File(fileBytes, contentType: "application/json", fileDownloadName: "PersonalData.json");
-    }
-
-    private static async Task<ChallengeHttpResult> LinkExternalLoginHandler(HttpContext context,
-        [FromServices] SignInManager<ApplicationUser> signInManager, [FromForm] string provider)
-    {
-        // Clear the existing external cookie to ensure a clean login process
-        await context.SignOutAsync(IdentityConstants.ExternalScheme);
-
-        var redirectUrl = UriHelper.BuildRelative(context.Request.PathBase, "/account/manage/external",
-            QueryString.Create("Action", ManageExternalLogin.LinkLoginCallbackAction));
-
-        var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl,
-            signInManager.UserManager.GetUserId(context.User));
-        return TypedResults.Challenge(properties, [provider]);
-    }
-
-    private static ChallengeHttpResult ExternalLoginHandler(HttpContext context,
-        [FromServices] SignInManager<ApplicationUser> signInManager, [FromForm] string provider,
-        [FromForm] string returnUrl)
-    {
-        IEnumerable<KeyValuePair<string, StringValues>> query =
-            [new("ReturnUrl", returnUrl), new("Action", ExternalLogin.LoginCallbackAction)];
-
-        var redirectUrl = UriHelper.BuildRelative(context.Request.PathBase, "/Account/ExternalLogin",
-            QueryString.Create(query));
-
-        var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
-        return TypedResults.Challenge(properties, [provider]);
     }
 
     /// <summary>
@@ -142,7 +93,7 @@ public static class AuthEndpoints
         }
     }
 
-    private static LoginResultDto IssueTokens(ApplicationUser user, KeyAccessor keyAccessor)
+    internal static LoginResultDto IssueTokens(ApplicationUser user, KeyAccessor keyAccessor)
     {
         var userName = user.Email ?? user.Id;
         var token = JwtTools.GenerateToken(keyAccessor.ApplicationKey, user.Id, userName,
@@ -174,23 +125,150 @@ public static class AuthEndpoints
     /// </summary>
     public static async Task<IResult> RegisterHandler(
         [FromBody] RegisterDto dto,
+        HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager,
-        [FromServices] IOptions<OnyxServerOptions> serverOptions)
+        [FromServices] IEmailSender<ApplicationUser> emailSender,
+        [FromServices] IOptions<OnyxServerOptions> serverOptions,
+        [FromServices] TimeProvider time)
     {
         if (!serverOptions.Value.AllowRegistration)
             return Results.Problem(OnyxServerOptions.RegistrationClosedMessage, statusCode: StatusCodes.Status403Forbidden);
 
+        // GDPR: the account is only created with the user's explicit agreement, recorded with the policy version.
+        if (!dto.AcceptPrivacyPolicy)
+            return Results.Problem(ConsentRequiredMessage, statusCode: StatusCodes.Status400BadRequest);
+
+        var now = time.GetUtcNow().UtcDateTime;
         var user = new ApplicationUser
         {
             UserName = dto.Name,
             Email = dto.Email,
-            Groups = new List<Groups>()
+            CreatedAt = now,
+            PrivacyConsentAt = now,
+            PrivacyPolicyVersion = Truncate(dto.PrivacyPolicyVersion, 20),
         };
-        
-        user.Groups = new List<Groups>();
 
         var result = await userManager.CreateAsync(user, dto.Password);
-        return !result.Succeeded ? Results.BadRequest(result.Errors) : Results.Ok(new object());
+        if (!result.Succeeded)
+            return Results.BadRequest(result.Errors);
+
+        await SendConfirmationAsync(context, userManager, emailSender, user);
+        return Results.Ok(new object());
+    }
+
+    public const string ConsentRequiredMessage =
+        "Please read the privacy policy and confirm that you agree to it. Older app versions can't do this; update the app.";
+
+    internal static async Task SendConfirmationAsync(HttpContext context, UserManager<ApplicationUser> userManager,
+        IEmailSender<ApplicationUser> emailSender, ApplicationUser user)
+    {
+        var code = await userManager.GenerateEmailConfirmationTokenAsync(user);
+        var link = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            $"{context.Request.Scheme}://{context.Request.Host}{context.Request.PathBase}/account/confirmEmail",
+            new Dictionary<string, string?> { ["userId"] = user.Id, ["code"] = code });
+        await emailSender.SendConfirmationLinkAsync(user, user.Email!, System.Text.Encodings.Web.HtmlEncoder.Default.Encode(link));
+    }
+
+    internal static string? Truncate(string? value, int length) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Length <= length ? value : value[..length];
+
+    /// <summary>Confirms an email address with the code from the confirmation email.</summary>
+    public static async Task<IResult> ConfirmEmailHandler(
+        [FromBody] ConfirmEmailDto dto,
+        [FromServices] UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.FindByIdAsync(dto.UserId);
+        if (user is null)
+            return Results.BadRequest("The link is invalid.");
+        var result = await userManager.ConfirmEmailAsync(user, dto.Code);
+        return result.Succeeded ? Results.Ok() : Results.BadRequest("The link is invalid or has expired.");
+    }
+
+    /// <summary>Sets a new password with the code from the reset email.</summary>
+    public static async Task<IResult> ResetPasswordHandler(
+        [FromBody] ResetPasswordDto dto,
+        [FromServices] UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.FindByIdAsync(dto.UserId);
+        if (user is null)
+            return Results.BadRequest("The link is invalid.");
+        // ResetPasswordAsync checks the emailed code; without it anyone knowing the user id could set a password.
+        var result = await userManager.ResetPasswordAsync(user, dto.Code, dto.Password);
+        return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
+    }
+
+    /// <summary>Records that the signed-in user agreed to (a new version of) the privacy policy.</summary>
+    public static async Task<IResult> ConsentHandler(
+        [FromBody] ConsentDto dto,
+        HttpContext context,
+        [FromServices] UserManager<ApplicationUser> userManager,
+        [FromServices] TimeProvider time)
+    {
+        var user = await userManager.GetUserAsync(context.User);
+        if (user == null) return Results.NotFound();
+        user.PrivacyConsentAt = time.GetUtcNow().UtcDateTime;
+        user.PrivacyPolicyVersion = Truncate(dto.PrivacyPolicyVersion, 20);
+        var result = await userManager.UpdateAsync(user);
+        return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
+    }
+
+    /// <summary>Everything the server stores about the user in plain text (GDPR Art. 15). The encrypted data is
+    /// added by the client, which can decrypt it.</summary>
+    public static async Task<IResult> PersonalDataHandler(
+        HttpContext context,
+        [FromServices] UserManager<ApplicationUser> userManager,
+        [FromServices] ApplicationDbContext db)
+    {
+        var user = await userManager.GetUserAsync(context.User);
+        if (user == null) return Results.NotFound();
+
+        var devices = await db.Devices.AsNoTracking().Where(d => d.UserId == user.Id)
+            .Select(d => new DeviceDto { Id = d.Id, Name = d.Name!, Platform = d.Platform, LastSeen = d.LastSeen })
+            .ToListAsync();
+        var vault = await db.UserVaults.AsNoTracking().Where(v => v.UserId == user.Id)
+            .Select(v => (DateTime?)v.CreatedAt).FirstOrDefaultAsync();
+
+        return Results.Ok(new PersonalDataDto(
+            user.Id,
+            user.UserName,
+            user.Email,
+            user.EmailConfirmed,
+            user.PhoneNumber,
+            user.TwoFactorEnabled,
+            user.Avatar is { Length: > 0 },
+            Utc(user.CreatedAt),
+            Utc(user.PrivacyConsentAt),
+            user.PrivacyPolicyVersion,
+            (await userManager.GetLoginsAsync(user)).Select(l => l.ProviderDisplayName ?? l.LoginProvider).ToList(),
+            devices.Select(d => { d.LastSeen = Utc(d.LastSeen); return d; }).ToList(),
+            Utc(vault),
+            await db.EncryptedUsages.CountAsync(u => u.Device!.UserId == user.Id),
+            await db.EncryptedApps.CountAsync(a => a.UserId == user.Id),
+            await SocialEndpoints.FriendsOfAsync(db, user.Id),
+            await SocialEndpoints.GroupsOfAsync(db, user.Id),
+            await db.SharedStats.CountAsync(s => s.OwnerId == user.Id),
+            await db.SharedStats.CountAsync(s => s.RecipientId == user.Id)));
+    }
+
+    private static DateTime? Utc(DateTime? time) =>
+        time is { } t ? DateTime.SpecifyKind(t, DateTimeKind.Utc) : null;
+
+    /// <summary>The authenticator app key of the signed-in user, created on first use.</summary>
+    public static async Task<IResult> AuthenticatorKeyHandler(
+        HttpContext context,
+        [FromServices] UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.GetUserAsync(context.User);
+        if (user == null) return Results.NotFound();
+
+        var key = await userManager.GetAuthenticatorKeyAsync(user);
+        if (string.IsNullOrEmpty(key))
+        {
+            await userManager.ResetAuthenticatorKeyAsync(user);
+            key = await userManager.GetAuthenticatorKeyAsync(user);
+        }
+
+        return Results.Ok(key);
     }
 
     /// <summary>
@@ -218,7 +296,7 @@ public static class AuthEndpoints
         var user = await userManager.GetUserAsync(context.User);
         if (user == null) return Results.NotFound();
 
-        return Results.Ok(ProfileService.ToDto(user));
+        return Results.Ok(ProfileService.ToDto(user, await userManager.HasPasswordAsync(user)));
     }
 
     /// <summary>Sets the current user's profile picture (PNG, JPEG or WebP, at most 512 KB).</summary>
@@ -321,22 +399,6 @@ public static class AuthEndpoints
     }
 
     /// <summary>
-    /// Accepts a request to confirm the current user's email change.
-    /// </summary>
-    public static async Task<IResult> ConfirmEmailHandler(
-        [FromQuery] string userId,
-        [FromQuery] string code,
-        [FromServices] UserManager<ApplicationUser> userManager)
-    {
-        var user = await userManager.FindByIdAsync(userId);
-        if (user == null) return Results.NotFound();
-
-        Console.WriteLine(code);
-        var result = await userManager.ConfirmEmailAsync(user, code);
-        return result.Succeeded ? Results.Redirect("/account/confirmEmail") : Results.BadRequest(result.Errors);
-    }
-
-    /// <summary>
     /// Accepts a request to enable two-factor authentication for the current user.
     /// </summary>
     /// TODO TEST
@@ -368,66 +430,11 @@ public static class AuthEndpoints
     }
 
     /// <summary>
-    /// Generates and returns a list of recovery codes for the current user.
-    /// </summary>
-    public static async Task<IResult> RegenerateRecoveryCodesHandler(
-        HttpContext context,
-        [FromServices] UserManager<ApplicationUser> userManager)
-    {
-        var user = await userManager.GetUserAsync(context.User);
-        if (user == null) return Results.NotFound();
-
-        var codes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
-        return Results.Ok(codes);
-    }
-
-    /// <summary>
     /// Logs out the current user and redirects to the home page.
     /// </summary>
     public static async Task<IResult> WebLogOutHandler(SignInManager<ApplicationUser> signInManager)
     {
         await signInManager.SignOutAsync();
         return Results.Redirect("/");
-    }
-
-    /// <summary>
-    /// Attempts to log in a user using a form submission. Automatic redirect on success.
-    /// </summary>
-    public static async Task<IResult> WebLoginHandler(
-        [FromForm] WebLoginModel webLoginModel,
-        [FromServices] SignInManager<ApplicationUser> signInManager,
-        [FromServices] IUserClaimsPrincipalFactory<ApplicationUser> claimsFactory,
-        HttpContext context)
-    {
-        // Only paths on this site: the redirect comes from a form field anyone can set.
-        var target = ReturnUrl.Sanitize(webLoginModel.Redirect);
-        var failed = $"/account/login?error={Uri.EscapeDataString("Invalid email or password")}" +
-                     (target == ReturnUrl.Default ? "" : $"&returnUrl={Uri.EscapeDataString(target)}");
-
-        var user = await signInManager.UserManager.FindByEmailAsync(webLoginModel.Email);
-
-        if (user == null)
-        {
-            return Results.LocalRedirect(failed);
-        }
-
-        var result = await signInManager.PasswordSignInAsync(user, webLoginModel.Password, true, false);
-
-        if (!result.Succeeded)
-        {
-            return Results.LocalRedirect(failed);
-        }
-
-        var principal = await claimsFactory.CreateAsync(user);
-        await context.SignInAsync(IdentityConstants.ApplicationScheme, principal);
-
-        return Results.LocalRedirect(target);
-    }
-
-    public class WebLoginModel
-    {
-        public required string Redirect { get; set; }
-        public required string Email { get; set; }
-        public required string Password { get; set; }
     }
 }

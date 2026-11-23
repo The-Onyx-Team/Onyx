@@ -1,57 +1,34 @@
-﻿@inject IUserManager UserManager
+@using Onyx.Data.ApiSchema
+@inject IUserManager UserManager
 
-@if (m_ExternalLogins.Length > 0)
+@* Sign-in with Google, Microsoft or GitHub (web only): a form post to the server, which redirects to the provider. *@
+@if (m_Schemes.Count > 0)
 {
-<MudText Align="Align.Center">Or login using</MudText>
-<MudForm action="account/perform-external-login" method="post" 
-         Class="form-horizontal">
-    <AntiforgeryToken/>
-    <MudInput InputType="InputType.Hidden" Underline="false" name="ReturnUrl" value="@ReturnUrl"/>
-    <MudContainer Class="d-flex justify-center">
-        @foreach (var provider in m_ExternalLogins)
+    <MudText Align="Align.Center" Class="mt-2 mb-1">Or sign in with</MudText>
+    <form action="/account/perform-external-login" method="post" class="d-flex justify-center gap-2">
+        <input type="hidden" name="returnUrl" value="@ReturnUrl"/>
+        @foreach (var scheme in m_Schemes)
         {
-            <MudIconButton Style="color: black"
-                           Icon="@GetIcon(provider.DisplayName)" 
-                           name="provider" value="@provider.Name" ButtonType="ButtonType.Submit"
-                           title="@($"log in using your {@provider.DisplayName} account")"/>
+            <button type="submit" name="provider" value="@scheme.Name" class="external-login-button"
+                    title="@($"Sign in with {scheme.DisplayName}")">
+                <i class="@Icon(scheme.Name)"></i> @scheme.DisplayName
+            </button>
         }
-    </MudContainer>
-</MudForm>
+    </form>
 }
 
-<!--<form class="form-horizontal" action="account/perform-external-login" method="post">
-    <div>
-        <AntiforgeryToken/>
-        <input type="hidden" name="ReturnUrl" value="@ReturnUrl"/>
-        <p>
-            @foreach (var provider in m_ExternalLogins)
-            {
-                <button type="submit" class="btn btn-primary" name="provider" value="@provider.Name"
-                        title="Log in using your @provider.DisplayName account">@provider.DisplayName</button>
-            }
-        </p>
-    </div>
-</form>-->
-
 @code {
-    private AuthenticationScheme[] m_ExternalLogins = [];
+    [Parameter] public string? ReturnUrl { get; set; }
 
-    [SupplyParameterFromQuery] private string? ReturnUrl { get; set; }
+    private IReadOnlyList<ExternalSchemeDto> m_Schemes = [];
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync() => m_Schemes = await UserManager.GetExternalSchemesAsync();
+
+    private static string Icon(string name) => name.ToLowerInvariant() switch
     {
-        m_ExternalLogins = (await UserManager.GetExternalAuthenticationSchemas()).ToArray();
-    }
-    
-    private string GetIcon(string iconName)
-    {
-        return iconName.ToLower() switch
-        {
-            "github" => "fa-brands fa-github",
-            "google openidconnect" => "fa-brands fa-google",
-            "Apple" => "fa-brands fa-apple",
-            "microsoft" => "fa-brands fa-microsoft",
-            _ => Icons.Material.Filled.Help
-        };
-    }
+        "github" => "fa-brands fa-github",
+        "google" or "googleopenidconnect" => "fa-brands fa-google",
+        "microsoft" => "fa-brands fa-microsoft",
+        _ => "fa-solid fa-right-to-bracket"
+    };
 }

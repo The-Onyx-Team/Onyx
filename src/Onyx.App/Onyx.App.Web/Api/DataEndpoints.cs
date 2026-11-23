@@ -20,7 +20,7 @@ public static class DataEndpoints
     }
 
     public static async Task<IResult> GetUsageDataAsync(
-        [FromServices] IUsageDataService usageDataService,
+        [FromServices] Services.Data.UsageDataService usageDataService,
         [FromQuery] DateTime startTime,
         [FromQuery] DateTime endTime,
         [FromQuery] int? deviceId)

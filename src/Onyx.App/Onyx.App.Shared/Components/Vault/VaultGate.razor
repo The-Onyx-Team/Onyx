@@ -1,0 +1,166 @@
+@using Onyx.App.Shared.Services.Client
+@using Onyx.Data.ApiSchema
+@inject VaultService Vault
+@inject MigrationService Migration
+@inject IProfileService ProfileService
+@inject IUserManager UserManager
+@inject NavigationManager NavigationManager
+@implements IDisposable
+
+@* Shows the page only once this device can read the user's data: sets up encryption on the first visit, asks for
+   the passphrase on a new device, moves data from before encryption, and asks for consent to the privacy policy
+   where none is recorded. *@
+
+@switch (m_State)
+{
+    case null:
+        <div class="gate-center"><MudProgressCircular Indeterminate="true" Color="Color.Primary"/></div>
+        break;
+
+    case VaultState.SignedOut:
+        <RedirectToLogin/>
+        break;
+
+    case VaultState.Offline:
+        <div class="gate-card">
+            <MudText Typo="Typo.h5" Class="mb-2">The server can't be reached</MudText>
+            <MudText Class="mb-4">Check your connection (and the VPN, if your server needs one).</MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => LoadAsync(true)">Try again</MudButton>
+        </div>
+        break;
+
+    case VaultState.NoVault:
+        <VaultSetup Done="() => LoadAsync(true)"/>
+        break;
+
+    case VaultState.Locked:
+        <VaultUnlock Done="() => LoadAsync(true)"/>
+        break;
+
+    default:
+        @if (m_Migration is { } pending)
+        {
+            <div class="gate-card">
+                <MudText Typo="Typo.h5" Class="mb-2">Encrypting your existing data</MudText>
+                <MudText Class="mb-4">
+                    Your @pending.UsageRows.ToString("N0") records from before end-to-end encryption are encrypted on
+                    this device and the readable copy on the server is deleted. This happens once.
+                </MudText>
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-2"/>
+                <MudText Typo="Typo.body2">@m_Progress</MudText>
+                @if (m_MigrationError is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Class="mt-3">@m_MigrationError</MudAlert>
+                    <MudButton Class="mt-3" Variant="Variant.Outlined" OnClick="MigrateAsync">Try again</MudButton>
+                }
+            </div>
+        }
+        else if (m_NeedsConsent)
+        {
+            <div class="gate-card">
+                <MudText Typo="Typo.h5" Class="mb-2">Privacy policy</MudText>
+                <MudText Class="mb-3">
+                    Please read the <MudLink Href="/privacy" Target="_blank">privacy policy</MudLink> of this server.
+                    Onyx records which apps you use and for how long, encrypted so that only your devices can read it.
+                </MudText>
+                <MudCheckBox T="bool" @bind-Value="m_Consent" Color="Color.Primary"
+                             Label="I have read the privacy policy and agree to my data being processed as described."/>
+                <div class="d-flex gap-2 mt-4">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="!m_Consent" OnClick="ConsentAsync">Continue</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="DeclineAsync">Decline and sign out</MudButton>
+                </div>
+            </div>
+        }
+        else
+        {
+            @ChildContent
+        }
+        break;
+}
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private VaultState? m_State;
+    private LegacyStatusDto? m_Migration;
+    private string? m_Progress;
+    private string? m_MigrationError;
+    private bool m_NeedsConsent;
+    private bool m_Consent;
+    private bool m_Checked;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Vault.Changed += OnVaultChanged;
+        await LoadAsync(false);
+    }
+
+    private void OnVaultChanged()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            var state = await Vault.GetStateAsync();
+            if (state != m_State)
+                await LoadAsync(false);
+        });
+    }
+
+    private async Task LoadAsync(bool refresh)
+    {
+        m_State = await Vault.GetStateAsync(refresh);
+        if (m_State == VaultState.Unlocked && !m_Checked)
+        {
+            m_Checked = true;
+            try
+            {
+                var profile = await ProfileService.GetAsync();
+                m_NeedsConsent = profile.PrivacyConsentAt is null;
+            }
+            catch (Exception)
+            {
+                m_NeedsConsent = false;
+            }
+
+            m_Migration = await Migration.GetPendingAsync();
+            StateHasChanged();
+            if (m_Migration is not null)
+                await MigrateAsync();
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task MigrateAsync()
+    {
+        m_MigrationError = null;
+        try
+        {
+            await Migration.MigrateAsync(m_Migration!, p =>
+            {
+                m_Progress = p;
+                StateHasChanged();
+            });
+            m_Migration = null;
+        }
+        catch (Exception e)
+        {
+            m_MigrationError = $"That did not work: {e.Message}. Your data is still on the server.";
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task ConsentAsync()
+    {
+        if (await ProfileService.ConsentAsync() is null)
+            m_NeedsConsent = false;
+    }
+
+    private async Task DeclineAsync()
+    {
+        await UserManager.LogoutAsync();
+        NavigationManager.NavigateTo("/account/login");
+    }
+
+    public void Dispose() => Vault.Changed -= OnVaultChanged;
+}
