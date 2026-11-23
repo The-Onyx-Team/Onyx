@@ -84,30 +84,33 @@ code {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 76px;
-    flex: 0 0 76px;
-    gap: 4px;
+    width: 64px;
+    flex: 0 0 64px;
+    gap: 6px;
     padding: 12px 8px;
     background: linear-gradient(180deg, var(--onyx-900), var(--onyx-950));
     border-right: 1px solid var(--onyx-750);
     box-sizing: border-box;
+    /* Short windows (landscape phones): the rail scrolls instead of cutting off its last items. */
+    overflow-y: auto;
+    scrollbar-width: none;
 }
 
 .nav-brand img {
-    width: 36px;
-    height: 36px;
-    margin: 2px 0 14px;
+    width: 34px;
+    height: 34px;
+    margin: 2px 0 12px;
     border-radius: 10px;
+    display: block;
 }
 
 .nav-item {
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
-    width: 60px;
-    height: 56px;
+    flex: 0 0 auto;
+    width: 46px;
+    height: 46px;
     border-radius: 12px;
     color: var(--onyx-300);
     text-decoration: none;
@@ -119,15 +122,9 @@ code {
     color: var(--pearl-100);
 }
 
-.nav-item .nav-label {
-    font-size: 0.68rem;
-    font-weight: 500;
-}
-
 .selected-nav-item {
-    background: rgba(217, 119, 74, 0.14);
+    background: rgba(217, 119, 74, 0.16);
     color: var(--sard-light);
-    box-shadow: inset 3px 0 0 var(--sard-light);
 }
 
 .nav-item:last-child {
@@ -172,6 +169,7 @@ code {
         padding: 4px;
         border-right: none;
         border-top: 1px solid var(--onyx-750);
+        overflow: hidden;
     }
 
     .nav-brand {
@@ -181,16 +179,15 @@ code {
     .nav-item {
         width: auto;
         flex: 1;
-        height: 54px;
+        max-width: 64px;
+        height: 48px;
     }
 
     .nav-item:last-child {
         margin-top: 0;
     }
 
-    .selected-nav-item {
-        box-shadow: inset 0 3px 0 var(--sard-light);
-    }
+
 }
 
 /* ---------------------------------------------------------------- Vault gate */

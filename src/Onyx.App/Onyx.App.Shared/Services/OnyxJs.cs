@@ -3,7 +3,7 @@ using Microsoft.JSInterop;
 namespace Onyx.App.Shared.Services;
 
 /// <summary>The helpers in <c>wwwroot/js/onyx.js</c> (works in the browser and in the apps' web view).</summary>
-public sealed class OnyxJs(IJSRuntime js) : IAsyncDisposable
+public sealed class OnyxJs(IJSRuntime js, IPlatformService platform) : IAsyncDisposable
 {
     private Task<IJSObjectReference>? m_Module;
 
@@ -18,7 +18,12 @@ public sealed class OnyxJs(IJSRuntime js) : IAsyncDisposable
         InvokeAsync<byte[]>("resizeImage", image, size);
 
     private Task<IJSObjectReference> ModuleAsync() =>
-        m_Module ??= js.InvokeAsync<IJSObjectReference>("import", "./_content/Onyx.App.Shared/js/onyx.js").AsTask();
+        m_Module ??= js.InvokeAsync<IJSObjectReference>("import",
+            // The browser gets a per-build address so it never runs an old copy; the apps clear their web view's
+            // cache after an update instead (their file server may not ignore query strings).
+            platform.IsMaui()
+                ? "./_content/Onyx.App.Shared/js/onyx.js"
+                : $"./_content/Onyx.App.Shared/js/onyx.js?v={AppVersion.CacheToken}").AsTask();
 
     public async ValueTask DisposeAsync()
     {

@@ -11,6 +11,10 @@ public sealed record AppVersion(string Number, string? Commit)
     /// <summary>This client (the shared UI is built with the app or the web client).</summary>
     public static AppVersion Current { get; } = Of(typeof(AppVersion).Assembly);
 
+    /// <summary>Changes with every build of the shared UI; appended to its CSS and JS addresses so browsers and
+    /// the apps' web view never keep an old copy after an update.</summary>
+    public static string CacheToken { get; } = typeof(AppVersion).Assembly.ManifestModule.ModuleVersionId.ToString("N")[..12];
+
     /// <summary>"0.0" or "0.0 (3f2a1b9)".</summary>
     public string Full => Commit is null ? Number : $"{Number} ({Commit})";
 

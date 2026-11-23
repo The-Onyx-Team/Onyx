@@ -10,14 +10,13 @@
 <div id="app-container">
     <nav id="nav" aria-label="Main">
         <a href="/home" class="nav-brand" aria-label="Onyx home">
-            <img src="_content/Onyx.App.Shared/img/Icon.png" alt=""/>
+            <img src="_content/Onyx.App.Shared/img/Icon.png" alt="" width="34" height="34"/>
         </a>
         @foreach (var item in s_NavItems)
         {
-            <a href="@item.Url" class="nav-item @(IsSelected(item) ? "selected-nav-item" : "")" title="@item.Name"
+            <a href="@item.Url" class="nav-item @(IsSelected(item) ? "selected-nav-item" : "")" title="@item.Name" aria-label="@item.Name"
                aria-current="@(IsSelected(item) ? "page" : null)">
                 <MudIcon Icon="@item.Icon"/>
-                <span class="nav-label">@item.Name</span>
             </a>
         }
     </nav>
