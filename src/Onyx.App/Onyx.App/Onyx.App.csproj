@@ -10,6 +10,9 @@
         <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('osx'))">
             net10.0-ios;net10.0-maccatalyst
         </TargetFrameworks>
+        <!-- -p:OnyxWindowsOnly=true builds only the Windows target (release.yml). A restore with -r win-x64 would
+             otherwise also resolve the Android target for a Windows runtime and fail without an error message. -->
+        <TargetFrameworks Condition="'$(OnyxWindowsOnly)' == 'true'">net10.0-windows10.0.19041.0</TargetFrameworks>
 
         <RuntimeIdentifiers Condition="$([MSBuild]::IsOSPlatform('osx'))">maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers>
 

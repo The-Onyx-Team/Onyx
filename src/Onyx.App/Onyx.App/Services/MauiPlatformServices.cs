@@ -1,4 +1,5 @@
 using Onyx.App.Shared.Services;
+using Onyx.App.Shared.Services.Usage;
 
 namespace Onyx.App.Services;
 
@@ -17,26 +18,24 @@ public sealed class MauiFileSaver : IFileSaver
 /// <summary>The apps download pictures themselves; the server never sees the address.</summary>
 public sealed class DirectIconFetcher : IIconFetcher
 {
-    private static readonly HttpClient s_Http = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private static readonly HttpClient s_Http = new(new HttpClientHandler
+    {
+        AllowAutoRedirect = true,
+        MaxAutomaticRedirections = 5,
+        AutomaticDecompression = System.Net.DecompressionMethods.All
+    }) { Timeout = TimeSpan.FromSeconds(15) };
 
     public bool UsesServer => false;
 
     public async Task<byte[]> FetchAsync(string url)
     {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
-            throw new InvalidOperationException("Enter an http or https address.");
         try
         {
-            using var response = await s_Http.GetAsync(uri);
-            if (!response.IsSuccessStatusCode)
-                throw new InvalidOperationException($"The site answered {(int)response.StatusCode}.");
-            if (response.Content.Headers.ContentLength > 1024 * 1024)
-                throw new InvalidOperationException("The picture is larger than 1 MB.");
-            return await response.Content.ReadAsByteArrayAsync();
+            return (await IconDownloader.DownloadAsync(s_Http, IconDownloader.Normalize(url))).Data;
         }
-        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+        catch (HttpRequestException e)
         {
-            throw new InvalidOperationException("The picture could not be downloaded.");
+            throw new InvalidOperationException($"The picture could not be downloaded: {e.Message}");
         }
     }
 }

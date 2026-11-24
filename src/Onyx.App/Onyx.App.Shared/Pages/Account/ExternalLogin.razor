@@ -6,7 +6,8 @@
 @layout AuthNavLayout
 
 @* Where the server sends the browser after Google, Microsoft or GitHub. The result is in the URL fragment, which
-   never reaches a server: a one-time code to sign in with, or "register" for a new account, or an error. *@
+   never reaches a server: a one-time code to sign in with, or "register" for a new account, or an error. The native
+   apps navigate here with the result from the system browser, plus the verifier (and, to register, a ticket). *@
 
 <PageTitle>Sign in · Onyx</PageTitle>
 
@@ -15,6 +16,18 @@
     <MudText Typo="Typo.h5" Class="mb-2">Sign-in failed</MudText>
     <MudAlert Severity="Severity.Error" Class="mb-3">@m_Error</MudAlert>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/account/login">Back to sign in</MudButton>
+}
+else if (m_NeedsCode)
+{
+    <MudText Typo="Typo.h5" Class="mb-2">Two-factor authentication</MudText>
+    <MudText Class="mb-3">Enter the 6-digit code from your authenticator app, or one of your recovery codes.</MudText>
+    <MudTextField T="string" AutoFocus="true" Class="mb-3" Label="Code" Variant="Variant.Outlined" @bind-Value="m_TwoFactorCode"
+                  autocomplete="one-time-code" InputMode="InputMode.numeric" Immediate="true"
+                  OnKeyUp="@(e => e.Key == "Enter" ? SignInAsync() : Task.CompletedTask)"/>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SignInAsync"
+               Disabled="@(m_Busy || string.IsNullOrWhiteSpace(m_TwoFactorCode))">
+        @(m_Busy ? "Checking…" : "Sign in")
+    </MudButton>
 }
 else if (m_Pending is { } pending)
 {
@@ -43,6 +56,11 @@ else
     private bool m_Consent;
     private bool m_Busy;
     private string m_ReturnUrl = ReturnUrl.Default;
+    private string? m_Code;
+    private string? m_Verifier;
+    private string? m_Ticket;
+    private bool m_NeedsCode;
+    private string? m_TwoFactorCode;
 
     protected override async Task OnInitializedAsync()
     {
@@ -51,6 +69,8 @@ else
             .Select(p => p.Split('=', 2))
             .ToDictionary(p => p[0], p => p.Length > 1 ? Uri.UnescapeDataString(p[1]) : "");
         m_ReturnUrl = ReturnUrl.Sanitize(values.GetValueOrDefault("returnUrl"));
+        m_Verifier = values.GetValueOrDefault("verifier");
+        m_Ticket = values.GetValueOrDefault("ticket");
 
         // Drop the code from the address bar and history.
         NavigationManager.NavigateTo("/account/external", replace: true);
@@ -61,15 +81,12 @@ else
         }
         else if (values.TryGetValue("code", out var code))
         {
-            var result = await UserManager.CompleteExternalLoginAsync(code);
-            if (result.Success)
-                NavigationManager.NavigateTo(m_ReturnUrl);
-            else
-                m_Error = result.Message;
+            m_Code = code;
+            await SignInAsync();
         }
         else if (values.ContainsKey("register"))
         {
-            m_Pending = await UserManager.GetPendingExternalLoginAsync();
+            m_Pending = await UserManager.GetPendingExternalLoginAsync(m_Ticket);
             if (m_Pending is null)
                 m_Error = "The sign-in has expired. Please try again.";
         }
@@ -79,10 +96,26 @@ else
         }
     }
 
+    private async Task SignInAsync()
+    {
+        m_Busy = true;
+        var result = await UserManager.CompleteExternalLoginAsync(m_Code!, m_NeedsCode ? m_TwoFactorCode?.Trim() : null,
+            m_Verifier);
+        m_Busy = false;
+        if (result.Success)
+            NavigationManager.NavigateTo(m_ReturnUrl);
+        else if (result.RequiresTwoFactor && !m_NeedsCode)
+            m_NeedsCode = true;
+        else if (m_NeedsCode)
+            Snackbar.Add(result.Message ?? "The code is not valid.", Severity.Error);
+        else
+            m_Error = result.Message;
+    }
+
     private async Task RegisterAsync()
     {
         m_Busy = true;
-        var result = await UserManager.RegisterExternalAsync(m_Consent);
+        var result = await UserManager.RegisterExternalAsync(m_Consent, m_Ticket, m_Verifier);
         m_Busy = false;
         if (result.Success)
             NavigationManager.NavigateTo(m_ReturnUrl);

@@ -10,4 +10,28 @@ public class MauiPlatformService : IPlatformService
         $"{(DeviceInfo.Current.Platform == DevicePlatform.WinUI ? "Windows" : DeviceInfo.Current.Platform.ToString())} " +
         $"{DeviceInfo.Current.VersionString} ({DeviceInfo.Current.Model}), app {AppInfo.Current.VersionString} " +
         $"build {AppInfo.Current.BuildString}";
+
+    public async Task<bool> RequestNotificationsAsync()
+    {
+#if ANDROID
+        if (!OperatingSystem.IsAndroidVersionAtLeast(33))
+            return true;
+        var status = await Permissions.CheckStatusAsync<Permissions.PostNotifications>();
+        if (status != PermissionStatus.Granted)
+            status = await MainThread.InvokeOnMainThreadAsync(Permissions.RequestAsync<Permissions.PostNotifications>);
+        return status == PermissionStatus.Granted;
+#else
+        await Task.CompletedTask;
+        return true;
+#endif
+    }
+
+    public string? ReminderDelivery =>
+#if ANDROID
+        "This phone checks every 15 minutes (Android doesn't allow more often), so focus mode nudges can come a little late.";
+#elif WINDOWS
+        "This computer checks every 30 seconds while Onyx runs (also in the notification area).";
+#else
+        null;
+#endif
 }

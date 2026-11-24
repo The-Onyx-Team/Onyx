@@ -7,10 +7,17 @@ ciphertext and keeps it in sync between devices, but has no key to read it, and 
 
 | Encrypted (only the user's devices can read it) | Plain text (the server needs it) |
 |---|---|
-| Usage: which app, for how long, which websites | Account: user name, email, password hash, profile picture |
+| Usage: which app, for how long, which websites | Account: user name, email, password hash, two-factor key |
 | App names, categories and icons | Devices: name, platform, last upload |
-| Settings: own app names, categories, hidden apps, excluded websites, goals, sharing level | At which hours data exists, and how many apps per hour |
-| Numbers shared with friends (encrypted for each friend) | Who is friends with whom, group memberships |
+| Settings: own app names, categories, hidden apps, excluded websites, goals, reminders, focus mode, saved reports, sharing level | At which hours data exists, and how many apps per hour |
+| Profile: real name, phone number, profile picture | Who is friends with whom, group memberships |
+| Numbers shared with friends (encrypted for each friend), with the real name and a 64 px picture | |
+
+The **user name** and **email address** stay readable on purpose: they are how people sign in, receive
+confirmation and password-reset emails, and find each other as friends. Accounts from before the profile was
+encrypted still had the phone number and picture in plain text; the first time such an account unlocks, the app
+moves them into the encrypted profile and the server deletes the plain copies (`PUT /api/e2e/profile`). After that
+the server refuses plain-text phone numbers and pictures from old app versions.
 
 ## Keys
 

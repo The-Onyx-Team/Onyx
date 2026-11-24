@@ -15,21 +15,41 @@
 <MudText Typo="Typo.h4" Class="mb-1">Sign in</MudText>
 <MudText Typo="Typo.body2" Class="mb-3 text-muted">Your data stays end-to-end encrypted.</MudText>
 <ServerPicker/>
-<EditForm Model="m_LoginModel" OnValidSubmit="Submit" FormName="LoginForm">
-    <DataAnnotationsValidator/>
+@if (m_NeedsCode)
+{
+    <MudText Typo="Typo.body1" Class="mb-3">
+        Enter the 6-digit code from your authenticator app, or one of your recovery codes.
+    </MudText>
+    <EditForm Model="m_LoginModel" OnValidSubmit="Submit" FormName="TwoFactorForm">
+        <MudTextField T="string" AutoFocus="true" Class="mb-3" Label="Code" Variant="Variant.Outlined"
+                      @bind-Value="m_Code" autocomplete="one-time-code" InputMode="InputMode.numeric" Immediate="true"/>
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                   Size="Size.Large" Class="mb-2" Disabled="@(m_Submitting || string.IsNullOrWhiteSpace(m_Code))">
+            @(m_Submitting ? "Checking…" : "Sign in")
+        </MudButton>
+        <MudButton Variant="Variant.Text" FullWidth="true" OnClick="() => { m_NeedsCode = false; m_Code = null; }">
+            Back
+        </MudButton>
+    </EditForm>
+}
+else
+{
+    <EditForm Model="m_LoginModel" OnValidSubmit="Submit" FormName="LoginForm">
+        <DataAnnotationsValidator/>
 
-    <MudTextField Class="mb-3" Label="Email" Variant="Variant.Outlined" @bind-Value="m_LoginModel.Email"
-                  For="@(() => m_LoginModel.Email)" InputType="InputType.Email" autocomplete="username"/>
-    <MudTextField Label="Password" Variant="Variant.Outlined" @bind-Value="m_LoginModel.Password"
-                  For="@(() => m_LoginModel.Password)" InputType="InputType.Password" autocomplete="current-password"/>
-    <MudLink Class="mb-3 mt-1 d-flex justify-end" Href="/account/resetPassword" Typo="Typo.body2">Forgot password?</MudLink>
-    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
-               Size="Size.Large" Class="mb-3" Disabled="m_Submitting">
-        @(m_Submitting ? "Signing in…" : "Sign in")
-    </MudButton>
-</EditForm>
+        <MudTextField Class="mb-3" Label="Email" Variant="Variant.Outlined" @bind-Value="m_LoginModel.Email"
+                      For="@(() => m_LoginModel.Email)" InputType="InputType.Email" autocomplete="username"/>
+        <MudTextField Label="Password" Variant="Variant.Outlined" @bind-Value="m_LoginModel.Password"
+                      For="@(() => m_LoginModel.Password)" InputType="InputType.Password" autocomplete="current-password"/>
+        <MudLink Class="mb-3 mt-1 d-flex justify-end" Href="/account/resetPassword" Typo="Typo.body2">Forgot password?</MudLink>
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                   Size="Size.Large" Class="mb-3" Disabled="m_Submitting">
+            @(m_Submitting ? "Signing in…" : "Sign in")
+        </MudButton>
+    </EditForm>
 
-<ExternalLoginPicker ReturnUrl="@Target"/>
+    <ExternalLoginPicker ReturnUrl="@Target" Label="or sign in with"/>
+}
 
 <MudText Class="mt-5" Align="Align.Center">No account?
     <MudLink Href="/account/register">Create one</MudLink>
@@ -41,6 +61,8 @@
 @code {
     private readonly LoginModel m_LoginModel = new();
     private bool m_Submitting;
+    private bool m_NeedsCode;
+    private string? m_Code;
 
     [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
 
@@ -65,11 +87,21 @@
         m_Submitting = true;
         try
         {
-            var result = await UserManager.LoginAsync(m_LoginModel.Email, m_LoginModel.Password);
+            var result = await UserManager.LoginAsync(m_LoginModel.Email, m_LoginModel.Password,
+                m_NeedsCode ? m_Code?.Trim() : null);
             if (result.Success)
+            {
                 NavigationManager.NavigateTo(Target);
+            }
+            else if (result.RequiresTwoFactor && !m_NeedsCode)
+            {
+                // Password accepted; the account also needs a code from the authenticator app.
+                m_NeedsCode = true;
+            }
             else
+            {
                 Snackbar.Add(result.Message ?? "Invalid email or password", Severity.Error);
+            }
         }
         finally
         {

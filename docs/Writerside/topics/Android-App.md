@@ -35,6 +35,10 @@ that app (Files, browser, ...).
 
 ## After installing
 
+The app can also sign in with Google, Microsoft or GitHub when the server offers them: it opens the system
+browser and comes back through `onyx://external`. On Android 13 and newer it asks for permission to show
+notifications the first time you turn on a reminder or focus mode; reminders are checked every 15 minutes.
+
 1. Open Onyx, check the server shown on the login page, then register or sign in. Enter your encryption
    passphrase (or choose one, if this is your first device). The app keeps the key in Android's secure storage, so
    the background upload can encrypt.

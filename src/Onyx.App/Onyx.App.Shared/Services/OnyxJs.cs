@@ -17,6 +17,10 @@ public sealed class OnyxJs(IJSRuntime js, IPlatformService platform) : IAsyncDis
     public ValueTask<byte[]> ResizeImageAsync(byte[] image, int size) =>
         InvokeAsync<byte[]>("resizeImage", image, size);
 
+    /// <summary>Scales a picture to fit <paramref name="size"/> × <paramref name="size"/> pixels, as JPEG (photos).</summary>
+    public ValueTask<byte[]> ResizeImageToJpegAsync(byte[] image, int size, double quality = 0.8) =>
+        InvokeAsync<byte[]>("resizeImage", image, size, "image/jpeg", quality);
+
     private Task<IJSObjectReference> ModuleAsync() =>
         m_Module ??= js.InvokeAsync<IJSObjectReference>("import",
             // The browser gets a per-build address so it never runs an old copy; the apps clear their web view's

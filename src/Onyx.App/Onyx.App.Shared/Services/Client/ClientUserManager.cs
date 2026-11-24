@@ -12,7 +12,8 @@ public sealed class ClientUserManager(
     ICredentialStore store,
     ClientAuthStateProvider authState,
     VaultService vault,
-    IPlatformService platform) : IUserManager
+    IPlatformService platform,
+    IEnumerable<IExternalLoginLauncher> launchers) : IUserManager
 {
     public async Task<RegisterResult> RegisterAsync(string name, string email, string password, bool acceptPrivacyPolicy)
     {
@@ -47,18 +48,28 @@ public sealed class ClientUserManager(
         }
     }
 
-    public async Task<LoginResult> LoginAsync(string email, string password)
+    public async Task<LoginResult> LoginAsync(string email, string password, string? twoFactorCode = null)
     {
         try
         {
             var tokens = await api.SendAnonymousAsync<LoginResultDto>(HttpMethod.Post, "/api/auth/login",
-                new LoginDto(email, password));
+                new LoginDto(email, password, twoFactorCode));
             await SignedInAsync(tokens);
             return new LoginResult { Success = true };
         }
+        catch (HttpRequestException e) when ((int?)e.StatusCode == TwoFactor.RequiredStatus)
+        {
+            return new LoginResult { Success = false, RequiresTwoFactor = true, Message = OnyxApiClient.ErrorMessage(e) };
+        }
         catch (HttpRequestException e) when (e.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized)
         {
-            return new LoginResult { Success = false, Message = "Invalid email or password" };
+            return new LoginResult
+            {
+                Success = false,
+                // A wrong two-factor code says so; anything else stays vague about which part was wrong.
+                RequiresTwoFactor = twoFactorCode is not null,
+                Message = twoFactorCode is not null ? OnyxApiClient.ErrorMessage(e) : "Invalid email or password"
+            };
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
         {
@@ -133,8 +144,8 @@ public sealed class ClientUserManager(
 
     public async Task<IReadOnlyList<ExternalSchemeDto>> GetExternalSchemesAsync()
     {
-        // External logins are browser redirects to the provider; the apps sign in with a password.
-        if (platform.IsMaui())
+        // The apps need a launcher for the system browser (not every platform has one).
+        if (platform.IsMaui() && !launchers.Any())
             return [];
         try
         {
@@ -146,25 +157,34 @@ public sealed class ClientUserManager(
         }
     }
 
-    public async Task<LoginResult> CompleteExternalLoginAsync(string code)
+    public async Task<LoginResult> CompleteExternalLoginAsync(string code, string? twoFactorCode = null,
+        string? verifier = null)
     {
         try
         {
             await SignedInAsync(await api.SendAnonymousAsync<LoginResultDto>(HttpMethod.Post,
-                "/api/auth/external/exchange", new ExternalExchangeDto(code)));
+                "/api/auth/external/exchange", new ExternalExchangeDto(code, twoFactorCode, verifier)));
             return new LoginResult { Success = true };
         }
         catch (HttpRequestException e)
         {
-            return new LoginResult { Success = false, Message = OnyxApiClient.ErrorMessage(e) };
+            return new LoginResult
+            {
+                Success = false,
+                RequiresTwoFactor = (int?)e.StatusCode == TwoFactor.RequiredStatus
+                                    || (twoFactorCode is not null && e.StatusCode == HttpStatusCode.BadRequest),
+                Message = OnyxApiClient.ErrorMessage(e)
+            };
         }
     }
 
-    public async Task<ExternalPendingDto?> GetPendingExternalLoginAsync()
+    public async Task<ExternalPendingDto?> GetPendingExternalLoginAsync(string? ticket = null)
     {
         try
         {
-            return await api.SendAnonymousAsync<ExternalPendingDto>(HttpMethod.Get, "/api/auth/external/pending");
+            return await api.SendAnonymousAsync<ExternalPendingDto>(HttpMethod.Get, ticket is null
+                ? "/api/auth/external/pending"
+                : $"/api/auth/external/pending?ticket={Uri.EscapeDataString(ticket)}");
         }
         catch (HttpRequestException)
         {
@@ -172,12 +192,14 @@ public sealed class ClientUserManager(
         }
     }
 
-    public async Task<LoginResult> RegisterExternalAsync(bool acceptPrivacyPolicy)
+    public async Task<LoginResult> RegisterExternalAsync(bool acceptPrivacyPolicy, string? ticket = null,
+        string? verifier = null)
     {
         try
         {
             await SignedInAsync(await api.SendAnonymousAsync<LoginResultDto>(HttpMethod.Post,
-                "/api/auth/external/register", new ExternalRegisterDto(acceptPrivacyPolicy, PrivacyPolicy.Version)));
+                "/api/auth/external/register",
+                new ExternalRegisterDto(acceptPrivacyPolicy, PrivacyPolicy.Version, ticket, verifier)));
             return new LoginResult { Success = true };
         }
         catch (HttpRequestException e)

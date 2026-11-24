@@ -1,6 +1,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /app
 
+# The version number (OnyxVersion) every project gets. Without it the build would fall back to 1.0.0.
+COPY ./Directory.Build.props ./Directory.Build.props
 COPY ./src/Hosting/ServiceDefaults/ServiceDefaults.csproj ./src/Hosting/ServiceDefaults/ServiceDefaults.csproj
 RUN dotnet restore ./src/Hosting/ServiceDefaults/ServiceDefaults.csproj
 COPY ./src/Onyx.Data/Onyx.Data.SQLite/Onyx.Data.SQLite.csproj ./src/Onyx.Data/Onyx.Data.SQLite/Onyx.Data.SQLite.csproj
@@ -30,7 +32,12 @@ COPY ./src/Onyx.App/Onyx.App.Shared/. ./src/Onyx.App/Onyx.App.Shared/
 COPY ./src/Onyx.App/Onyx.App.Web.Client/. ./src/Onyx.App/Onyx.App.Web.Client/
 COPY ./src/Onyx.App/Onyx.App.Web/. ./src/Onyx.App/Onyx.App.Web/
 
-RUN dotnet publish -c Release -o /out ./src/Onyx.App/Onyx.App.Web/Onyx.App.Web.csproj
+# The image has no .git directory, so the commit for the About page is passed in (docker build --build-arg
+# SOURCE_REVISION=$(git rev-parse HEAD)). ONYX_VERSION overrides the number, e.g. from a release tag.
+ARG SOURCE_REVISION=""
+ARG ONYX_VERSION=""
+RUN dotnet publish -c Release -o /out ./src/Onyx.App/Onyx.App.Web/Onyx.App.Web.csproj \
+    ${SOURCE_REVISION:+-p:SourceRevisionId=$SOURCE_REVISION} ${ONYX_VERSION:+-p:Version=$ONYX_VERSION}
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app

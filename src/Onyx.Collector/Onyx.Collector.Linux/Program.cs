@@ -5,14 +5,16 @@ using Onyx.Collector.Core.Crypto;
 using Onyx.Data.ApiSchema;
 using Onyx.Collector.Linux;
 using Onyx.Collector.Linux.Sources;
+using Onyx.Collector.Core.Reminders;
 
 const string usage = """
     Usage: onyx-agent <command>
 
-      login [--server URL] [--email EMAIL] [--device-name NAME]
+      login [--server URL] [--email EMAIL] [--device-name NAME] [--code CODE]
                      Sign in and save the server address. The password is read from the
-                     terminal, or from ONYX_PASSWORD when stdin is not a terminal. Then
-                     asks for your encryption passphrase (see unlock).
+                     terminal, or from ONYX_PASSWORD when stdin is not a terminal. With
+                     two-factor authentication it asks for the code (or ONYX_2FA_CODE).
+                     Then asks for your encryption passphrase (see unlock).
       unlock [--recovery-key]
                      Enter your encryption passphrase (or ONYX_PASSPHRASE) so the agent can
                      encrypt what it uploads. Data is end-to-end encrypted; the key is kept
@@ -21,6 +23,10 @@ const string usage = """
       status         Show sign-in state, detected desktop session and pending data.
       logout         Forget the tokens. Pending data is kept.
       version        Show the agent's version.
+      gnome install|remove
+                     GNOME on Wayland: install the small GNOME Shell extension that tells the
+                     agent which app is in front (log out and in once afterwards). KDE Plasma
+                     needs nothing: the agent loads a KWin script itself.
       websites on|off
                      Record which website the browser shows (domain only). Needs the Onyx browser
                      extension; 'on' registers the agent with the installed browsers. Restart the
@@ -45,6 +51,7 @@ return args.FirstOrDefault() switch
     "logout" => await LogoutAsync(),
     "version" or "--version" => PrintVersion(),
     "websites" => Websites(args[1..]),
+    "gnome" => Gnome(args[1..]),
     // Started by the browser through the launcher script NativeHostRegistration writes.
     "native-host" => await NativeHostAsync(),
     _ => Usage()
@@ -93,7 +100,21 @@ async Task<int> LoginAsync(string[] options)
     var config = new AgentConfig(server.TrimEnd('/'), Option("--device-name") ?? existing?.DeviceName);
     try
     {
-        await CreateClient(config).LoginAsync(email, password);
+        var client = CreateClient(config);
+        try
+        {
+            await client.LoginAsync(email, password, twoFactorCode: Option("--code"));
+        }
+        catch (TwoFactorRequiredException)
+        {
+            // Two-factor authentication: ask for the code from the authenticator app (or a recovery code).
+            var code = Console.IsInputRedirected
+                ? Environment.GetEnvironmentVariable("ONYX_2FA_CODE") ?? Console.ReadLine()
+                : Prompt("Code from your authenticator app (or a recovery code)", null);
+            if (string.IsNullOrWhiteSpace(code))
+                throw;
+            await client.LoginAsync(email, password, twoFactorCode: code.Trim());
+        }
     }
     catch (Exception e) when (e is NotSignedInException or HttpRequestException)
     {
@@ -166,7 +187,7 @@ async Task<int> RunAsync()
         return 78;
     }
 
-    var (source, idle, description) = DetectSession();
+    var (source, idle, description) = DetectSession(start: true);
     if (source is null)
     {
         logger.LogError("Unsupported desktop session: {Description}", description);
@@ -188,10 +209,15 @@ async Task<int> RunAsync()
         logger.LogInformation("Recording websites; host registered for {Count} browser(s)", registered.Count);
     }
 
+    // Reminders and focus mode check the recent activity on this computer and notify through the desktop.
+    var activity = new ActivityLog();
     var tracker = new ForegroundTracker(source, idle, store, time, logger: loggerFactory.CreateLogger<ForegroundTracker>(),
-        websiteSource: browser);
-    var sync = new UsageSyncService(CreateClient(config), store, source as IAppIconSource ?? new IconSource(),
+        websiteSource: browser, activity: activity);
+    var client = CreateClient(config);
+    var sync = new UsageSyncService(client, store, source as IAppIconSource ?? new IconSource(),
         time, config.EffectiveDeviceName, "Linux", loggerFactory.CreateLogger<UsageSyncService>(), browser);
+    var reminders = new DesktopReminders(client, new FileCredentialStore(), activity,
+        new LinuxNotifier(loggerFactory.CreateLogger<LinuxNotifier>()), time, loggerFactory.CreateLogger<DesktopReminders>());
 
     using var stop = new CancellationTokenSource();
     using var sigterm = System.Runtime.InteropServices.PosixSignalRegistration.Create(
@@ -209,9 +235,12 @@ async Task<int> RunAsync()
     await Task.WhenAll(
         tracker.RunAsync(stop.Token),
         sync.RunAsync(TimeSpan.FromMinutes(5), stop.Token),
+        reminders.RunAsync(stop.Token),
         browser is null
             ? Task.CompletedTask
             : new BrowserBridgeServer(browser, loggerFactory.CreateLogger<BrowserBridgeServer>()).RunAsync(stop.Token));
+
+    (source as IDisposable)?.Dispose();
 
     // Last attempt so a clean shutdown (logout, reboot) loses nothing.
     using var final = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -223,7 +252,7 @@ async Task<int> StatusAsync()
 {
     var config = AgentFiles.LoadConfig();
     var signedIn = config is not null && await new FileCredentialStore().LoadAsync() is not null;
-    var (source, _, description) = DetectSession();
+    var (source, _, description) = DetectSession(start: false);
 
     Console.WriteLine($"Version:   {AgentVersion()}");
     Console.WriteLine($"Server:    {config?.ServerUrl ?? "(not configured)"}");
@@ -300,7 +329,8 @@ async Task<int> LogoutAsync()
     return 0;
 }
 
-(IForegroundAppSource? Source, IIdleTimeSource? Idle, string Description) DetectSession()
+// start: for "run"; the KWin script is only loaded then (status just describes the session).
+(IForegroundAppSource? Source, IIdleTimeSource? Idle, string Description) DetectSession(bool start)
 {
     var desktop = Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "unknown desktop";
     var sessionType = Environment.GetEnvironmentVariable("XDG_SESSION_TYPE") ?? "unknown";
@@ -315,15 +345,76 @@ async Task<int> LogoutAsync()
     if (SwaySource.IsAvailable)
         return (new IconAwareSource(new SwaySource(entries), entries), new SessionIdleSource(), "Sway (Wayland)");
 
+    // GNOME and KDE on Wayland don't let ordinary programs see the focused window: GNOME needs the Onyx Shell
+    // extension, KDE gets a KWin script. On X11 the X11 source below works for them too.
+    // The systemd user service may not get XDG_SESSION_TYPE, but GNOME and KDE pass WAYLAND_DISPLAY on.
+    var wayland = sessionType == "wayland" || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"));
+    if (wayland && GnomeShellSource.IsGnome)
+    {
+        var bus = SessionBus.TryConnect();
+        var gnome = bus is null ? null : new GnomeShellSource(bus, entries);
+        if (gnome?.IsAvailable() == true)
+            return (new IconAwareSource(gnome, entries), new SessionIdleSource(), "GNOME (Wayland, Onyx extension)");
+        return (null, null, "GNOME (Wayland): the Onyx GNOME extension is not active. Run 'onyx-agent gnome install', " +
+                            "then log out and in again");
+    }
+
+    if (wayland && KWinSource.IsKde)
+    {
+        if (!start)
+            return (new NoFocusSource(), null, "KDE Plasma (Wayland, KWin script)");
+        if (SessionBus.TryConnect() is { } bus
+            && KWinSource.TryStart(bus, entries, loggerFactory.CreateLogger<KWinSource>()) is { } kwin)
+            return (new IconAwareSource(kwin, entries), new SessionIdleSource(), "KDE Plasma (Wayland, KWin script)");
+        return (null, null, "KDE Plasma (Wayland): the KWin script could not be loaded (see the log)");
+    }
+
     if (X11Source.IsAvailable)
     {
         var x11 = new X11Source(entries);
         return (new IconAwareSource(x11, entries), new SessionIdleSource(x11), $"{desktop} (X11)");
     }
 
-    // GNOME and KDE on Wayland don't let ordinary clients see the focused window; that needs a Shell
-    // extension (GNOME) or a KWin script (KDE).
-    return (null, null, $"{desktop} ({sessionType}): only Hyprland, Sway and X11 sessions are supported so far");
+    return (null, null, $"{desktop} ({sessionType}): only Hyprland, Sway, GNOME, KDE Plasma and X11 sessions are supported");
+}
+
+int Gnome(string[] options)
+{
+    switch (options.FirstOrDefault())
+    {
+        case "install":
+            var folder = GnomeShellSource.Install();
+            Console.WriteLine($"Installed the Onyx GNOME extension in {folder}.");
+            var enabled = RunTool("gnome-extensions", "enable", GnomeShellSource.ExtensionUuid);
+            Console.WriteLine(enabled
+                ? "Enabled it. GNOME on Wayland only loads new extensions after you log out and in again; then restart the agent:"
+                : $"Enable it after logging out and in again: gnome-extensions enable {GnomeShellSource.ExtensionUuid}");
+            Console.WriteLine("  systemctl --user restart onyx-agent");
+            return 0;
+        case "remove":
+            RunTool("gnome-extensions", "disable", GnomeShellSource.ExtensionUuid);
+            GnomeShellSource.Uninstall();
+            Console.WriteLine("Removed the Onyx GNOME extension.");
+            return 0;
+        default:
+            return Usage();
+    }
+}
+
+static bool RunTool(string file, params string[] arguments)
+{
+    try
+    {
+        var start = new System.Diagnostics.ProcessStartInfo(file) { UseShellExecute = false, RedirectStandardError = true };
+        foreach (var argument in arguments)
+            start.ArgumentList.Add(argument);
+        using var process = System.Diagnostics.Process.Start(start);
+        return process is not null && process.WaitForExit(10_000) && process.ExitCode == 0;
+    }
+    catch (System.ComponentModel.Win32Exception)
+    {
+        return false;
+    }
 }
 
 static string Prompt(string label, string? fallback)
@@ -352,10 +443,19 @@ static string ReadSecret(string label)
 }
 
 /// <summary>Adds icon lookup from .desktop files to a foreground source.</summary>
-internal sealed class IconAwareSource(IForegroundAppSource inner, DesktopEntries entries) : IForegroundAppSource, IAppIconSource
+internal sealed class IconAwareSource(IForegroundAppSource inner, DesktopEntries entries) : IForegroundAppSource, IAppIconSource, IDisposable
 {
     public ForegroundApp? GetForegroundApp() => inner.GetForegroundApp();
     public byte[]? GetIconPng(string appIdentifier) => entries.GetIconPng(appIdentifier);
+
+    /// <summary>Unloads what the source set up (the KWin script on KDE).</summary>
+    public void Dispose() => (inner as IDisposable)?.Dispose();
+}
+
+/// <summary>For "status" on KDE: the focused window is only known once "run" has loaded the KWin script.</summary>
+internal sealed class NoFocusSource : IForegroundAppSource
+{
+    public ForegroundApp? GetForegroundApp() => null;
 }
 
 internal sealed class IconSource : IAppIconSource

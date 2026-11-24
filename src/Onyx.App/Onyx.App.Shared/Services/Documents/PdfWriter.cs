@@ -5,7 +5,7 @@ namespace Onyx.App.Shared.Services.Documents;
 
 /// <summary>
 /// A minimal PDF writer: A4 pages with text in Helvetica (the PDF standard font, so nothing is embedded),
-/// rectangles and lines. Enough for Onyx's reports, and it runs everywhere .NET does, including WebAssembly.
+/// rectangles, lines, polygons and polylines. Enough for Onyx's reports, and it runs everywhere .NET does, including WebAssembly.
 /// Text is encoded as WinAnsi; characters outside it are replaced.
 /// </summary>
 public sealed class PdfWriter
@@ -62,6 +62,57 @@ public sealed class PdfWriter
         var (r, g, b) = Rgb(color);
         m_Current.Append(Invariant(
             $"{r} {g} {b} RG {N(width)} w {N(x1)} {N(PageHeight - y1)} m {N(x2)} {N(PageHeight - y2)} l S\n"));
+    }
+
+    /// <summary>Draws text rotated by <paramref name="degrees"/> clockwise around its start (as SVG's rotate).</summary>
+    public void TextRotated(double x, double y, string text, double size, double degrees, bool bold = false,
+        string color = "#131518")
+    {
+        var (r, g, b) = Rgb(color);
+        // PDF angles run counter-clockwise with y up.
+        var a = -degrees * Math.PI / 180;
+        var (cos, sin) = (Math.Cos(a), Math.Sin(a));
+        m_Current.Append(Invariant(
+                $"BT {r} {g} {b} rg /{(bold ? "F2" : "F1")} {N(size)} Tf {N(cos, "0.####")} {N(sin, "0.####")} {N(-sin, "0.####")} {N(cos, "0.####")} {N(x)} {N(PageHeight - y)} Tm ("))
+            .Append(Escape(text)).Append(") Tj ET\n");
+    }
+
+    /// <summary>Fills a closed polygon, optionally with an outline.</summary>
+    public void Polygon(IEnumerable<(double X, double Y)> points, string fill, string? stroke = null,
+        double strokeWidth = 0)
+    {
+        var path = Path(points);
+        if (path is null)
+            return;
+        var (r, g, b) = Rgb(fill);
+        m_Current.Append(Invariant($"{r} {g} {b} rg "));
+        if (stroke is not null && strokeWidth > 0)
+        {
+            var (sr, sg, sb) = Rgb(stroke);
+            m_Current.Append(Invariant($"{sr} {sg} {sb} RG {N(strokeWidth)} w 1 j ")).Append(path).Append(" h B\n");
+        }
+        else
+        {
+            m_Current.Append(path).Append(" h f\n");
+        }
+    }
+
+    /// <summary>Strokes an open line through the points, with round joins and caps.</summary>
+    public void Polyline(IEnumerable<(double X, double Y)> points, string stroke, double width)
+    {
+        var path = Path(points);
+        if (path is null)
+            return;
+        var (r, g, b) = Rgb(stroke);
+        m_Current.Append(Invariant($"{r} {g} {b} RG {N(width)} w 1 J 1 j ")).Append(path).Append(" S 0 J 0 j\n");
+    }
+
+    private static string? Path(IEnumerable<(double X, double Y)> points)
+    {
+        var result = new StringBuilder();
+        foreach (var (x, y) in points)
+            result.Append(Invariant($"{N(x)} {N(PageHeight - y)} {(result.Length == 0 ? "m" : "l")} "));
+        return result.Length == 0 ? null : result.ToString().TrimEnd();
     }
 
     /// <summary>Width of a text in points.</summary>

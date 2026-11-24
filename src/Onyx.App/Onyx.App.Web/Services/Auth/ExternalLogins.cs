@@ -22,7 +22,13 @@ public static class ExternalLogins
 {
     private const string ExchangePurpose = "Onyx.ExternalLogin.Exchange";
     private const string LinkPurpose = "Onyx.ExternalLogin.Link";
+    private const string AppRegisterPurpose = "Onyx.ExternalLogin.AppRegister";
     private static readonly TimeSpan s_CodeLifetime = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan s_RegisterLifetime = TimeSpan.FromMinutes(15);
+
+    /// <summary>An external login waiting for an account, for the apps (they have no external cookie).</summary>
+    private sealed record AppRegisterTicket(string Provider, string Key, string? DisplayName, string? Email,
+        string Challenge);
 
     public static async Task<IResult> SchemesAsync(SignInManager<ApplicationUser> signInManager) =>
         Results.Ok((await signInManager.GetExternalAuthenticationSchemesAsync())
@@ -40,29 +46,82 @@ public static class ExternalLogins
         return Results.Challenge(properties, [provider]);
     }
 
+    /// <summary>Starts an external sign-in from a native app in the system browser. It ends at
+    /// <see cref="AppExternalLogin.CallbackUrl"/>, which hands the result to the app.</summary>
+    public static async Task<IResult> StartAppAsync(HttpContext context, SignInManager<ApplicationUser> signInManager,
+        [FromQuery] string provider, [FromQuery] string challenge)
+    {
+        if (!await IsSchemeAsync(signInManager, provider))
+            return Results.BadRequest("Unknown login provider.");
+        if (string.IsNullOrEmpty(challenge) || challenge.Length > 64 || !challenge.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_'))
+            return Results.BadRequest("Invalid challenge.");
+
+        await context.SignOutAsync(IdentityConstants.ExternalScheme);
+        var properties = signInManager.ConfigureExternalAuthenticationProperties(provider,
+            $"/account/external-callback?app={challenge}");
+        return Results.Challenge(properties, [provider]);
+    }
+
+    /// <param name="app">Set for sign-ins started by <see cref="StartAppAsync"/>: the app's challenge.</param>
     public static async Task<IResult> CallbackAsync(HttpContext context,
         SignInManager<ApplicationUser> signInManager, IDataProtectionProvider dataProtection,
-        [FromQuery] string? returnUrl, [FromQuery] string? remoteError)
+        [FromQuery] string? returnUrl, [FromQuery] string? remoteError, [FromQuery] string? app)
     {
+        // The web app reads the result from the fragment of its own page; an app gets it through its callback URL.
+        IResult Done(string fragment) => app is null
+            ? Results.LocalRedirect($"/account/external#{fragment}")
+            : Results.Redirect($"{AppExternalLogin.CallbackUrl}#{fragment}");
+
         var target = Uri.EscapeDataString(ReturnUrl.Sanitize(returnUrl));
         if (remoteError is not null)
-            return Results.LocalRedirect($"/account/external#error={Uri.EscapeDataString(remoteError)}");
+            return Done($"error={Uri.EscapeDataString(remoteError)}");
 
         var info = await signInManager.GetExternalLoginInfoAsync();
         if (info is null)
-            return Results.LocalRedirect("/account/external#error=" + Uri.EscapeDataString("The sign-in was not completed."));
+            return Done("error=" + Uri.EscapeDataString("The sign-in was not completed."));
 
         var user = await signInManager.UserManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
         if (user is null)
         {
-            // Keep the external cookie: the register step needs it.
-            return Results.LocalRedirect($"/account/external#register=1&returnUrl={target}");
+            if (app is null)
+            {
+                // Keep the external cookie: the register step needs it.
+                return Done($"register=1&returnUrl={target}");
+            }
+
+            // The app's web view doesn't share the browser's cookies, so the login travels in a ticket.
+            await context.SignOutAsync(IdentityConstants.ExternalScheme);
+            var ticket = dataProtection.CreateProtector(AppRegisterPurpose).ToTimeLimitedDataProtector().Protect(
+                System.Text.Json.JsonSerializer.Serialize(new AppRegisterTicket(info.LoginProvider, info.ProviderKey,
+                    info.ProviderDisplayName, info.Principal.FindFirstValue(ClaimTypes.Email), app)),
+                s_RegisterLifetime);
+            return Done($"register=1&ticket={Uri.EscapeDataString(ticket)}");
         }
 
         await context.SignOutAsync(IdentityConstants.ExternalScheme);
         var code = dataProtection.CreateProtector(ExchangePurpose).ToTimeLimitedDataProtector()
-            .Protect($"{user.Id}|{user.SecurityStamp}", s_CodeLifetime);
-        return Results.LocalRedirect($"/account/external#code={Uri.EscapeDataString(code)}&returnUrl={target}");
+            .Protect($"{user.Id}|{user.SecurityStamp}|{app}", s_CodeLifetime);
+        return Done($"code={Uri.EscapeDataString(code)}&returnUrl={target}");
+    }
+
+    /// <summary>Whether <paramref name="verifier"/> belongs to <paramref name="challenge"/>; true for sign-ins
+    /// from the web app, which have no challenge.</summary>
+    private static bool VerifierMatches(string challenge, string? verifier) =>
+        challenge.Length == 0 || (verifier is not null && System.Security.Cryptography.CryptographicOperations
+            .FixedTimeEquals(System.Text.Encoding.ASCII.GetBytes(AppExternalLogin.Challenge(verifier)),
+                System.Text.Encoding.ASCII.GetBytes(challenge)));
+
+    private static AppRegisterTicket? ReadTicket(IDataProtectionProvider dataProtection, string ticket)
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<AppRegisterTicket>(
+                dataProtection.CreateProtector(AppRegisterPurpose).ToTimeLimitedDataProtector().Unprotect(ticket));
+        }
+        catch (Exception e) when (e is System.Security.Cryptography.CryptographicException or System.Text.Json.JsonException)
+        {
+            return null;
+        }
     }
 
     /// <summary>Trades the one-time code from <see cref="CallbackAsync"/> for tokens.</summary>
@@ -81,22 +140,34 @@ public static class ExternalLogins
         }
 
         // Each code works once.
-        if (!usedCodes.TryGetValue(dto.Code, out _))
-            usedCodes.Set(dto.Code, true, s_CodeLifetime);
-        else
+        if (usedCodes.TryGetValue(dto.Code, out _))
             return Results.BadRequest("The sign-in has expired. Please try again.");
 
-        var parts = payload.Split('|', 2);
+        var parts = payload.Split('|', 3);
         var user = await userManager.FindByIdAsync(parts[0]);
-        if (user is null || user.SecurityStamp != parts[1])
+        if (user is null || user.SecurityStamp != parts[1] || !VerifierMatches(parts.Length > 2 ? parts[2] : "", dto.Verifier))
             return Results.BadRequest("The sign-in has expired. Please try again.");
 
+        // Accounts with two-factor authentication need a code here too. The one-time code stays valid until it
+        // is used, so the app can ask for the code and send both again.
+        if (await AuthEndpoints.TwoFactorCheckAsync(userManager, user, dto.TwoFactorCode) is { } twoFactor)
+            return twoFactor;
+
+        usedCodes.Set(dto.Code, true, s_CodeLifetime);
         return Results.Ok(AuthEndpoints.IssueTokens(user, keyAccessor));
     }
 
     /// <summary>The external sign-in waiting for an account: provider and email address.</summary>
-    public static async Task<IResult> PendingAsync(SignInManager<ApplicationUser> signInManager)
+    public static async Task<IResult> PendingAsync(SignInManager<ApplicationUser> signInManager,
+        IDataProtectionProvider dataProtection, [FromQuery] string? ticket)
     {
+        if (ticket is not null)
+        {
+            return ReadTicket(dataProtection, ticket) is { } pending
+                ? Results.Ok(new ExternalPendingDto(pending.DisplayName ?? pending.Provider, pending.Email))
+                : Results.NotFound();
+        }
+
         var info = await signInManager.GetExternalLoginInfoAsync();
         return info is null
             ? Results.NotFound()
@@ -107,18 +178,33 @@ public static class ExternalLogins
     /// <summary>Creates an account for the pending external sign-in, once the user agreed to the privacy policy.</summary>
     public static async Task<IResult> RegisterAsync(HttpContext context, [FromBody] ExternalRegisterDto dto,
         SignInManager<ApplicationUser> signInManager, IEmailSender<ApplicationUser> emailSender,
-        IOptions<OnyxServerOptions> serverOptions, KeyAccessor keyAccessor, TimeProvider time)
+        IOptions<OnyxServerOptions> serverOptions, KeyAccessor keyAccessor, TimeProvider time,
+        IDataProtectionProvider dataProtection)
     {
         if (!serverOptions.Value.AllowRegistration)
             return Results.Problem(OnyxServerOptions.RegistrationClosedMessage, statusCode: StatusCodes.Status403Forbidden);
         if (!dto.AcceptPrivacyPolicy)
             return Results.Problem(AuthEndpoints.ConsentRequiredMessage, statusCode: StatusCodes.Status400BadRequest);
 
-        var info = await signInManager.GetExternalLoginInfoAsync();
+        UserLoginInfo? info;
+        string? email;
+        if (dto.Ticket is not null)
+        {
+            var ticket = ReadTicket(dataProtection, dto.Ticket);
+            if (ticket is null || !VerifierMatches(ticket.Challenge, dto.Verifier))
+                return Results.BadRequest("The sign-in has expired. Please try again.");
+            info = new UserLoginInfo(ticket.Provider, ticket.Key, ticket.DisplayName);
+            email = ticket.Email;
+        }
+        else
+        {
+            var external = await signInManager.GetExternalLoginInfoAsync();
+            info = external;
+            email = external?.Principal.FindFirstValue(ClaimTypes.Email);
+        }
+
         if (info is null)
             return Results.BadRequest("The sign-in has expired. Please try again.");
-
-        var email = info.Principal.FindFirstValue(ClaimTypes.Email);
         if (string.IsNullOrWhiteSpace(email))
             return Results.BadRequest($"{info.ProviderDisplayName} did not share an email address.");
 

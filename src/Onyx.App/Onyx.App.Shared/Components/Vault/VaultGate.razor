@@ -2,6 +2,7 @@
 @using Onyx.Data.ApiSchema
 @inject VaultService Vault
 @inject MigrationService Migration
+@inject Onyx.App.Shared.Services.Client.PrivateProfileService PrivateProfile
 @inject IProfileService ProfileService
 @inject IUserManager UserManager
 @inject NavigationManager NavigationManager
@@ -122,12 +123,26 @@
             }
 
             m_Migration = await Migration.GetPendingAsync();
+            _ = MoveProfileAsync();
             StateHasChanged();
             if (m_Migration is not null)
                 await MigrateAsync();
         }
 
         StateHasChanged();
+    }
+
+    /// <summary>Moves a phone number or picture still stored in plain text into the encrypted profile.</summary>
+    private async Task MoveProfileAsync()
+    {
+        try
+        {
+            await PrivateProfile.GetAsync();
+        }
+        catch (Exception)
+        {
+            // Tried again next time; the profile page does it too.
+        }
     }
 
     private async Task MigrateAsync()

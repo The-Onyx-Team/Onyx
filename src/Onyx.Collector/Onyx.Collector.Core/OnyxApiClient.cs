@@ -37,6 +37,10 @@ public class NotSignedInException(string message) : Exception(message);
 /// (or create one, if the account has no encryption set up yet).</summary>
 public sealed class VaultLockedException(string message) : NotSignedInException(message);
 
+/// <summary>The password was right, but the account also needs a code from the authenticator app.</summary>
+public sealed class TwoFactorRequiredException()
+    : NotSignedInException("Enter the code from your authenticator app.");
+
 /// <summary>The settings changed on another device since they were loaded.</summary>
 public sealed class VaultConflictException() : Exception("The settings were changed on another device");
 
@@ -55,11 +59,22 @@ public sealed class OnyxApiClient(HttpClient http, ICredentialStore store, ILogg
     private readonly ILogger m_Logger = logger ?? NullLogger.Instance;
     private readonly SemaphoreSlim m_RefreshLock = new(1, 1);
 
-    public async Task LoginAsync(string email, string password, CancellationToken ct = default)
+    /// <param name="twoFactorCode">For accounts with two-factor authentication, after
+    /// <see cref="TwoFactorRequiredException"/>.</param>
+    public async Task LoginAsync(string email, string password, CancellationToken ct = default,
+        string? twoFactorCode = null)
     {
-        using var response = await http.PostAsJsonAsync("/api/auth/login", new LoginDto(email, password), s_Json, ct);
+        using var response = await http.PostAsJsonAsync("/api/auth/login",
+            new LoginDto(email, password, twoFactorCode), s_Json, ct);
+        if ((int)response.StatusCode == TwoFactor.RequiredStatus)
+            throw new TwoFactorRequiredException();
         if (!response.IsSuccessStatusCode)
-            throw new NotSignedInException("Invalid email or password");
+        {
+            throw new NotSignedInException(twoFactorCode is null
+                ? "Invalid email or password"
+                : ErrorMessage(new HttpRequestException($"{(int)response.StatusCode}: " +
+                                                        await response.Content.ReadAsStringAsync(ct))));
+        }
 
         var tokens = await response.Content.ReadFromJsonAsync<LoginResultDto>(s_Json, ct)
                      ?? throw new InvalidOperationException("Empty login response");
@@ -284,12 +299,6 @@ public sealed class OnyxApiClient(HttpClient http, ICredentialStore store, ILogg
 
     public Task UpdateProfileAsync(string userName, string? phoneNumber, CancellationToken ct = default) =>
         SendAsync<object?>(HttpMethod.Put, "/api/user/profile", new UpdateProfileDto(userName, phoneNumber), ct);
-
-    public Task SetAvatarAsync(byte[] data, string contentType, CancellationToken ct = default) =>
-        SendAsync<object?>(HttpMethod.Put, "/api/user/avatar", new AvatarDto(contentType, data), ct);
-
-    public Task DeleteAvatarAsync(CancellationToken ct = default) =>
-        SendAsync<object?>(HttpMethod.Delete, "/api/user/avatar", null, ct);
 
     public Task SetAppOverrideAsync(int appId, AppOverrideDto dto, CancellationToken ct = default) =>
         SendAsync<object?>(HttpMethod.Put, $"/api/app/{appId}/override", dto, ct);

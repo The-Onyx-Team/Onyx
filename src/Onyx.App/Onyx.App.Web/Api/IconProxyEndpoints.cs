@@ -1,24 +1,17 @@
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.AspNetCore.Mvc;
+using Onyx.App.Shared.Services.Usage;
 
 namespace Onyx.App.Web.Api;
 
 /// <summary>
-/// Downloads a picture from a URL for the browser, which can't fetch most other sites itself (CORS). The apps
+/// Downloads a picture (or a website's icon) for the browser, which can't fetch most other sites itself (CORS). The apps
 /// download directly and don't use this. Only public addresses are fetched: the server must not become a way
 /// into the network it runs in.
 /// </summary>
 public static class IconProxyEndpoints
 {
-    public const int MaxBytes = 1024 * 1024;
-
-    private static readonly HashSet<string> s_ImageTypes =
-    [
-        "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml", "image/x-icon",
-        "image/vnd.microsoft.icon", "image/bmp"
-    ];
-
     private static readonly HttpClient s_Http = new(new SocketsHttpHandler
     {
         // Every connection, including redirects, goes through this check (DNS rebinding included).
@@ -29,8 +22,7 @@ public static class IconProxyEndpoints
         UseCookies = false,
     })
     {
-        Timeout = TimeSpan.FromSeconds(10),
-        DefaultRequestHeaders = { { "User-Agent", "Onyx icon fetcher" } }
+        Timeout = TimeSpan.FromSeconds(10)
     };
 
     public static IEndpointRouteBuilder MapIconProxy(this IEndpointRouteBuilder routes)
@@ -41,41 +33,23 @@ public static class IconProxyEndpoints
         return routes;
     }
 
+    /// <summary>Downloads a picture, or a website's icon (see <see cref="IconDownloader"/>).</summary>
     public static async Task<IResult> FetchAsync([FromQuery] string url, CancellationToken ct)
     {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
-            return Results.BadRequest("Enter an http or https address.");
-
         try
         {
-            using var response = await s_Http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
-            if (!response.IsSuccessStatusCode)
-                return Results.BadRequest($"The site answered {(int)response.StatusCode}.");
-
-            var type = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant();
-            if (type is null || !s_ImageTypes.Contains(type))
-                return Results.BadRequest("That address is not a picture (PNG, JPEG, GIF, WebP, SVG or ICO).");
-            if (response.Content.Headers.ContentLength > MaxBytes)
-                return Results.BadRequest("The picture is larger than 1 MB.");
-
-            await using var stream = await response.Content.ReadAsStreamAsync(ct);
-            using var buffer = new MemoryStream();
-            var chunk = new byte[16 * 1024];
-            int read;
-            while ((read = await stream.ReadAsync(chunk, ct)) > 0)
-            {
-                buffer.Write(chunk, 0, read);
-                if (buffer.Length > MaxBytes)
-                    return Results.BadRequest("The picture is larger than 1 MB.");
-            }
-
-            return Results.File(buffer.ToArray(), type);
+            var (data, type) = await IconDownloader.DownloadAsync(s_Http, IconDownloader.Normalize(url), ct);
+            return Results.File(data, type);
+        }
+        catch (InvalidOperationException e)
+        {
+            return Results.BadRequest(e.Message);
         }
         catch (HttpRequestException e) when (e.InnerException is BlockedAddressException)
         {
             return Results.BadRequest("Only public internet addresses can be fetched.");
         }
-        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+        catch (HttpRequestException)
         {
             return Results.BadRequest("The picture could not be downloaded.");
         }

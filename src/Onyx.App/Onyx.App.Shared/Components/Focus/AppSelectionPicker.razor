@@ -1,0 +1,51 @@
+@using Onyx.App.Shared.Services.Focus
+@using Onyx.Collector.Core.Crypto
+@* Picks categories and apps for a reminder or focus mode. Apps are chosen by their shown name and stored as all
+   their identifiers, so the same app on the phone and the computer counts as one. *@
+
+<div class="d-flex flex-wrap gap-2 @Class">
+    <MudSelect T="string" Label="Categories" MultiSelection="true" SelectedValues="Selection.Categories"
+               SelectedValuesChanged="CategoriesChanged" Variant="Variant.Outlined" Margin="Margin.Dense"
+               Style="min-width: 220px; flex: 1" Clearable="true" HelperText="@CategoryHelp">
+        @foreach (var category in Choices.Categories)
+        {
+            <MudSelectItem T="string" Value="@category">@category</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect T="string" Label="Apps" MultiSelection="true" SelectedValues="SelectedApps"
+               SelectedValuesChanged="AppsChanged" Variant="Variant.Outlined" Margin="Margin.Dense"
+               Style="min-width: 220px; flex: 1" Clearable="true">
+        @foreach (var app in Choices.Apps)
+        {
+            <MudSelectItem T="string" Value="@app.Name">@app.Name</MudSelectItem>
+        }
+    </MudSelect>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public AppSelection Selection { get; set; } = new();
+    [Parameter, EditorRequired] public FocusChoices Choices { get; set; } = null!;
+    [Parameter] public EventCallback SelectionChanged { get; set; }
+    [Parameter] public string? EmptyMeans { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string? CategoryHelp => Selection.IsEmpty ? EmptyMeans : null;
+
+    private IEnumerable<string> SelectedApps => FocusService.AppNames(Selection, Choices);
+
+    private async Task CategoriesChanged(IEnumerable<string>? values)
+    {
+        Selection.Categories = values?.ToList() ?? [];
+        await SelectionChanged.InvokeAsync();
+    }
+
+    private async Task AppsChanged(IEnumerable<string>? names)
+    {
+        var chosen = names?.ToHashSet(StringComparer.CurrentCultureIgnoreCase) ?? [];
+        Selection.Apps = Choices.Apps.Where(g => chosen.Contains(g.Name))
+            .SelectMany(g => g.Members.Select(m => m.Identifier))
+            .Distinct()
+            .ToList();
+        await SelectionChanged.InvokeAsync();
+    }
+}

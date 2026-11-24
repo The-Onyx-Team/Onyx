@@ -1,15 +1,24 @@
 @page "/Account/Manage/Profile"
+@using Onyx.Collector.Core.Crypto
+@using Onyx.App.Shared.Services.Client
 @using Onyx.Data.ApiSchema
 @inject IProfileService ProfileService
+@inject PrivateProfileService PrivateProfile
 @inject ISnackbar Snackbar
 
 <PageTitle>Profile · Onyx</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Medium" Class="py-4 px-0">
     <MudPaper Class="pa-4" Elevation="1">
-        <MudText Typo="Typo.h6" Class="mb-4">Profile</MudText>
+        <MudText Typo="Typo.h6" Class="mb-1">Profile</MudText>
+        <MudText Typo="Typo.body2" Class="text-muted mb-4">
+            <MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Small" Style="vertical-align: -4px"/>
+            Your picture, real name and phone number are end-to-end encrypted: only you, and the friends you share
+            with, can see them. Your user name and email address stay readable for the server, because they are how
+            you sign in and how friends find you.
+        </MudText>
 
-        @if (m_Profile is null)
+        @if (m_Profile is null || m_Private is null)
         {
             <MudProgressLinear Indeterminate="true"/>
         }
@@ -17,7 +26,7 @@
         {
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="4" Class="mb-6" Wrap="Wrap.Wrap">
                 <MudAvatar Size="Size.Large" Color="Color.Secondary" Style="width: 96px; height: 96px; font-size: 2.2rem">
-                    @if (m_Profile.AvatarDataUrl is { } avatar)
+                    @if (m_Private.AvatarDataUrl is { } avatar)
                     {
                         <MudImage Src="@avatar" Alt="Profile picture" ObjectFit="ObjectFit.Cover"/>
                     }
@@ -37,7 +46,7 @@
                         </ActivatorContent>
                     </MudFileUpload>
                     <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="DeleteAvatarAsync"
-                               Disabled="@(m_Busy || m_Profile.AvatarDataUrl is null)"
+                               Disabled="@(m_Busy || m_Private.Avatar is null)"
                                StartIcon="@Icons.Material.Filled.Delete">
                         Remove picture
                     </MudButton>
@@ -50,12 +59,17 @@
                 <MudGrid Spacing="3">
                     <MudItem xs="12" sm="6">
                         <MudTextField T="string" Label="User name" @bind-Value="m_Model.UserName" For="@(() => m_Model.UserName)"
-                                      Variant="Variant.Outlined" HelperText="Letters and digits only" Immediate="true"/>
+                                      Variant="Variant.Outlined" HelperText="Letters and digits; friends find you by it" Immediate="true"/>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Real name (optional)" @bind-Value="m_Model.DisplayName"
+                                      For="@(() => m_Model.DisplayName)" Variant="Variant.Outlined" MaxLength="100"
+                                      HelperText="Encrypted; shown to friends you share with" Immediate="true"/>
                     </MudItem>
                     <MudItem xs="12" sm="6">
                         <MudTextField T="string" Label="Phone number" @bind-Value="m_Model.PhoneNumber"
                                       For="@(() => m_Model.PhoneNumber)" Variant="Variant.Outlined" InputType="InputType.Telephone"
-                                      Immediate="true"/>
+                                      HelperText="Encrypted; only you see it" Immediate="true"/>
                     </MudItem>
                     <MudItem xs="12" sm="6">
                         <MudTextField T="string" Label="Email" Value="@m_Profile.Email" ReadOnly="true" Variant="Variant.Outlined"
@@ -77,13 +91,17 @@
     private const long MaxUploadBytes = 512 * 1024;
 
     private ProfileDto? m_Profile;
+    private ProfilePayload? m_Private;
     private readonly ProfileModel m_Model = new();
     private bool m_Busy;
 
-    private string Initial => string.IsNullOrEmpty(m_Profile?.UserName) ? "?" : m_Profile.UserName[..1].ToUpperInvariant();
+    private string Initial =>
+        (m_Private?.DisplayName ?? m_Profile?.UserName) is { Length: > 0 } name ? name[..1].ToUpperInvariant() : "?";
 
-    private bool IsChanged => m_Profile is not null &&
-                              (m_Model.UserName != m_Profile.UserName || (m_Model.PhoneNumber ?? "") != (m_Profile.PhoneNumber ?? ""));
+    private bool IsChanged => m_Profile is not null && m_Private is not null &&
+                              (m_Model.UserName != m_Profile.UserName
+                               || Clean(m_Model.PhoneNumber) != m_Private.PhoneNumber
+                               || Clean(m_Model.DisplayName) != m_Private.DisplayName);
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -91,9 +109,12 @@
     {
         try
         {
+            // The encrypted profile first: it also moves a plain-text phone number or picture into it.
+            m_Private = await PrivateProfile.GetAsync();
             m_Profile = await ProfileService.GetAsync();
             m_Model.UserName = m_Profile.UserName ?? "";
-            m_Model.PhoneNumber = m_Profile.PhoneNumber;
+            m_Model.PhoneNumber = m_Private.PhoneNumber;
+            m_Model.DisplayName = m_Private.DisplayName;
         }
         catch (Exception e)
         {
@@ -103,7 +124,17 @@
 
     private async Task SaveAsync()
     {
-        await RunAsync(() => ProfileService.UpdateAsync(m_Model.UserName, m_Model.PhoneNumber), "Profile saved.");
+        await RunAsync(async () =>
+        {
+            if (m_Model.UserName != m_Profile!.UserName
+                && await ProfileService.UpdateAsync(m_Model.UserName, null) is { } error)
+                return error;
+
+            var updated = m_Private! with { PhoneNumber = Clean(m_Model.PhoneNumber), DisplayName = Clean(m_Model.DisplayName) };
+            if (updated != m_Private)
+                await PrivateProfile.SaveAsync(updated);
+            return null;
+        }, "Profile saved.");
     }
 
     private async Task UploadAvatarAsync(IBrowserFile? file)
@@ -129,12 +160,19 @@
 
             using var stream = new MemoryStream();
             await scaled.OpenReadStream(MaxUploadBytes).CopyToAsync(stream);
-            return await ProfileService.SetAvatarAsync(stream.ToArray(), "image/jpeg");
+            await PrivateProfile.SaveAsync(m_Private! with { Avatar = stream.ToArray(), AvatarContentType = "image/jpeg" });
+            return null;
         }, "Picture updated.");
     }
 
     private async Task DeleteAvatarAsync() =>
-        await RunAsync(ProfileService.DeleteAvatarAsync, "Picture removed.");
+        await RunAsync(async () =>
+        {
+            await PrivateProfile.SaveAsync(m_Private! with { Avatar = null, AvatarContentType = null });
+            return null;
+        }, "Picture removed.");
+
+    private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     /// <summary>Runs a change, shows its result and reloads the profile.</summary>
     private async Task RunAsync(Func<Task<string?>> change, string success)
@@ -171,5 +209,8 @@
 
         [RegularExpression(@"^\+?[0-9 ()/-]{3,30}$", ErrorMessage = "Enter a valid phone number.")]
         public string? PhoneNumber { get; set; }
+
+        [MaxLength(100)]
+        public string? DisplayName { get; set; }
     }
 }

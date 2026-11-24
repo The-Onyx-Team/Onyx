@@ -7,4 +7,7 @@ public interface IReportService
 {
     /// <param name="weekStart">Monday of the week, in <paramref name="zone"/>.</param>
     Task<WeeklyReportDto> GetWeeklyReportAsync(DateOnly weekStart, TimeZoneInfo zone);
+
+    /// <summary>The same report as an A4 PDF.</summary>
+    Task<byte[]> GetWeeklyReportPdfAsync(DateOnly weekStart, TimeZoneInfo zone);
 }

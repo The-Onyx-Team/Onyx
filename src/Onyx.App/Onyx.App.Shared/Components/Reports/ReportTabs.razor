@@ -1,0 +1,9 @@
+@* Switches between the weekly report and the user's own reports. *@
+<div class="report-tabs mb-3 no-print" role="tablist">
+    <a href="/reports" role="tab" aria-selected="@(!Custom)" class="@(Custom ? "" : "selected")">Weekly report</a>
+    <a href="/reports/custom" role="tab" aria-selected="@Custom" class="@(Custom ? "selected" : "")">My reports</a>
+</div>
+
+@code {
+    [Parameter] public bool Custom { get; set; }
+}

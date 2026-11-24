@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Onyx.Collector.Core.Browser;
+using Onyx.Collector.Core.Reminders;
 
 namespace Onyx.Collector.Core;
 
@@ -30,7 +31,8 @@ public sealed class ForegroundTracker(
     TimeProvider timeProvider,
     ForegroundTrackerOptions? options = null,
     ILogger? logger = null,
-    IWebsiteSource? websiteSource = null)
+    IWebsiteSource? websiteSource = null,
+    ActivityLog? activity = null)
 {
     private readonly ForegroundTrackerOptions m_Options = options ?? new ForegroundTrackerOptions();
     private readonly ILogger m_Logger = logger ?? NullLogger.Instance;
@@ -74,7 +76,10 @@ public sealed class ForegroundTracker(
         var elapsed = now - m_LastSample;
 
         if (m_Current is not null && elapsed > TimeSpan.Zero && elapsed <= m_Options.PollInterval * 3)
+        {
             store.Add(m_Current, m_LastSample, now, m_CurrentDomain);
+            activity?.Add(m_Current, m_LastSample, now);
+        }
 
         m_LastSample = now;
         m_Current = ReadForegroundApp();

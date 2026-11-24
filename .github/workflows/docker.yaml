@@ -1,10 +1,23 @@
 name: Build and Push Docker Image to GHCR
 
+# Called by version.yml for every push to master (tagged as :latest and as the version), or run by hand.
 on:
-  push:
-    branches:
-      - master
-  workflow_dispatch: 
+  workflow_call:
+    inputs:
+      version:
+        description: "Version, e.g. 0.4"
+        type: string
+        required: true
+      ref:
+        description: "Commit to build"
+        type: string
+        required: false
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version, e.g. 0.4 (empty: the number in Directory.Build.props)"
+        type: string
+        required: false
 permissions:
   contents: read
   packages: write
@@ -15,15 +28,26 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Log in to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
 
       - name: Build and Tag Docker Image
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           docker build --pull \
+            --build-arg SOURCE_REVISION=$(git rev-parse HEAD) \
+            --build-arg ONYX_VERSION="$VERSION" \
             -t ghcr.io/the-onyx-team/onyx:latest \
+            ${VERSION:+-t ghcr.io/the-onyx-team/onyx:$VERSION} \
             -f src/Onyx.App/Onyx.App.Web/Dockerfile .
 
       - name: Push Image to GHCR
-        run: docker push ghcr.io/the-onyx-team/onyx:latest
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          docker push ghcr.io/the-onyx-team/onyx:latest
+          if [ -n "$VERSION" ]; then docker push "ghcr.io/the-onyx-team/onyx:$VERSION"; fi

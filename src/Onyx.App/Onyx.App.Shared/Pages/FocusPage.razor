@@ -1,0 +1,284 @@
+@page "/focus"
+@using Onyx.App.Shared.Services.Focus
+@using Onyx.App.Shared.Services.Dashboard
+@using Onyx.App.Shared.Components.Focus
+@using Onyx.Collector.Core.Crypto
+@layout AppLayout
+@attribute [Authorize]
+@inject FocusService Focus
+@inject ClientTimeZone ClientTimeZone
+@inject IPlatformService Platform
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Focus · Onyx</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+    <MudText Typo="Typo.h5">Focus and reminders</MudText>
+    <MudText Typo="Typo.body2" Class="text-muted mb-4">
+        Your phone and computers remind you to take breaks and nudge you when a distracting app comes up during focus
+        time. They decide this on their own from what they record; the settings are end-to-end encrypted like
+        everything else.
+        @(Platform.ReminderDelivery ?? "Notifications appear on devices with the Onyx app or the Linux agent, not in the browser.")
+    </MudText>
+
+    @if (m_Settings is null || m_Choices is null)
+    {
+        <MudProgressLinear Indeterminate="true"/>
+    }
+    else
+    {
+        <MudGrid Spacing="3">
+            <MudItem xs="12" md="6">
+                <MudPaper Class="@(m_ActiveUntil is not null ? "pa-4 focus-card focus-on" : "pa-4 focus-card")" Elevation="0" Outlined="true">
+                    <div class="d-flex align-center gap-2 mb-2">
+                        <MudIcon Icon="@Icons.Material.Outlined.CenterFocusStrong" Color="@(m_ActiveUntil is not null ? Color.Primary : Color.Default)"/>
+                        <MudText Typo="Typo.h6">Focus mode</MudText>
+                        <MudSpacer/>
+                        <MudChip T="string" Size="Size.Small" Color="@(m_ActiveUntil is not null ? Color.Primary : Color.Default)"
+                                 Variant="@(m_ActiveUntil is not null ? Variant.Filled : Variant.Outlined)">
+                            @(m_ActiveUntil is { } until ? $"on until {Local(until):HH:mm}" : "off")
+                        </MudChip>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2 mb-4">
+                        @foreach (var minutes in s_Durations)
+                        {
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" Disabled="m_Busy"
+                                       OnClick="() => StartAsync(minutes)">@ReminderLabel(minutes)</MudButton>
+                        }
+                        @if (m_Settings.Focus.Until > Focus.Now)
+                        {
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Disabled="m_Busy"
+                                       OnClick="StopAsync" StartIcon="@Icons.Material.Filled.Stop">Stop</MudButton>
+                        }
+                    </div>
+
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">Distracting</MudText>
+                    <AppSelectionPicker Selection="m_Distracting" Choices="m_Choices" SelectionChanged="MarkChanged"
+                                        EmptyMeans="None picked: no nudges, focus only shows here" Class="mb-2"/>
+                    <DevicePicker Selected="m_Devices" SelectedChanged="DevicesChanged" Choices="m_Choices" Class="mb-4"/>
+
+                    <div class="d-flex align-center mb-1">
+                        <MudText Typo="Typo.subtitle2">Every week</MudText>
+                        <MudSpacer/>
+                        <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Add" OnClick="AddSchedule">Add time</MudButton>
+                    </div>
+                    @if (m_Schedules.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Class="text-muted mb-2">No regular focus times. Add one, e.g. weekdays 9:00 to 12:00.</MudText>
+                    }
+                    @foreach (var schedule in m_Schedules)
+                    {
+                        <div class="focus-schedule mb-2">
+                            <div class="d-flex flex-wrap gap-1 mb-2">
+                                @foreach (var day in s_Week)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="@(schedule.Days.Contains(day) ? Variant.Filled : Variant.Outlined)"
+                                             Color="@(schedule.Days.Contains(day) ? Color.Primary : Color.Default)"
+                                             OnClick="() => ToggleDay(schedule, day)">@day.ToString()[..2]</MudChip>
+                                }
+                            </div>
+                            <div class="d-flex align-center gap-2">
+                                <MudTimePicker Label="From" Time="schedule.Start.ToTimeSpan()" TimeChanged="t => SetStart(schedule, t)"
+                                               Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="false"/>
+                                <MudTimePicker Label="To" Time="schedule.End.ToTimeSpan()" TimeChanged="t => SetEnd(schedule, t)"
+                                               Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="false"/>
+                                <MudIconButton Icon="@Icons.Material.Outlined.Delete" aria-label="Remove" OnClick="() => RemoveSchedule(schedule)"/>
+                            </div>
+                        </div>
+                    }
+
+                    <MudButton Class="mt-2" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(m_Busy || !m_Changed)"
+                               OnClick="SaveFocusAsync">Save focus settings</MudButton>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                    <div class="d-flex align-center gap-2 mb-2">
+                        <MudIcon Icon="@Icons.Material.Outlined.NotificationsActive"/>
+                        <MudText Typo="Typo.h6">Reminders</MudText>
+                        <MudSpacer/>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="() => EditAsync(null)">New reminder</MudButton>
+                    </div>
+                    @if (m_Settings.Reminders.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Class="text-muted">
+                            No reminders yet. For example: a break after an hour on your phone, or a nudge when you
+                            reach two hours of videos a day.
+                        </MudText>
+                    }
+                    @foreach (var reminder in m_Settings.Reminders)
+                    {
+                        <div class="reminder-row">
+                            <MudSwitch T="bool" Value="reminder.Enabled" ValueChanged="v => SetEnabledAsync(reminder, v)" Color="Color.Primary"
+                                       aria-label="On"/>
+                            <div style="flex: 1; min-width: 0">
+                                <div>@FocusService.Describe(reminder, m_Choices)</div>
+                                @if (reminder.Message is not null)
+                                {
+                                    <MudText Typo="Typo.caption" Class="text-muted">“@reminder.Message”</MudText>
+                                }
+                            </div>
+                            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true" Size="Size.Small" aria-label="More">
+                                <MudMenuItem OnClick="() => EditAsync(reminder)">Edit</MudMenuItem>
+                                <MudMenuItem OnClick="() => DeleteAsync(reminder)">Delete</MudMenuItem>
+                            </MudMenu>
+                        </div>
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private static readonly int[] s_Durations = [25, 60, 120, 240];
+    private static readonly DayOfWeek[] s_Week =
+        [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday];
+
+    private VaultSettings? m_Settings;
+    private FocusChoices? m_Choices;
+    private TimeZoneInfo m_Zone = TimeZoneInfo.Local;
+    private DateTimeOffset? m_ActiveUntil;
+    private AppSelection m_Distracting = new();
+    private List<int> m_Devices = [];
+    private List<FocusSchedule> m_Schedules = [];
+    private bool m_Changed;
+    private bool m_Busy;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+        m_Zone = await ClientTimeZone.GetAsync();
+        await LoadAsync(refresh: false);
+    }
+
+    private async Task LoadAsync(bool refresh)
+    {
+        try
+        {
+            m_Settings = await Focus.GetAsync(refresh);
+            m_Choices ??= await Focus.GetChoicesAsync();
+            var focus = m_Settings.Focus;
+            m_ActiveUntil = focus.ActiveUntil(Focus.Now, m_Zone);
+            if (!m_Changed)
+            {
+                m_Distracting = new AppSelection { Apps = [..focus.Distracting.Apps], Categories = [..focus.Distracting.Categories] };
+                m_Devices = [..focus.Devices];
+                m_Schedules = focus.Schedules.Select(s => new FocusSchedule { Days = [..s.Days], Start = s.Start, End = s.End }).ToList();
+            }
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"Could not load: {e.Message}", Severity.Error);
+        }
+
+        StateHasChanged();
+    }
+
+    private DateTimeOffset Local(DateTimeOffset time) => TimeZoneInfo.ConvertTime(time, m_Zone);
+
+    private static string ReminderLabel(int minutes) => minutes < 60 ? $"{minutes} min" : $"{minutes / 60} h";
+
+    private void MarkChanged() => m_Changed = true;
+
+    private void DevicesChanged(List<int> devices)
+    {
+        m_Devices = devices;
+        m_Changed = true;
+    }
+
+    private void AddSchedule()
+    {
+        m_Schedules.Add(new FocusSchedule());
+        m_Changed = true;
+    }
+
+    private void RemoveSchedule(FocusSchedule schedule)
+    {
+        m_Schedules.Remove(schedule);
+        m_Changed = true;
+    }
+
+    private void ToggleDay(FocusSchedule schedule, DayOfWeek day)
+    {
+        if (!schedule.Days.Remove(day))
+            schedule.Days.Add(day);
+        m_Changed = true;
+    }
+
+    private void SetStart(FocusSchedule schedule, TimeSpan? time)
+    {
+        if (time is { } t)
+            schedule.Start = TimeOnly.FromTimeSpan(t);
+        m_Changed = true;
+    }
+
+    private void SetEnd(FocusSchedule schedule, TimeSpan? time)
+    {
+        if (time is { } t)
+            schedule.End = TimeOnly.FromTimeSpan(t);
+        m_Changed = true;
+    }
+
+    private Task StartAsync(int minutes) => RunAsync(async () =>
+    {
+        await Platform.RequestNotificationsAsync();
+        await Focus.StartAsync(Focus.Now.AddMinutes(minutes));
+    }, $"Focus mode is on for {ReminderLabel(minutes)} on all your devices.");
+
+    private Task StopAsync() => RunAsync(Focus.StopAsync, "Focus mode is off.");
+
+    private Task SaveFocusAsync() => RunAsync(async () =>
+    {
+        await Platform.RequestNotificationsAsync();
+        await Focus.SaveFocusAsync(m_Distracting, m_Devices, m_Schedules.Where(s => s.Days.Count > 0).ToList());
+        m_Changed = false;
+    }, "Focus settings saved.");
+
+    private Task SetEnabledAsync(ReminderSettings reminder, bool enabled) =>
+        RunAsync(() => Focus.SetReminderEnabledAsync(reminder.Id, enabled), null);
+
+    private async Task EditAsync(ReminderSettings? reminder)
+    {
+        var dialog = await DialogService.ShowAsync<ReminderDialog>(reminder is null ? "New reminder" : "Edit reminder",
+            new DialogParameters<ReminderDialog> { { d => d.Reminder, reminder }, { d => d.Choices, m_Choices! } },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        if (await dialog.Result is { Canceled: false })
+        {
+            await Platform.RequestNotificationsAsync();
+            await LoadAsync(refresh: false);
+        }
+    }
+
+    private async Task DeleteAsync(ReminderSettings reminder)
+    {
+        if (await DialogService.ShowMessageBox("Delete reminder", FocusService.Describe(reminder, m_Choices!),
+                yesText: "Delete", cancelText: "Cancel") == true)
+            await RunAsync(() => Focus.DeleteReminderAsync(reminder.Id), null);
+    }
+
+    private async Task RunAsync(Func<Task> change, string? success)
+    {
+        m_Busy = true;
+        try
+        {
+            await change();
+            if (success is not null)
+                Snackbar.Add(success, Severity.Success);
+            await LoadAsync(refresh: false);
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"Could not save: {e.Message}", Severity.Error);
+        }
+        finally
+        {
+            m_Busy = false;
+        }
+    }
+}

@@ -609,6 +609,9 @@ namespace Onyx.Data.SqlServer.Migrations
                     b.Property<int>("Iterations")
                         .HasColumnType("int");
 
+                    b.Property<byte[]>("Profile")
+                        .HasColumnType("varbinary(max)");
+
                     b.Property<byte[]>("PublicKey")
                         .IsRequired()
                         .HasMaxLength(65)

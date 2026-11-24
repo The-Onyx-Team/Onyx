@@ -19,7 +19,9 @@ public sealed record SharedWeek(
     [property: JsonPropertyName("t")] int TotalMinutes,
     [property: JsonPropertyName("d")] int[] DailyMinutes,
     [property: JsonPropertyName("c")] Dictionary<string, int>? CategoryMinutes,
-    [property: JsonPropertyName("g")] List<SharedGoal>? Goals);
+    [property: JsonPropertyName("g")] List<SharedGoal>? Goals,
+    [property: JsonPropertyName("n")] string? DisplayName = null,
+    [property: JsonPropertyName("a")] string? Avatar = null);
 
 public sealed record SharedGoal(
     [property: JsonPropertyName("t")] string Title,
@@ -27,6 +29,7 @@ public sealed record SharedGoal(
     [property: JsonPropertyName("o")] bool OnTrack);
 
 /// <summary>A person's numbers for the comparison (the user themselves included).</summary>
+/// <param name="DisplayName">Their real name, if they share it (encrypted, with the numbers).</param>
 public sealed record PersonWeeks(
     string UserId,
     string UserName,
@@ -34,7 +37,8 @@ public sealed record PersonWeeks(
     bool IsMe,
     IReadOnlyDictionary<DateOnly, SharedWeek> Weeks,
     DateTime? UpdatedAt,
-    string? SafetyCode);
+    string? SafetyCode,
+    string? DisplayName = null);
 
 /// <summary>Friends, groups and the numbers shared with them.</summary>
 public sealed class SocialService(
@@ -43,6 +47,7 @@ public sealed class SocialService(
     IUsageDataService usage,
     GoalService goals,
     AuthenticationStateProvider authState,
+    PrivateProfileService profile,
     ILogger<SocialService> logger)
 {
     public Task<List<FriendDto>> GetFriendsAsync() =>
@@ -83,6 +88,20 @@ public sealed class SocialService(
         var (privateKey, publicKey) = await vault.GetKeyPairAsync();
         var v = await vault.GetVaultAsync();
         var weeks = await ComputeMyWeeksAsync(zone, today);
+
+        // Real name and picture travel with this week's numbers, encrypted like them (not when sharing nothing).
+        if (weeks[0].Level != ShareLevel.Nothing)
+        {
+            try
+            {
+                var mine = await profile.GetAsync();
+                weeks[0] = weeks[0] with { DisplayName = mine.DisplayName, Avatar = mine.ThumbnailDataUrl };
+            }
+            catch (Exception e) when (e is HttpRequestException or NotSignedInException)
+            {
+                logger.LogWarning(e, "Could not read the profile to share");
+            }
+        }
 
         var items = new List<ShareItemDto>();
         foreach (var recipient in recipients)
@@ -168,8 +187,11 @@ public sealed class SocialService(
             }
 
             var first = owner.First();
-            people.Add(new PersonWeeks(owner.Key, first.OwnerUserName, first.OwnerAvatarDataUrl, false, weeks,
-                owner.Max(o => o.UpdatedAt), UserVault.SafetyCode(publicKey, first.OwnerPublicKey)));
+            var latest = weeks.Values.OrderByDescending(w => w.WeekStart)
+                .FirstOrDefault(w => w.DisplayName is not null || w.Avatar is not null);
+            people.Add(new PersonWeeks(owner.Key, first.OwnerUserName,
+                ValidAvatar(latest?.Avatar) ?? first.OwnerAvatarDataUrl, false, weeks,
+                owner.Max(o => o.UpdatedAt), UserVault.SafetyCode(publicKey, first.OwnerPublicKey), latest?.DisplayName));
         }
 
         return people;
@@ -182,6 +204,10 @@ public sealed class SocialService(
         var recipients = await api.SendAuthorizedAsync<List<ShareRecipientDto>>(HttpMethod.Get, "/api/shares/recipients");
         return recipients.ToDictionary(r => r.UserId, r => UserVault.SafetyCode(publicKey, r.PublicKey));
     }
+
+    /// <summary>Only small JPEG data URLs are shown, whatever a friend's app sends.</summary>
+    private static string? ValidAvatar(string? url) =>
+        url is { Length: < 16 * 1024 } && url.StartsWith("data:image/jpeg;base64,", StringComparison.Ordinal) ? url : null;
 
     private async Task<string> MyIdAsync() =>
         (await authState.GetAuthenticationStateAsync()).User.FindFirst(ClaimTypes.NameIdentifier)?.Value

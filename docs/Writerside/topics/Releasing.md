@@ -12,23 +12,38 @@ informational version, so every build is identifiable. It shows on:
 - `onyx-agent version` and `onyx-agent status`;
 - the Android app's version name.
 
-To release a new version, raise `OnyxVersion`, commit, and tag the same number:
+### Automatic versions
+
+Every push to `master` whose build and tests pass is a new version (`.github/workflows/version.yml`): the
+**minor** number goes up by one from the last tag (v0.3 → v0.4), the commit is tagged, the device apps are
+released (below) and the server image is published as `ghcr.io/the-onyx-team/onyx:latest` and `:<version>`.
+`.github/scripts/next-version.sh` computes the number.
+
+A **major** version is ordered in one of three ways:
+
+- `[major]` anywhere in the commit message (v0.7 → v1.0);
+- running the *Version* workflow by hand with *bump = major*;
+- setting `OnyxVersion` in `Directory.Build.props` above the last tag, e.g. to `1.0` (that number is released next).
+
+`OnyxVersion` is otherwise only what local builds show; tagged builds get the tag's number through
+`-p:Version`, and the Docker image through the `ONYX_VERSION` build argument. Tags pushed by the workflow don't
+start other workflows, so `version.yml` calls `release.yml` and `docker.yaml` itself.
+
+To release by hand (for example from another branch), push a tag:
 
 ```bash
 git tag -a v0.1 -m "Onyx 0.1"
 git push origin v0.1        # starts the release workflow below
 ```
 
-The release workflow passes the tag's number as `-p:Version`, so a tagged build always shows the tag.
+Without the `ANDROID_*` secrets the release has no Android app (the job warns instead of failing), so the rest
+is still published.
 
 ## Release builds
 
-Pushing a version tag builds every device app and publishes a GitHub release
-(`.github/workflows/release.yml`):
-
-```bash
-git tag v1.2.0 && git push origin v1.2.0
-```
+Every version builds every device app and publishes a GitHub release (`.github/workflows/release.yml`). The
+Windows app is built with `-p:OnyxWindowsOnly=true`, which limits the MAUI project to its Windows target: a restore
+for `win-x64` would otherwise also resolve the Android target and fail without an error message.
 
 | Asset | Contents |
 |---|---|

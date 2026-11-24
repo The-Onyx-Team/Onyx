@@ -567,7 +567,7 @@ public class AuthEndpointsTest
             .ReturnsAsync(IdentityResult.Success);
 
         // Act
-        var result = await AuthEndpoints.UpdateProfileHandler(request, m_HttpContext.Object, m_UserManager.Object);
+        var result = await AuthEndpoints.UpdateProfileHandler(request, m_HttpContext.Object, m_UserManager.Object, CreateDbContext());
 
         // Assert
         result.ShouldBeOfType<Ok>();
@@ -586,7 +586,7 @@ public class AuthEndpointsTest
             .ReturnsAsync((ApplicationUser)null!);
 
         // Act
-        var result = await AuthEndpoints.UpdateProfileHandler(request, m_HttpContext.Object, m_UserManager.Object);
+        var result = await AuthEndpoints.UpdateProfileHandler(request, m_HttpContext.Object, m_UserManager.Object, CreateDbContext());
 
         // Assert
         result.ShouldBeOfType<NotFound>();
@@ -611,7 +611,7 @@ public class AuthEndpointsTest
             .ReturnsAsync(failedResult);
 
         // Act
-        var result = await AuthEndpoints.UpdateProfileHandler(request, m_HttpContext.Object, m_UserManager.Object);
+        var result = await AuthEndpoints.UpdateProfileHandler(request, m_HttpContext.Object, m_UserManager.Object, CreateDbContext());
 
         // Assert
         var badRequestResult = result.ShouldBeOfType<BadRequest<IEnumerable<IdentityError>>>();
@@ -762,25 +762,6 @@ public class AuthEndpointsTest
     }
 
     [Fact]
-    public async Task Enable2FaHandler_WithValidUser_EnablesTwoFactorAndReturnsOk()
-    {
-        // Arrange
-        m_UserManager.Setup(x => x.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
-            .ReturnsAsync(m_TestUser);
-        m_UserManager.Setup(x => x.GenerateTwoFactorTokenAsync(m_TestUser, TokenOptions.DefaultPhoneProvider))
-            .ReturnsAsync("123456");
-        m_UserManager.Setup(x => x.SetTwoFactorEnabledAsync(m_TestUser, true))
-            .ReturnsAsync(IdentityResult.Success);
-
-        // Act
-        var result = await AuthEndpoints.Enable2FaHandler(m_HttpContext.Object, m_UserManager.Object);
-
-        // Assert
-        result.ShouldBeOfType<Ok>();
-        m_UserManager.Verify(x => x.SetTwoFactorEnabledAsync(m_TestUser, true), Times.Once);
-    }
-
-    [Fact]
     public async Task WebLogOutHandler_SignsOutUser()
     {
         // Arrange
@@ -819,19 +800,26 @@ public class AuthEndpointsTest
     }
 
     [Fact]
-    public async Task Disable2FaHandler_WithValidUser_DisablesTwoFactorAndReturnsOk()
+    public async Task UpdateProfileHandler_WithVault_RefusesPlainPhoneNumber()
     {
-        // Arrange
-        m_UserManager.Setup(x => x.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
-            .ReturnsAsync(m_TestUser);
-        m_UserManager.Setup(x => x.SetTwoFactorEnabledAsync(m_TestUser, false))
-            .ReturnsAsync(IdentityResult.Success);
+        var db = CreateDbContext();
+        db.Users.Add(m_TestUser);
+        db.UserVaults.Add(new Onyx.Data.DataBaseSchema.TableEntities.UserVaultEntity
+        {
+            UserId = m_TestUser.Id, Salt = new byte[16], WrappedKey = new byte[60], PublicKey = new byte[65],
+            EncryptedPrivateKey = new byte[60], Settings = new byte[10]
+        });
+        await db.SaveChangesAsync();
+        m_UserManager.Setup(x => x.GetUserAsync(It.IsAny<ClaimsPrincipal>())).ReturnsAsync(m_TestUser);
+        m_UserManager.Setup(x => x.UpdateAsync(It.IsAny<ApplicationUser>())).ReturnsAsync(IdentityResult.Success);
 
-        // Act
-        var result = await AuthEndpoints.Disable2FaHandler(m_HttpContext.Object, m_UserManager.Object);
+        var refused = await AuthEndpoints.UpdateProfileHandler(new UpdateProfileDto("newname", "123456"),
+            m_HttpContext.Object, m_UserManager.Object, db);
+        var renamed = await AuthEndpoints.UpdateProfileHandler(new UpdateProfileDto("newname", null),
+            m_HttpContext.Object, m_UserManager.Object, db);
 
-        // Assert
-        result.ShouldBeOfType<Ok>();
-        m_UserManager.Verify(x => x.SetTwoFactorEnabledAsync(m_TestUser, false), Times.Once);
+        refused.ShouldBeOfType<ProblemHttpResult>().StatusCode.ShouldBe(StatusCodes.Status409Conflict);
+        renamed.ShouldBeOfType<Ok>();
+        m_UserManager.Verify(x => x.UpdateAsync(It.Is<ApplicationUser>(u => u.UserName == "newname")), Times.Once);
     }
 }

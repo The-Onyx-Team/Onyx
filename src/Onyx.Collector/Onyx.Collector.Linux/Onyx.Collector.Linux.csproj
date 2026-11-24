@@ -16,6 +16,15 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.15" />
+        <!-- D-Bus for GNOME (Shell extension) and KDE (KWin script) on Wayland. -->
+        <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
+    </ItemGroup>
+
+    <!-- Installed by the agent itself: onyx-agent gnome install / the KWin script is loaded at start. -->
+    <ItemGroup>
+        <EmbeddedResource Include="..\..\..\packaging\linux\gnome-extension\metadata.json" LogicalName="gnome-extension/metadata.json" />
+        <EmbeddedResource Include="..\..\..\packaging\linux\gnome-extension\extension.js" LogicalName="gnome-extension/extension.js" />
+        <EmbeddedResource Include="..\..\..\packaging\linux\kwin\onyx-focus.js" LogicalName="kwin/onyx-focus.js" />
     </ItemGroup>
 
     <ItemGroup>

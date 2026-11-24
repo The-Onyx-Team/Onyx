@@ -134,7 +134,7 @@ export function openInNewTab(type, bytes) {
 }
 
 // Scales a picture to fit size × size and returns it as PNG (transparent background kept).
-export async function resizeImage(bytes, size) {
+export async function resizeImage(bytes, size, type = "image/png", quality = 0.9) {
     const isSvg = bytes.length > 4 && (bytes[0] === 0x3C || (bytes[0] === 0xEF && bytes[3] === 0x3C));
     const url = URL.createObjectURL(new Blob([bytes], isSvg ? { type: "image/svg+xml" } : {}));
     try {
@@ -148,9 +148,14 @@ export async function resizeImage(bytes, size) {
         canvas.height = Math.max(1, Math.round(height * scale));
         const context = canvas.getContext("2d");
         context.imageSmoothingQuality = "high";
+        if (type === "image/jpeg") {
+            // JPEG has no transparency: transparent parts become white instead of black.
+            context.fillStyle = "#fff";
+            context.fillRect(0, 0, canvas.width, canvas.height);
+        }
         context.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const png = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
-        return new Uint8Array(await png.arrayBuffer());
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, type, quality));
+        return new Uint8Array(await blob.arrayBuffer());
     } finally {
         URL.revokeObjectURL(url);
     }

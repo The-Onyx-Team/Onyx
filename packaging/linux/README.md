@@ -2,8 +2,9 @@
 
 Headless usage collector for Linux desktops. It uploads to the Onyx server; the web dashboard shows the data.
 
-Supported sessions: Hyprland and Sway (Wayland), any X11 desktop. GNOME and KDE on Wayland don't expose the
-focused window to ordinary programs and are not supported yet.
+Supported sessions: Hyprland, Sway, GNOME and KDE Plasma on Wayland, and any X11 desktop. GNOME on Wayland needs
+the small Onyx Shell extension once: `onyx-agent gnome install`, then log out and in again. KDE needs nothing; the
+agent loads a KWin script itself.
 
 Install from a release archive (`onyx-agent-linux-x64.tar.gz` or `-arm64`):
 
@@ -13,7 +14,8 @@ The agent runs as a systemd user service that starts with `graphical-session.tar
 directly (not through uwsm) never reach that target; add the autostart line `install.sh` prints to the
 compositor's config (see the Linux Agent page of the documentation).
 
-Commands: `onyx-agent login | run | status | logout | websites on|off`. With `websites on` and the Onyx browser
+Commands: `onyx-agent login | unlock | run | status | logout | version | websites on|off | gnome install|remove`.
+Reminders and focus mode (set on the dashboard's Focus page) show as desktop notifications through `notify-send`. With `websites on` and the Onyx browser
 extension installed, browser time is split by website (domain only). Files: `~/.config/onyx/` (server, tokens; mode 600) and
 `~/.local/state/onyx/pending.json` (data not uploaded yet).
 

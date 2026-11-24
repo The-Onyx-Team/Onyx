@@ -2,18 +2,21 @@
 @using System.Globalization
 @using System.Text
 @using Onyx.App.Shared.Services.Dashboard
+@using Onyx.App.Shared.Services.Documents
+@using Onyx.App.Shared.Components.Reports
 @using Onyx.App.Shared.Services.Usage
 @using Onyx.Data.ApiSchema
 @layout AppLayout
 @attribute [Authorize]
 @inject IReportService ReportService
 @inject ClientTimeZone ClientTimeZone
-@inject IPlatformService PlatformService
-@inject IJSRuntime JS
+@inject IFileSaver FileSaver
+@inject ISnackbar Snackbar
 
 <PageTitle>Weekly report · Onyx</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+    <ReportTabs/>
     <div class="d-flex flex-wrap align-center gap-2 mb-4 no-print">
         <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="() => MoveAsync(-1)" Disabled="m_Loading"
                        aria-label="Previous week"/>
@@ -25,11 +28,8 @@
             <MudButton Variant="Variant.Text" OnClick="() => ShowAsync(ThisWeek)" Disabled="m_Loading">This week</MudButton>
         }
         <MudSpacer/>
-        @if (!PlatformService.IsMaui())
-        {
-            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print" OnClick="PrintAsync"
-                       Disabled="@(m_Report is null || m_Loading)">Print / PDF</MudButton>
-        }
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.PictureAsPdf" OnClick="DownloadPdfAsync"
+                   Disabled="@(m_Report is null || m_Loading || m_Exporting)">@(m_Exporting ? "Creating…" : "PDF")</MudButton>
     </div>
 
     @if (m_Loading)
@@ -141,6 +141,7 @@
     private TimeZoneInfo m_Zone = TimeZoneInfo.Local;
     private WeeklyReportDto? m_Report;
     private bool m_Loading = true;
+    private bool m_Exporting;
     private string? m_Error;
 
     private DateOnly ThisWeek => m_Today.AddDays(-(((int)m_Today.DayOfWeek + 6) % 7));
@@ -182,37 +183,28 @@
         }
     }
 
-    private async Task PrintAsync() => await JS.InvokeVoidAsync("print");
-
-    private static string Change(TimeSpan current, TimeSpan previous)
+    /// <summary>The report as an A4 PDF, drawn on this device (the page is its preview).</summary>
+    private async Task DownloadPdfAsync()
     {
-        if (previous == TimeSpan.Zero)
-            return current == TimeSpan.Zero ? "same" : "new";
-        var change = (current - previous) / previous;
-        return change switch
+        m_Exporting = true;
+        try
         {
-            > 0.005 => $"+{change:P0}",
-            < -0.005 => $"{change:P0}",
-            _ => "about the same"
-        };
+            var pdf = await ReportService.GetWeeklyReportPdfAsync(m_WeekStart, m_Zone);
+            var week = System.Globalization.ISOWeek.GetWeekOfYear(m_WeekStart.ToDateTime(TimeOnly.MinValue));
+            await FileSaver.SaveAsync($"onyx-report-{System.Globalization.ISOWeek.GetYear(m_WeekStart.ToDateTime(TimeOnly.MinValue))}-W{week:00}.pdf",
+                "application/pdf", pdf);
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"The PDF could not be created: {e.Message}", Severity.Error);
+        }
+        finally
+        {
+            m_Exporting = false;
+        }
     }
 
-    private static string TrendText(WeeklyReportDto report)
-    {
-        var earlier = report.Trend.Take(report.Trend.Count - 1).Where(t => t.Time > TimeSpan.Zero).ToList();
-        if (earlier.Count == 0)
-            return "There is no data from earlier weeks to compare with yet.";
+    private static string Change(TimeSpan current, TimeSpan previous) => ReportText.Change(current, previous);
 
-        var average = TimeSpan.FromTicks((long)earlier.Average(t => t.Time.Ticks));
-        var change = (report.Total - average) / average;
-        var direction = change switch
-        {
-            > 0.1 => "more than",
-            < -0.1 => "less than",
-            _ => "about the same as"
-        };
-        return $"This week you used your devices {direction} your average of {UsageSummary.Format(average)} " +
-               $"per week over the {earlier.Count} earlier week(s) with data" +
-               (Math.Abs(change) > 0.1 ? $" ({(change > 0 ? "+" : "")}{change:P0})." : ".");
-    }
+    private static string TrendText(WeeklyReportDto report) => ReportText.Trend(report);
 }

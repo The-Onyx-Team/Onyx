@@ -1,34 +1,78 @@
 @using Onyx.Data.ApiSchema
 @inject IUserManager UserManager
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IEnumerable<IExternalLoginLauncher> Launchers
 
-@* Sign-in with Google, Microsoft or GitHub (web only): a form post to the server, which redirects to the provider. *@
+@* Sign-in with Google, Microsoft or GitHub. The web app posts a form to the server, which redirects to the provider;
+   the native apps open the system browser and get the result back through onyx://external. New accounts are created
+   on /account/external after the user agreed to the privacy policy. Shows nothing when the server offers none. *@
 @if (m_Schemes.Count > 0)
 {
-    <MudText Align="Align.Center" Class="mt-2 mb-1">Or sign in with</MudText>
-    <form action="/account/perform-external-login" method="post" class="d-flex justify-center gap-2">
-        <input type="hidden" name="returnUrl" value="@ReturnUrl"/>
-        @foreach (var scheme in m_Schemes)
-        {
-            <button type="submit" name="provider" value="@scheme.Name" class="external-login-button"
-                    title="@($"Sign in with {scheme.DisplayName}")">
-                <i class="@Icon(scheme.Name)"></i> @scheme.DisplayName
-            </button>
-        }
-    </form>
+    <div class="auth-divider">@Label</div>
+    @if (Launcher is null)
+    {
+        <form action="/account/perform-external-login" method="post" class="external-logins">
+            <input type="hidden" name="returnUrl" value="@ReturnUrl"/>
+            @foreach (var scheme in m_Schemes)
+            {
+                <button type="submit" name="provider" value="@scheme.Name" class="external-login-button"
+                        title="@($"Continue with {scheme.DisplayName}")">
+                    <MudIcon Icon="@Icon(scheme.Name)" Size="Size.Small"/> @scheme.DisplayName
+                </button>
+            }
+        </form>
+    }
+    else
+    {
+        <div class="external-logins">
+            @foreach (var scheme in m_Schemes)
+            {
+                <button type="button" class="external-login-button" disabled="@m_Busy"
+                        title="@($"Continue with {scheme.DisplayName}")" @onclick="() => StartInAppAsync(scheme.Name)">
+                    <MudIcon Icon="@Icon(scheme.Name)" Size="Size.Small"/> @scheme.DisplayName
+                </button>
+            }
+        </div>
+    }
 }
 
 @code {
     [Parameter] public string? ReturnUrl { get; set; }
 
+    /// <summary>Text above the buttons, e.g. "or sign in with".</summary>
+    [Parameter] public string Label { get; set; } = "or continue with";
+
     private IReadOnlyList<ExternalSchemeDto> m_Schemes = [];
+    private bool m_Busy;
+
+    private IExternalLoginLauncher? Launcher => Launchers.FirstOrDefault();
 
     protected override async Task OnInitializedAsync() => m_Schemes = await UserManager.GetExternalSchemesAsync();
 
+    private async Task StartInAppAsync(string provider)
+    {
+        m_Busy = true;
+        try
+        {
+            if (await Launcher!.SignInAsync(provider) is { } result)
+                NavigationManager.NavigateTo(result);
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"The sign-in could not be started: {e.Message}", Severity.Error);
+        }
+        finally
+        {
+            m_Busy = false;
+        }
+    }
+
     private static string Icon(string name) => name.ToLowerInvariant() switch
     {
-        "github" => "fa-brands fa-github",
-        "google" or "googleopenidconnect" => "fa-brands fa-google",
-        "microsoft" => "fa-brands fa-microsoft",
-        _ => "fa-solid fa-right-to-bracket"
+        "github" => Icons.Custom.Brands.GitHub,
+        "google" or "googleopenidconnect" => Icons.Custom.Brands.Google,
+        "microsoft" => Icons.Custom.Brands.Microsoft,
+        _ => Icons.Material.Outlined.Login
     };
 }

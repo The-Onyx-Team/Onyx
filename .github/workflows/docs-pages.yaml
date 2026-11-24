@@ -1,8 +1,14 @@
-﻿name: Build documentation for GitHub Pages
+name: Build documentation for GitHub Pages
 
+# Runs for master and dev, for version tags (so every release has matching docs) and for pull requests that touch
+# the docs. Only master and v* tags deploy; the github-pages environment must allow both (Settings -> Environments
+# -> github-pages -> Deployment branches and tags: add the tag rule "v*").
 on:
   push:
-    branches: ["master"]
+    branches: ["master", "dev"]
+    tags: ["v*"]
+  pull_request:
+    paths: ["docs/**", ".github/workflows/docs*.yaml"]
   workflow_dispatch:
 
 permissions:
@@ -25,6 +31,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Replace topics kept outside the repository
+        # A topic can be a symlink to a private note (the development backlog). On the runner the target doesn't
+        # exist, so a placeholder keeps the table of contents and the links to it working.
+        run: |
+          find docs/Writerside/topics -xtype l | while read -r topic; do
+            rm "$topic"
+            printf '# %s\n\nThis page is kept internally and is not part of the published documentation.\n' \
+              "$(basename "$topic" .md | tr '_-' '  ')" > "$topic"
+          done
 
       - name: Define instance id and artifacts
         id: define-ids
@@ -63,6 +79,7 @@ jobs:
             artifacts/${{ env.ALGOLIA_ARTIFACT }}
           retention-days: 7
   deploy:
+    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

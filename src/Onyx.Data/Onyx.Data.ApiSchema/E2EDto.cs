@@ -63,3 +63,7 @@ public record LegacyStatusDto(int UsageRows, DateTime? First, DateTime? Last, in
 public record DeleteEncryptedUsageDto(List<EncryptedUsageKeyDto> Rows);
 
 public record EncryptedUsageKeyDto(int DeviceId, string Tag, DateTime Hour);
+
+/// <summary>The encrypted profile (real name, phone number, profile picture); <c>Data</c> is null when none is
+/// saved.</summary>
+public record EncryptedProfileDto(byte[]? Data);

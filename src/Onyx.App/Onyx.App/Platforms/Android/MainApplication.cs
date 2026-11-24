@@ -22,5 +22,6 @@ public class MainApplication(IntPtr handle, JniHandleOwnership ownership) : Maui
         // Idempotent: keeps an existing schedule. The worker does nothing until the user has signed in and
         // granted usage access.
         UsageSyncWorker.Schedule(this);
+        ReminderWorker.Schedule(this);
     }
 }

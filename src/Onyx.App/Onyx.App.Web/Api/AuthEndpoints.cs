@@ -28,6 +28,7 @@ public static class AuthEndpoints
         // Plain form posts from the WebAssembly app, which has no antiforgery token; they only start a redirect.
         accountGroup.MapPost("/perform-external-login", ExternalLogins.StartAsync).DisableAntiforgery();
         accountGroup.MapGet("/external-callback", ExternalLogins.CallbackAsync);
+        accountGroup.MapGet("/app-external-login", ExternalLogins.StartAppAsync).RequireRateLimiting(Program.AuthRateLimit);
         accountGroup.MapPost("/link-external-login", ExternalLogins.StartLinkAsync).DisableAntiforgery();
         accountGroup.MapGet("/link-external-callback", ExternalLogins.LinkCallbackAsync);
         accountGroup.MapPost("/logout", WebLogOutHandler).DisableAntiforgery();
@@ -63,9 +64,11 @@ public static class AuthEndpoints
 
         authorized.MapPost("/email/change", RequestEmailChangeHandler);
 
-        authorized.MapGet("/2fa/key", AuthenticatorKeyHandler);
-        authorized.MapPost("/2fa/enable", Enable2FaHandler);
+        authorized.MapGet("/2fa", TwoFactorStatusHandler).Produces<TwoFactorStatusDto>();
+        authorized.MapGet("/2fa/key", AuthenticatorKeyHandler).Produces<TwoFactorKeyDto>();
+        authorized.MapPost("/2fa/enable", Enable2FaHandler).Produces<RecoveryCodesDto>();
         authorized.MapPost("/2fa/disable", Disable2FaHandler);
+        authorized.MapPost("/2fa/recovery-codes", NewRecoveryCodesHandler).Produces<RecoveryCodesDto>();
     }
 
     /// <summary>
@@ -117,6 +120,9 @@ public static class AuthEndpoints
         if (!await userManager.CheckPasswordAsync(user, dto.Password))
             return Results.BadRequest("Invalid email or password");
 
+        if (await TwoFactorCheckAsync(userManager, user, dto.TwoFactorCode) is { } twoFactor)
+            return twoFactor;
+
         return Results.Ok(IssueTokens(user, keyAccessor));
     }
 
@@ -155,6 +161,9 @@ public static class AuthEndpoints
         await SendConfirmationAsync(context, userManager, emailSender, user);
         return Results.Ok(new object());
     }
+
+    public const string PlainProfileMessage =
+        "Your phone number and profile picture are end-to-end encrypted now. Update the app to change them.";
 
     public const string ConsentRequiredMessage =
         "Please read the privacy policy and confirm that you agree to it. Older app versions can't do this; update the app.";
@@ -253,6 +262,30 @@ public static class AuthEndpoints
     private static DateTime? Utc(DateTime? time) =>
         time is { } t ? DateTime.SpecifyKind(t, DateTimeKind.Utc) : null;
 
+    /// <summary>For an account with two-factor authentication: null if <paramref name="code"/> is valid, otherwise
+    /// the answer (428 without a code, 400 with a wrong one).</summary>
+    internal static async Task<IResult?> TwoFactorCheckAsync(UserManager<ApplicationUser> userManager,
+        ApplicationUser user, string? code)
+    {
+        if (!user.TwoFactorEnabled)
+            return null;
+        if (string.IsNullOrWhiteSpace(code))
+            return Results.Problem(TwoFactorAuth.RequiredMessage, statusCode: TwoFactor.RequiredStatus);
+        return await TwoFactorAuth.VerifyAsync(userManager, user, code)
+            ? null
+            : Results.BadRequest(TwoFactorAuth.InvalidCodeMessage);
+    }
+
+    public static async Task<IResult> TwoFactorStatusHandler(
+        HttpContext context,
+        [FromServices] UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.GetUserAsync(context.User);
+        if (user == null) return Results.NotFound();
+        return Results.Ok(new TwoFactorStatusDto(user.TwoFactorEnabled,
+            user.TwoFactorEnabled ? await userManager.CountRecoveryCodesAsync(user) : 0));
+    }
+
     /// <summary>The authenticator app key of the signed-in user, created on first use.</summary>
     public static async Task<IResult> AuthenticatorKeyHandler(
         HttpContext context,
@@ -261,14 +294,9 @@ public static class AuthEndpoints
         var user = await userManager.GetUserAsync(context.User);
         if (user == null) return Results.NotFound();
 
-        var key = await userManager.GetAuthenticatorKeyAsync(user);
-        if (string.IsNullOrEmpty(key))
-        {
-            await userManager.ResetAuthenticatorKeyAsync(user);
-            key = await userManager.GetAuthenticatorKeyAsync(user);
-        }
-
-        return Results.Ok(key);
+        var key = await TwoFactorAuth.KeyAsync(userManager, user);
+        return Results.Ok(new TwoFactorKeyDto(TwoFactorAuth.FormatKey(key),
+            TwoFactorAuth.Uri(user.Email ?? user.UserName ?? user.Id, key)));
     }
 
     /// <summary>
@@ -303,13 +331,17 @@ public static class AuthEndpoints
     public static async Task<IResult> SetAvatarHandler(
         [FromBody] AvatarDto dto,
         HttpContext context,
-        [FromServices] UserManager<ApplicationUser> userManager)
+        [FromServices] UserManager<ApplicationUser> userManager,
+        [FromServices] ApplicationDbContext db)
     {
         if (Avatar.Validate(dto.Data, dto.ContentType) is { } error)
             return Results.BadRequest(error);
 
         var user = await userManager.GetUserAsync(context.User);
         if (user == null) return Results.NotFound();
+        // With encryption set up, the picture lives in the encrypted profile (PUT /api/e2e/profile).
+        if (await db.UserVaults.AnyAsync(v => v.UserId == user.Id))
+            return Results.Problem(PlainProfileMessage, statusCode: StatusCodes.Status409Conflict);
 
         user.Avatar = dto.Data;
         user.AvatarContentType = dto.ContentType;
@@ -337,12 +369,17 @@ public static class AuthEndpoints
     public static async Task<IResult> UpdateProfileHandler(
         [FromBody] UpdateProfileDto dto,
         HttpContext context,
-        [FromServices] UserManager<ApplicationUser> userManager)
+        [FromServices] UserManager<ApplicationUser> userManager,
+        [FromServices] ApplicationDbContext db)
     {
         var user = await userManager.GetUserAsync(context.User);
         if (user == null) return Results.NotFound();
 
-        user.PhoneNumber = dto.PhoneNumber;
+        // With encryption set up, the phone number lives in the encrypted profile; this only changes the user name.
+        if (!string.IsNullOrEmpty(dto.PhoneNumber) && await db.UserVaults.AnyAsync(v => v.UserId == user.Id))
+            return Results.Problem(PlainProfileMessage, statusCode: StatusCodes.Status409Conflict);
+        if (dto.PhoneNumber is not null)
+            user.PhoneNumber = dto.PhoneNumber.Length == 0 ? null : dto.PhoneNumber;
         user.UserName = dto.UserName;
 
         var result = await userManager.UpdateAsync(user);
@@ -398,35 +435,64 @@ public static class AuthEndpoints
         return Results.Ok();
     }
 
-    /// <summary>
-    /// Accepts a request to enable two-factor authentication for the current user.
-    /// </summary>
-    /// TODO TEST
+    /// <summary>Turns on two-factor authentication once the user typed a code from the authenticator app (which
+    /// proves the app has the key), and returns the recovery codes.</summary>
     public static async Task<IResult> Enable2FaHandler(
+        [FromBody] TwoFactorCodeDto dto,
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
     {
         var user = await userManager.GetUserAsync(context.User);
         if (user == null) return Results.NotFound();
+        if (user.TwoFactorEnabled)
+            return Results.BadRequest("Two-factor authentication is on already.");
 
-        var _ = await userManager.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultPhoneProvider);
-        // TODO Send token via SMS/email
-        await userManager.SetTwoFactorEnabledAsync(user, true);
-        return Results.Ok();
+        if (!await TwoFactorAuth.VerifyAsync(userManager, user, dto.Code, allowRecoveryCode: false))
+            return Results.BadRequest(TwoFactorAuth.InvalidCodeMessage);
+
+        var result = await userManager.SetTwoFactorEnabledAsync(user, true);
+        if (!result.Succeeded)
+            return Results.BadRequest(result.Errors);
+        var codes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, TwoFactorAuth.RecoveryCodeCount);
+        return Results.Ok(new RecoveryCodesDto(codes?.ToList() ?? []));
     }
 
-    /// <summary>
-    /// Accepts a request to disable two-factor authentication for the current user.
-    /// </summary>
+    /// <summary>Turns off two-factor authentication (needs a current code or a recovery code) and forgets the key,
+    /// so turning it on again needs a new QR code scan.</summary>
     public static async Task<IResult> Disable2FaHandler(
+        [FromBody] TwoFactorCodeDto dto,
         HttpContext context,
         [FromServices] UserManager<ApplicationUser> userManager)
     {
         var user = await userManager.GetUserAsync(context.User);
         if (user == null) return Results.NotFound();
+        if (!user.TwoFactorEnabled)
+            return Results.Ok();
+
+        if (!await TwoFactorAuth.VerifyAsync(userManager, user, dto.Code))
+            return Results.BadRequest(TwoFactorAuth.InvalidCodeMessage);
 
         var result = await userManager.SetTwoFactorEnabledAsync(user, false);
+        if (result.Succeeded)
+            result = await userManager.ResetAuthenticatorKeyAsync(user);
         return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
+    }
+
+    /// <summary>Replaces the recovery codes (the old ones stop working).</summary>
+    public static async Task<IResult> NewRecoveryCodesHandler(
+        [FromBody] TwoFactorCodeDto dto,
+        HttpContext context,
+        [FromServices] UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.GetUserAsync(context.User);
+        if (user == null) return Results.NotFound();
+        if (!user.TwoFactorEnabled)
+            return Results.BadRequest("Two-factor authentication is off.");
+        if (!await TwoFactorAuth.VerifyAsync(userManager, user, dto.Code, allowRecoveryCode: false))
+            return Results.BadRequest(TwoFactorAuth.InvalidCodeMessage);
+
+        var codes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, TwoFactorAuth.RecoveryCodeCount);
+        return Results.Ok(new RecoveryCodesDto(codes?.ToList() ?? []));
     }
 
     /// <summary>

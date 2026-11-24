@@ -583,6 +583,9 @@ namespace Onyx.Data.SQLite.Migrations
                     b.Property<int>("Iterations")
                         .HasColumnType("INTEGER");
 
+                    b.Property<byte[]>("Profile")
+                        .HasColumnType("BLOB");
+
                     b.Property<byte[]>("PublicKey")
                         .IsRequired()
                         .HasMaxLength(65)

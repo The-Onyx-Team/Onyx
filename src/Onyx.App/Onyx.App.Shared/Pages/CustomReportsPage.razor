@@ -1,0 +1,265 @@
+@page "/reports/custom"
+@using System.Globalization
+@using Onyx.App.Shared.Components.Focus
+@using Onyx.App.Shared.Components.Reports
+@using Onyx.App.Shared.Services.Dashboard
+@using Onyx.App.Shared.Services.Documents
+@using Onyx.App.Shared.Services.Focus
+@using Onyx.App.Shared.Services.Reports
+@using Onyx.Collector.Core.Crypto
+@layout AppLayout
+@attribute [Authorize]
+@inject CustomReportService Reports
+@inject FocusService Focus
+@inject ClientTimeZone ClientTimeZone
+@inject IFileSaver FileSaver
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>My reports · Onyx</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+    <ReportTabs Custom="true"/>
+    <MudText Typo="Typo.body2" Class="text-muted mb-4">
+        Put together your own report: any period, only some devices, apps or categories, and the parts you want.
+        Saved reports can be run again any time; like everything else they are built on this device.
+    </MudText>
+
+    @if (m_Reports is null || m_Choices is null)
+    {
+        <MudProgressLinear Indeterminate="true"/>
+    }
+    else
+    {
+        <MudGrid Spacing="3" Class="mb-4">
+            <MudItem xs="12" md="3">
+                <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="New" Class="mb-2">New report</MudButton>
+                    @foreach (var report in m_Reports)
+                    {
+                        <button type="button" class="@(report.Id == m_Edit.Id ? "report-list-item selected" : "report-list-item")"
+                                @onclick="() => OpenAsync(report)">
+                            <MudIcon Icon="@Icons.Material.Outlined.Description" Size="Size.Small"/>
+                            <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis">@report.Title</span>
+                        </button>
+                    }
+                    @if (m_Reports.Count == 0)
+                    {
+                        <MudText Typo="Typo.caption" Class="text-muted d-block mt-2">No saved reports yet.</MudText>
+                    }
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="9">
+                <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <MudTextField T="string" Label="Title" @bind-Value="m_Edit.Title" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      MaxLength="100" Style="min-width: 220px; flex: 2"/>
+                        <MudSelect T="ReportPeriod" Label="Period" @bind-Value="m_Edit.Period" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                   Style="min-width: 180px; flex: 1">
+                            @foreach (var (period, name) in s_Periods)
+                            {
+                                <MudSelectItem T="ReportPeriod" Value="period">@name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </div>
+                    @if (m_Edit.Period == ReportPeriod.Custom)
+                    {
+                        <MudDateRangePicker Label="From – to" DateRange="CustomRange" DateRangeChanged="RangeChanged" Variant="Variant.Outlined"
+                                            Margin="Margin.Dense" DateFormat="dd.MM.yyyy" MaxDate="DateTime.Today" Class="mb-3"/>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Class="text-muted d-block mb-3">@RangeText</MudText>
+                    }
+
+                    <AppSelectionPicker Selection="m_Edit.Apps" Choices="m_Choices" EmptyMeans="None picked: all apps" Class="mb-2"/>
+                    <DevicePicker @bind-Selected="m_Edit.Devices" Choices="m_Choices" Class="mb-3"/>
+
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">Show</MudText>
+                    <div class="d-flex flex-wrap gap-1 mb-4">
+                        @foreach (var (key, name) in CustomReportSettings.AllSections)
+                        {
+                            <MudChip T="string" Variant="@(m_Edit.Sections.Contains(key) ? Variant.Filled : Variant.Outlined)"
+                                     Color="@(m_Edit.Sections.Contains(key) ? Color.Primary : Color.Default)"
+                                     OnClick="() => ToggleSection(key)">@name</MudChip>
+                        }
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.PlayArrow"
+                                   OnClick="ShowAsync" Disabled="m_Busy">Show</MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.PictureAsPdf"
+                                   OnClick="PdfAsync" Disabled="m_Busy">PDF</MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Save"
+                                   OnClick="SaveAsync" Disabled="@(m_Busy || string.IsNullOrWhiteSpace(m_Edit.Title))">Save</MudButton>
+                        @if (m_Reports.Any(r => r.Id == m_Edit.Id))
+                        {
+                            <MudSpacer/>
+                            <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Outlined.Delete"
+                                       OnClick="DeleteAsync" Disabled="m_Busy">Delete</MudButton>
+                        }
+                    </div>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        @if (m_Busy)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-2"/>
+        }
+        else if (m_Layout is not null)
+        {
+            <ReportLayoutView Layout="m_Layout"/>
+        }
+    }
+</MudContainer>
+
+@code {
+    private static readonly (ReportPeriod Period, string Name)[] s_Periods =
+    [
+        (ReportPeriod.Last7Days, "Last 7 days"),
+        (ReportPeriod.Last30Days, "Last 30 days"),
+        (ReportPeriod.ThisMonth, "This month"),
+        (ReportPeriod.LastMonth, "Last month"),
+        (ReportPeriod.Last3Months, "Last 3 months"),
+        (ReportPeriod.ThisYear, "This year"),
+        (ReportPeriod.Custom, "Choose dates")
+    ];
+
+    private List<CustomReportSettings>? m_Reports;
+    private FocusChoices? m_Choices;
+    private CustomReportSettings m_Edit = new();
+    private ReportLayout? m_Layout;
+    private TimeZoneInfo m_Zone = TimeZoneInfo.Local;
+    private DateOnly m_Today = DateOnly.FromDateTime(DateTime.Today);
+    private bool m_Busy;
+
+    private DateRange CustomRange => new(m_Edit.From?.ToDateTime(TimeOnly.MinValue), m_Edit.To?.ToDateTime(TimeOnly.MinValue));
+
+    private string RangeText
+    {
+        get
+        {
+            var (from, to) = m_Edit.Range(m_Today);
+            return $"{from.ToString("d MMM yyyy", CultureInfo.InvariantCulture)} – {to.ToString("d MMM yyyy", CultureInfo.InvariantCulture)}";
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+        m_Zone = await ClientTimeZone.GetAsync();
+        m_Today = await ClientTimeZone.TodayAsync();
+        try
+        {
+            m_Reports = [..await Reports.GetAllAsync()];
+            m_Choices = await Focus.GetChoicesAsync();
+            if (m_Reports.FirstOrDefault() is { } first)
+                await OpenAsync(first);
+        }
+        catch (Exception e)
+        {
+            m_Reports ??= [];
+            Snackbar.Add($"Could not load: {e.Message}", Severity.Error);
+        }
+
+        StateHasChanged();
+    }
+
+    private void New()
+    {
+        m_Edit = new CustomReportSettings();
+        m_Layout = null;
+    }
+
+    /// <summary>Opens a copy of a saved report and shows it.</summary>
+    private async Task OpenAsync(CustomReportSettings report)
+    {
+        m_Edit = new CustomReportSettings
+        {
+            Id = report.Id, Title = report.Title, Period = report.Period, From = report.From, To = report.To,
+            Devices = [..report.Devices], Sections = [..report.Sections],
+            Apps = new AppSelection { Apps = [..report.Apps.Apps], Categories = [..report.Apps.Categories] }
+        };
+        await ShowAsync();
+    }
+
+    private void RangeChanged(DateRange? range)
+    {
+        m_Edit.From = range?.Start is { } start ? DateOnly.FromDateTime(start) : null;
+        m_Edit.To = range?.End is { } end ? DateOnly.FromDateTime(end) : null;
+    }
+
+    private void ToggleSection(string key)
+    {
+        if (!m_Edit.Sections.Remove(key))
+            m_Edit.Sections.Add(key);
+    }
+
+    private async Task ShowAsync()
+    {
+        m_Busy = true;
+        StateHasChanged();
+        try
+        {
+            m_Layout = await Reports.BuildAsync(m_Edit, m_Zone);
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"Could not build the report: {e.Message}", Severity.Error);
+        }
+        finally
+        {
+            m_Busy = false;
+        }
+    }
+
+    private async Task PdfAsync()
+    {
+        await ShowAsync();
+        if (m_Layout is null)
+            return;
+        try
+        {
+            var name = new string(m_Edit.Title.Select(c => char.IsLetterOrDigit(c) ? char.ToLowerInvariant(c) : '-').ToArray()).Trim('-');
+            await FileSaver.SaveAsync($"onyx-{(name.Length > 0 ? name : "report")}.pdf", "application/pdf", Reports.ToPdf(m_Layout));
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"The PDF could not be created: {e.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        m_Busy = true;
+        try
+        {
+            m_Edit.Title = m_Edit.Title.Trim();
+            await Reports.SaveAsync(m_Edit);
+            m_Reports = [..await Reports.GetAllAsync()];
+            Snackbar.Add("Report saved.", Severity.Success);
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"Could not save: {e.Message}", Severity.Error);
+        }
+        finally
+        {
+            m_Busy = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (await DialogService.ShowMessageBox("Delete report", $"Delete \"{m_Edit.Title}\"? Your data stays.",
+                yesText: "Delete", cancelText: "Cancel") != true)
+            return;
+        await Reports.DeleteAsync(m_Edit.Id);
+        m_Reports = [..await Reports.GetAllAsync()];
+        New();
+    }
+}

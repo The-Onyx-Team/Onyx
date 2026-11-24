@@ -7,7 +7,7 @@
 <MudDialog>
     <TitleContent>
         <div class="app-name-cell">
-            <AppIcon Src="@(m_Icon is { } icon ? AppCatalog.DataUrl(icon) : Group.IconDataUrl)" Name="@Group.Name"/>
+            <AppIcon Src="@IconPreview" Name="@Group.Name"/>
             <MudText Typo="Typo.h6">@Group.Name</MudText>
         </div>
     </TitleContent>
@@ -52,6 +52,9 @@
 
         <MudText Typo="Typo.subtitle2" Class="mt-4 mb-1">Icon</MudText>
         <div class="d-flex flex-wrap align-center gap-2">
+            <span class="app-icon-preview" title="@(m_Icon is not null ? "New icon (saved with Save)" : "Current icon")">
+                <AppIcon Src="@IconPreview" Name="@Group.Name"/>
+            </span>
             <MudFileUpload T="IBrowserFile" FilesChanged="UploadIconAsync" Accept=".png,.jpg,.jpeg,.webp,.svg,.ico,.gif">
                 <ActivatorContent>
                     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Upload" Size="Size.Small">Upload</MudButton>
@@ -63,7 +66,8 @@
             }
         </div>
         <div class="d-flex align-center gap-2 mt-2">
-            <MudTextField T="string" @bind-Value="m_IconUrl" Label="or from a web address" Placeholder="https://…/icon.png"
+            <MudTextField T="string" @bind-Value="m_IconUrl" Label="or from a web address"
+                          Placeholder="https://…/icon.png or whatsapp.com" HelperText="A picture, or a website to use its icon"
                           Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true"/>
             <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="FetchIconAsync"
                        Disabled="@(m_Fetching || string.IsNullOrWhiteSpace(m_IconUrl))">
@@ -110,6 +114,15 @@
     private bool m_Saving;
     private bool m_Fetching;
 
+    /// <summary>The new icon if one was picked, nothing after "use the device's icon", otherwise the current one.</summary>
+    private string? IconPreview => m_Icon is { } icon ? AppCatalog.DataUrl(icon)
+        : m_ResetIcon ? Group.Members.Select(m => m.ReportedIcon).FirstOrDefault(i => i is not null) is { } reported
+            ? AppCatalog.DataUrl(reported) : null
+        : Group.IconDataUrl;
+
+    /// <summary>The title is rendered by the dialog, outside this component's render tree.</summary>
+    private void IconChanged() => MudDialog.StateHasChanged();
+
     protected override void OnInitialized()
     {
         foreach (var member in Group.Members)
@@ -138,6 +151,7 @@
             await file.OpenReadStream(2 * 1024 * 1024).CopyToAsync(stream);
             m_Icon = await Js.ResizeImageAsync(stream.ToArray(), IconSize);
             m_ResetIcon = false;
+            IconChanged();
         }
         catch (Exception e)
         {
@@ -154,6 +168,7 @@
             var bytes = await IconFetcher.FetchAsync(m_IconUrl!.Trim());
             m_Icon = await Js.ResizeImageAsync(bytes, IconSize);
             m_ResetIcon = false;
+            IconChanged();
         }
         catch (InvalidOperationException e)
         {
@@ -173,6 +188,7 @@
     {
         m_Icon = null;
         m_ResetIcon = true;
+        IconChanged();
     }
 
     private async Task SaveAsync()

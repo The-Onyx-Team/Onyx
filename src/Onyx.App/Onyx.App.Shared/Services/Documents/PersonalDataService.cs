@@ -21,7 +21,8 @@ public sealed class PersonalDataService(
     VaultService vault,
     AppCatalog catalog,
     E2EUsageDataService usage,
-    IServerSettings server)
+    IServerSettings server,
+    PrivateProfileService privateProfile)
 {
     /// <summary>Usage before this is not searched for.</summary>
     private static readonly DateTime s_Earliest = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -34,6 +35,7 @@ public sealed class PersonalDataService(
         var account = await api.SendAuthorizedAsync<PersonalDataDto>(HttpMethod.Get, "/api/user/personal-data");
         var info = await server.GetInfoAsync();
         var settings = await vault.GetSettingsAsync(refresh: true);
+        var profile = await privateProfile.GetAsync(refresh: true);
         var groups = await catalog.GetGroupsAsync(refresh: true);
 
         progress?.Invoke("Decrypting your usage…");
@@ -66,18 +68,24 @@ public sealed class PersonalDataService(
                 ("Privacy contact", info?.ContactEmail),
                 ("Server location", info?.HostingLocation));
 
-        document.Section("Account", "Stored in plain text, because the server needs it to sign you in and send emails.")
+        document.Section("Account", "Stored in plain text, because the server needs it to sign you in, send emails " +
+                                    "and let friends find you.")
             .Values(
                 ("User id", account.UserId),
                 ("User name", account.UserName),
                 ("Email address", $"{account.Email}{(account.EmailConfirmed ? " (confirmed)" : " (not confirmed)")}"),
-                ("Phone number", account.PhoneNumber),
-                ("Profile picture", account.HasAvatar ? "yes" : "no"),
                 ("Two-factor authentication", account.TwoFactorEnabled ? "on" : "off"),
                 ("Account created", Local(account.CreatedAt)),
                 ("Privacy policy accepted",
                     account.PrivacyConsentAt is null ? "not recorded" : $"{Local(account.PrivacyConsentAt)}, version {account.PrivacyPolicyVersion}"),
                 ("External logins", account.ExternalLogins.Count == 0 ? "none" : string.Join(", ", account.ExternalLogins)));
+
+        document.Section("Profile", "End-to-end encrypted. Your real name and a small version of your picture are " +
+                                    "also sent, encrypted, to the friends you share your numbers with.")
+            .Values(
+                ("Real name", profile.DisplayName),
+                ("Phone number", profile.PhoneNumber ?? account.PhoneNumber),
+                ("Profile picture", profile.Avatar is not null || account.HasAvatar ? "yes" : "no"));
 
         document.Section("Encryption")
             .Values(
@@ -172,6 +180,7 @@ public sealed class PersonalDataService(
             generatedAt = now,
             server = server.ServerUrl,
             account,
+            profile = new { profile.DisplayName, profile.PhoneNumber, profilePicture = profile.AvatarDataUrl },
             settings,
             apps = groups.SelectMany(g => g.Members).Select(m => new
             {

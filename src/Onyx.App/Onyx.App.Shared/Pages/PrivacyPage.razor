@@ -81,11 +81,18 @@
                 <tbody>
                 <tr>
                     <td data-label="Data"><b>Account:</b> user name, email address, a hash of your password (never the password itself),
-                        optionally phone number, profile picture and two-factor settings; when you created the account
-                        and agreed to this policy.</td>
-                    <td data-label="Purpose">Your account; signing in; confirmation and password reset emails.</td>
+                        two-factor settings (the key of your authenticator app and hashes of unused recovery codes); when
+                        you created the account and agreed to this policy.</td>
+                    <td data-label="Purpose">Your account; signing in; confirmation and password reset emails; letting friends find
+                        you by your user name.</td>
                     <td data-label="Legal basis">Art. 6(1)(b) GDPR (contract)</td>
                     <td data-label="Readable by the server">yes</td>
+                </tr>
+                <tr>
+                    <td data-label="Data"><b>Profile</b> (optional): your real name, phone number and profile picture.</td>
+                    <td data-label="Purpose">Showing them to you, and your name and a small picture to the friends you share with.</td>
+                    <td data-label="Legal basis">Art. 6(1)(a)</td>
+                    <td data-label="Readable by the server">no (encrypted)</td>
                 </tr>
                 <tr>
                     <td data-label="Data"><b>Usage:</b> for every hour, which apps were in the foreground on which of your devices and for
@@ -104,8 +111,8 @@
                     <td data-label="Readable by the server">no (encrypted)</td>
                 </tr>
                 <tr>
-                    <td data-label="Data"><b>Your settings:</b> your own app names, categories, hidden apps, excluded websites, goals and
-                        sharing settings.</td>
+                    <td data-label="Data"><b>Your settings:</b> your own app names, categories, hidden apps, excluded websites, goals,
+                        reminders, focus mode, saved reports and sharing settings.</td>
                     <td data-label="Purpose">Applying them on all your devices.</td>
                     <td data-label="Legal basis">Art. 6(1)(b)</td>
                     <td data-label="Readable by the server">no (encrypted)</td>
@@ -118,9 +125,10 @@
                     <td data-label="Readable by the server">yes</td>
                 </tr>
                 <tr>
-                    <td data-label="Data"><b>Friends and groups:</b> who you are friends with or share a group with; your user name and
-                        profile picture are shown to them. The numbers you choose to share (screen time, and if you
-                        choose, categories, goals and streaks; never apps or websites).</td>
+                    <td data-label="Data"><b>Friends and groups:</b> who you are friends with or share a group with; your user name is
+                        shown to them. The numbers you choose to share (screen time, and if you choose, categories, goals
+                        and streaks; never apps or websites), with your real name and a small profile picture if you
+                        set them.</td>
                     <td data-label="Purpose">Comparing with friends.</td>
                     <td data-label="Legal basis">Art. 6(1)(a)</td>
                     <td data-label="Readable by the server">relationships yes; shared numbers no (encrypted for each recipient)</td>
@@ -173,8 +181,8 @@
             }
             <li><b>External logins:</b> if you sign in with Google, Microsoft or GitHub, that provider learns that you
                 signed in to this server, and sends it your email address.</li>
-            <li><b>Friends</b> you accept and <b>groups</b> you join see your user name, profile picture and the numbers
-                you choose to share.</li>
+            <li><b>Friends</b> you accept and <b>groups</b> you join see your user name and, encrypted for them, the
+                numbers you choose to share with your real name and profile picture (if you set them).</li>
         </ul>
         <p>Nothing is sold, used for advertising or shared with anyone else.</p>
     </section>

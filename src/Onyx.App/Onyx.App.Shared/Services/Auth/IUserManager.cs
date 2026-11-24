@@ -10,7 +10,9 @@ public interface IUserManager
 
     Task<RegisterResult> ConfirmEmailAsync(string id, string token);
 
-    Task<LoginResult> LoginAsync(string email, string password);
+    /// <param name="twoFactorCode">Authenticator or recovery code, after a result with
+    /// <see cref="LoginResult.RequiresTwoFactor"/>.</param>
+    Task<LoginResult> LoginAsync(string email, string password, string? twoFactorCode = null);
 
     /// <summary>Sends a password reset link. Succeeds whether or not the email is registered, so the result
     /// does not reveal which addresses have accounts.</summary>
@@ -33,11 +35,13 @@ public interface IUserManager
     Task<IReadOnlyList<ExternalSchemeDto>> GetExternalSchemesAsync();
 
     /// <summary>Signs in with the one-time code the server hands out after an external login.</summary>
-    Task<LoginResult> CompleteExternalLoginAsync(string code);
+    /// <param name="verifier">Apps only: the secret the sign-in was started with.</param>
+    Task<LoginResult> CompleteExternalLoginAsync(string code, string? twoFactorCode = null, string? verifier = null);
 
     /// <summary>The external login that has no account yet, or null.</summary>
-    Task<ExternalPendingDto?> GetPendingExternalLoginAsync();
+    /// <param name="ticket">Apps only: the ticket from the sign-in callback (the web app uses a cookie).</param>
+    Task<ExternalPendingDto?> GetPendingExternalLoginAsync(string? ticket = null);
 
     /// <summary>Creates an account for the pending external login and signs in.</summary>
-    Task<LoginResult> RegisterExternalAsync(bool acceptPrivacyPolicy);
+    Task<LoginResult> RegisterExternalAsync(bool acceptPrivacyPolicy, string? ticket = null, string? verifier = null);
 }

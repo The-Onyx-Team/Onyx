@@ -5,5 +5,5 @@ namespace Onyx.App.Shared.Services;
 /// asked again.</summary>
 public static class PrivacyPolicy
 {
-    public const string Version = "2026-11-23";
+    public const string Version = "2026-11-24";
 }

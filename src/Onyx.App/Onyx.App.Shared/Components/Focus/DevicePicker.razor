@@ -1,0 +1,24 @@
+@using Onyx.App.Shared.Services.Focus
+@* Picks devices; none picked means all devices. *@
+
+<MudSelect T="int" Label="Devices" MultiSelection="true" SelectedValues="Selected" SelectedValuesChanged="Changed"
+           Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Class="@Class"
+           HelperText="@(Selected.Count == 0 ? "None picked: all devices" : null)">
+    @foreach (var device in Choices.Devices)
+    {
+        <MudSelectItem T="int" Value="@device.Id">@device.Name</MudSelectItem>
+    }
+</MudSelect>
+
+@code {
+    [Parameter, EditorRequired] public List<int> Selected { get; set; } = [];
+    [Parameter] public EventCallback<List<int>> SelectedChanged { get; set; }
+    [Parameter, EditorRequired] public FocusChoices Choices { get; set; } = null!;
+    [Parameter] public string? Class { get; set; }
+
+    private async Task Changed(IEnumerable<int>? values)
+    {
+        Selected = values?.ToList() ?? [];
+        await SelectedChanged.InvokeAsync(Selected);
+    }
+}

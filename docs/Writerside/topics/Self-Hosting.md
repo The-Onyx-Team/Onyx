@@ -47,6 +47,20 @@ docker run -d -p 127.0.0.1:8080:8080 -v onyx_data:/app/data -e ASPNETCORE_FORWAR
 
 The container's health check calls `/alive`.
 
+### External logins (Google, Microsoft, GitHub)
+
+When both values of a provider are set, its button shows on the sign-in and sign-up pages, in the browser and in
+the Android app. Register the server's callback with the provider: `https://onyx.example.com/signin-google`,
+`/signin-microsoft` or `/signin-github`. The apps open the system browser and get the result back through
+`onyx://external`; nothing more has to be registered for that. New accounts are only created after the user
+agreed to the privacy policy. Accounts with two-factor authentication need their code here too. The Windows app
+signs in with a password only.
+
+### Two-factor authentication
+
+Users turn it on under Account → Two-factor with any authenticator app (TOTP). Signing in then asks for a code,
+or one of ten recovery codes, in the browser, the apps and `onyx-agent login`. Turning it off needs a code too.
+
 ## Email through an SMTP relay (e.g. SMTP2GO)
 
 Verify your domain with the relay and create an SMTP user there, then in `.env`:
@@ -65,8 +79,8 @@ reverse proxy (as `docker-compose.yaml` does).
 - **Android / Windows:** the login and register pages show the server and a **Change** button. The app checks
   that `/alive` answers before it saves the address. A build can also start with your server preselected, see
   [Android App](Android-App.md).
-- **Linux:** `onyx-agent login --server https://onyx.example.com` (asks for the password and then the encryption
-  passphrase; `onyx-agent unlock` if the agent was signed in before).
+- **Linux:** `onyx-agent login --server https://onyx.example.com` (asks for the password, a two-factor code if
+  turned on, and then the encryption passphrase; `onyx-agent unlock` if the agent was signed in before).
 - **Web:** open the server's address in a browser.
 
 ## Private server behind a VPN

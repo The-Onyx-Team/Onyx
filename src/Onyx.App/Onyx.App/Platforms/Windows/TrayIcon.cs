@@ -11,11 +11,14 @@ namespace Onyx.App.WinUI;
 internal static class TrayIcon
 {
     private static TaskbarIcon? s_Icon;
+    private static Microsoft.UI.Dispatching.DispatcherQueue? s_Dispatcher;
 
     public static void Create(Action show, Action quit)
     {
         if (s_Icon is not null)
             return;
+
+        s_Dispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
 
         var iconPath = Path.Combine(AppContext.BaseDirectory, "appicon.ico"); // generated from the MauiIcon
         s_Icon = new TaskbarIcon
@@ -35,6 +38,15 @@ internal static class TrayIcon
             }
         };
         s_Icon.ForceCreate();
+    }
+
+    /// <summary>A Windows notification from the tray icon (reminders, focus mode). Callable from any thread.</summary>
+    /// <returns>False if there is no tray icon (yet).</returns>
+    public static bool Notify(string title, string message)
+    {
+        if (s_Icon is not { } icon || s_Dispatcher is not { } dispatcher)
+            return false;
+        return dispatcher.TryEnqueue(() => icon.ShowNotification(title, message));
     }
 
     public static void Remove()

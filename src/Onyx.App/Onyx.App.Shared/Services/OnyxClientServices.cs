@@ -34,6 +34,10 @@ public static class OnyxClientServices
         services.AddScoped<MigrationService>();
         services.AddScoped<IUserManager, ClientUserManager>();
         services.AddScoped<IUserProvider, ClientUserProvider>();
+        services.AddScoped<ITwoFactorService, ClientTwoFactorService>();
+        services.AddScoped<PrivateProfileService>();
+        services.AddScoped<Focus.FocusService>();
+        services.AddScoped<Reports.CustomReportService>();
         services.AddScoped<IProfileService, ApiProfileService>();
 
         services.AddScoped<IDeviceManager, ApiDeviceManager>();

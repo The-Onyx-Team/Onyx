@@ -3,6 +3,7 @@ using Onyx.App.Services.Collection;
 using Onyx.App.Shared.Services.Usage;
 using Onyx.Collector.Core;
 using Onyx.Collector.Core.Browser;
+using Onyx.Collector.Core.Reminders;
 using Onyx.App.WinUI;
 
 namespace Onyx.App.UsageData;
@@ -23,12 +24,14 @@ public sealed class WindowsCollector : IStatsService, IDisposable
     private readonly UsageSyncService m_Sync;
     private readonly BrowserActivity m_Browser = new(TimeProvider.System);
     private readonly BrowserBridgeServer m_Bridge;
+    private readonly ActivityLog m_Activity = new();
+    private readonly DesktopReminders m_Reminders;
     private readonly ILogger m_Logger;
     private volatile bool m_RecordWebsites = Preferences.Default.Get(RecordWebsitesKey, false);
     private readonly CancellationTokenSource m_Stop = new();
     private Task? m_Running;
 
-    public WindowsCollector(OnyxApiClient client, ILoggerFactory loggerFactory)
+    public WindowsCollector(OnyxApiClient client, ICredentialStore credentials, ILoggerFactory loggerFactory)
     {
         var sources = new WindowsSources();
         m_Logger = loggerFactory.CreateLogger<WindowsCollector>();
@@ -37,7 +40,9 @@ public sealed class WindowsCollector : IStatsService, IDisposable
             loggerFactory.CreateLogger<PendingUsageStore>());
         m_Tracker = new ForegroundTracker(sources, sources, m_Store, TimeProvider.System,
             logger: loggerFactory.CreateLogger<ForegroundTracker>(),
-            websiteSource: new SwitchableWebsiteSource(this));
+            websiteSource: new SwitchableWebsiteSource(this), activity: m_Activity);
+        m_Reminders = new DesktopReminders(client, credentials, m_Activity, new TrayNotifier(m_Logger), TimeProvider.System,
+            loggerFactory.CreateLogger<DesktopReminders>());
         m_Sync = new UsageSyncService(client, m_Store, sources, TimeProvider.System, DeviceIdentity.Name,
             DeviceIdentity.Platform, loggerFactory.CreateLogger<UsageSyncService>(), m_Browser);
     }
@@ -63,7 +68,8 @@ public sealed class WindowsCollector : IStatsService, IDisposable
         m_Running = Task.WhenAll(
             Task.Run(() => m_Tracker.RunAsync(m_Stop.Token)),
             Task.Run(() => m_Sync.RunAsync(s_SyncInterval, m_Stop.Token)),
-            Task.Run(() => m_Bridge.RunAsync(m_Stop.Token)));
+            Task.Run(() => m_Bridge.RunAsync(m_Stop.Token)),
+            Task.Run(() => m_Reminders.RunAsync(m_Stop.Token)));
     }
 
     /// <summary>Stops sampling and makes a last upload attempt; called when the app quits.</summary>
@@ -98,6 +104,16 @@ public sealed class WindowsCollector : IStatsService, IDisposable
     private sealed class SwitchableWebsiteSource(WindowsCollector owner) : IWebsiteSource
     {
         public string? GetDomain(ForegroundApp app) => owner.m_RecordWebsites ? owner.m_Browser.GetDomain(app) : null;
+    }
+
+    /// <summary>Reminders and focus mode as notifications from the tray icon.</summary>
+    private sealed class TrayNotifier(ILogger logger) : INudgeNotifier
+    {
+        public void Show(Nudge nudge)
+        {
+            if (!TrayIcon.Notify(nudge.Title, nudge.Message))
+                logger.LogInformation("{Title}: {Message}", nudge.Title, nudge.Message);
+        }
     }
 
     public void OpenUsageAccessSettings()

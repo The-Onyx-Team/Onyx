@@ -5,6 +5,7 @@ using Android.Content.PM;
 using Android.Graphics;
 using Android.Graphics.Drawables;
 using Onyx.Collector.Core;
+using Onyx.Collector.Core.Reminders;
 using Onyx.Data.ApiSchema;
 using Application = Android.App.Application;
 
@@ -41,11 +42,17 @@ public class AndroidUsageReader : IAppIconSource
     }
 
     /// <summary>Hourly buckets from <paramref name="fromHour"/> (UTC) up to now.</summary>
-    public List<UsageEntryDto> ReadBuckets(DateTime fromHour, DateTimeOffset now)
+    public List<UsageEntryDto> ReadBuckets(DateTime fromHour, DateTimeOffset now) =>
+        UsageBuckets.FromIntervals(ReadIntervals(new DateTimeOffset(fromHour) - s_LookBehind, now)
+                .Select(i => (i.App, i.Start, i.End)))
+            .Where(e => e.BucketStart >= fromHour)
+            .ToList();
+
+    /// <summary>When which app was in front, from Android's event log (reminders, focus mode).</summary>
+    public List<ActivityInterval> ReadIntervals(DateTimeOffset from, DateTimeOffset now)
     {
         var manager = (UsageStatsManager)Context.GetSystemService(Context.UsageStatsService)!;
-        var queryStart = new DateTimeOffset(fromHour) - s_LookBehind;
-        var events = manager.QueryEvents(queryStart.ToUnixTimeMilliseconds(), now.ToUnixTimeMilliseconds());
+        var events = manager.QueryEvents(from.ToUnixTimeMilliseconds(), now.ToUnixTimeMilliseconds());
         if (events is null)
             return [];
 
@@ -105,9 +112,7 @@ public class AndroidUsageReader : IAppIconSource
         foreach (var p in resumed.Keys.ToList())
             Close(p, now);
 
-        return UsageBuckets.FromIntervals(intervals)
-            .Where(e => e.BucketStart >= fromHour)
-            .ToList();
+        return intervals.OrderBy(i => i.Item2).Select(i => new ActivityInterval(i.Item1, i.Item2, i.Item3)).ToList();
     }
 
     public byte[]? GetIconPng(string appIdentifier)

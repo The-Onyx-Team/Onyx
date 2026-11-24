@@ -23,6 +23,9 @@ public static class E2EEndpoints
 
     public const int MaxSettingsBytes = 1024 * 1024;
 
+    /// <summary>The encrypted profile holds a profile picture of at most 512 KB.</summary>
+    public const int MaxProfileBytes = 768 * 1024;
+
     /// <summary>Longest range one usage query may cover.</summary>
     public static readonly TimeSpan MaxQueryRange = TimeSpan.FromDays(400);
 
@@ -36,6 +39,8 @@ public static class E2EEndpoints
         group.MapPost("/vault", CreateVaultAsync);
         group.MapPut("/vault/key", UpdateKeyAsync);
         group.MapPut("/vault/settings", UpdateSettingsAsync).Produces<VaultSettingsVersionDto>();
+        group.MapGet("/profile", GetProfileAsync).Produces<EncryptedProfileDto>();
+        group.MapPut("/profile", PutProfileAsync);
 
         group.MapGet("/usage", GetUsageAsync).Produces<List<EncryptedUsageDto>>();
         group.MapPost("/usage/delete", DeleteUsageAsync);
@@ -123,6 +128,37 @@ public static class E2EEndpoints
             .SetProperty(x => x.WrappedKey, dto.WrappedKey)
             .SetProperty(x => x.UpdatedAt, time.GetUtcNow().UtcDateTime));
         return updated == 0 ? Results.NotFound() : Results.NoContent();
+    }
+
+    public static async Task<IResult> GetProfileAsync(ApplicationDbContext db, CurrentUser currentUser)
+    {
+        var userId = await currentUser.GetRequiredUserIdAsync();
+        var vault = await db.UserVaults.AsNoTracking().Where(v => v.UserId == userId)
+            .Select(v => new { v.Profile }).FirstOrDefaultAsync();
+        return vault is null ? Results.NotFound() : Results.Ok(new EncryptedProfileDto(vault.Profile));
+    }
+
+    /// <summary>Stores the encrypted profile and removes the plain-text phone number and profile picture, which
+    /// it replaces (the client moved them into it).</summary>
+    public static async Task<IResult> PutProfileAsync([FromBody] EncryptedProfileDto dto, ApplicationDbContext db,
+        CurrentUser currentUser, TimeProvider time)
+    {
+        if (dto.Data is not { Length: > 0 and <= MaxProfileBytes })
+            return Results.BadRequest($"The profile must be at most {MaxProfileBytes / 1024} KB.");
+
+        var userId = await currentUser.GetRequiredUserIdAsync();
+        var updated = await db.UserVaults.Where(v => v.UserId == userId).ExecuteUpdateAsync(v => v
+            .SetProperty(x => x.Profile, dto.Data)
+            .SetProperty(x => x.UpdatedAt, time.GetUtcNow().UtcDateTime));
+        if (updated == 0)
+            return Results.NotFound();
+
+        await db.Users.Where(u => u.Id == userId).ExecuteUpdateAsync(u => u
+            .SetProperty(x => x.PhoneNumber, (string?)null)
+            .SetProperty(x => x.PhoneNumberConfirmed, false)
+            .SetProperty(x => x.Avatar, (byte[]?)null)
+            .SetProperty(x => x.AvatarContentType, (string?)null));
+        return Results.NoContent();
     }
 
     public static async Task<IResult> UpdateSettingsAsync([FromBody] UpdateVaultSettingsDto dto,

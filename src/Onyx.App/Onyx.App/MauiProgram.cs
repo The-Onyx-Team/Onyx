@@ -52,9 +52,15 @@ namespace Onyx.App
             // Platform Service
             builder.Services.AddScoped<IPlatformService, MauiPlatformService>();
 
+#if ANDROID || IOS || MACCATALYST
+            // WebAuthenticator isn't available on Windows; the Windows app signs in with a password.
+            builder.Services.AddSingleton<IExternalLoginLauncher, BrowserExternalLoginLauncher>();
+#endif
+
 #if ANDROID
             builder.Services.AddSingleton<AndroidUsageReader>();
             builder.Services.AddSingleton<AndroidUsageSync>();
+            builder.Services.AddSingleton<AndroidReminders>();
             builder.Services.AddSingleton<IStatsService, AndroidStatsService>();
 #elif WINDOWS
             builder.Services.AddSingleton<WindowsCollector>();

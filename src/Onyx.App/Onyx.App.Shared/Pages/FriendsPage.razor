@@ -73,7 +73,7 @@
                             </MudAvatar>
                             <div class="compare-body">
                                 <div class="d-flex align-center">
-                                    <span class="compare-name">@(person.Person.IsMe ? "You" : person.Person.UserName)</span>
+                                    <span class="compare-name" title="@person.Person.UserName">@(person.Person.IsMe ? "You" : person.Person.DisplayName ?? person.Person.UserName)</span>
                                     <MudSpacer/>
                                     <span class="compare-value">@Value(person.Week)</span>
                                 </div>
@@ -136,18 +136,25 @@
                         {
                             <MudListItem T="string">
                                 <div class="d-flex align-center gap-2">
+                                    @{ var shared = SharedProfile(friend.UserId); }
                                     <MudAvatar Size="Size.Small" Color="Color.Secondary">
-                                        @if (friend.AvatarDataUrl is { } avatar)
+                                        @if ((shared?.AvatarDataUrl ?? friend.AvatarDataUrl) is { } avatar)
                                         {
                                             <MudImage Src="@avatar" Alt=""/>
                                         }
                                         else
                                         {
-                                            @Initial(friend.UserName)
+                                            @Initial(shared?.DisplayName ?? friend.UserName)
                                         }
                                     </MudAvatar>
                                     <div style="flex: 1; min-width: 0">
-                                        <div>@friend.UserName</div>
+                                        <div>
+                                            @(shared?.DisplayName ?? friend.UserName)
+                                            @if (shared?.DisplayName is not null)
+                                            {
+                                                <span class="text-muted"> · @friend.UserName</span>
+                                            }
+                                        </div>
                                         <MudText Typo="Typo.caption" Class="text-muted">
                                             @(friend.Accepted ? $"safety code {m_SafetyCodes.GetValueOrDefault(friend.UserId) ?? "–"}"
                                                 : friend.Incoming ? "wants to be your friend" : "waiting for an answer")
@@ -241,6 +248,9 @@
     private static readonly string[] s_Days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
     private List<PersonWeeks>? m_People;
+
+    /// <summary>Name and picture a friend shares with their numbers (end-to-end encrypted).</summary>
+    private PersonWeeks? SharedProfile(string userId) => m_People?.FirstOrDefault(p => !p.IsMe && p.UserId == userId);
     private List<FriendDto>? m_Friends;
     private List<GroupDto>? m_Groups;
     private Dictionary<string, string> m_SafetyCodes = [];

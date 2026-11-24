@@ -15,7 +15,8 @@ namespace Onyx.App.Web.Api;
 public static class SocialEndpoints
 {
     public const int MaxGroupNameLength = 100;
-    public const int MaxShareBytes = 8 * 1024;
+    /// <summary>The numbers plus a 64 px profile picture.</summary>
+    public const int MaxShareBytes = 16 * 1024;
 
     /// <summary>Shares older than this are not returned any more (and are deleted when new ones arrive).</summary>
     public const int ShareWeeksKept = 12;

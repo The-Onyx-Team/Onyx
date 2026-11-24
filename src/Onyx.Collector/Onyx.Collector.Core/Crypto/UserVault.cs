@@ -26,6 +26,27 @@ public sealed record AppInfoPayload(
     [property: JsonPropertyName("i")] byte[]? Icon,
     [property: JsonPropertyName("ci")] byte[]? CustomIcon = null);
 
+/// <summary>Content of the encrypted profile. The user name and email stay readable for the server: they are how
+/// people sign in and find each other.</summary>
+/// <param name="DisplayName">The user's real name, shown to friends they share with.</param>
+/// <param name="Avatar">Profile picture (JPEG, PNG or WebP, at most 512 KB).</param>
+/// <param name="Thumbnail">The picture at 64 × 64 pixels (JPEG), sent to friends with the shared numbers.</param>
+public sealed record ProfilePayload(
+    [property: JsonPropertyName("n")] string? DisplayName = null,
+    [property: JsonPropertyName("p")] string? PhoneNumber = null,
+    [property: JsonPropertyName("a")] byte[]? Avatar = null,
+    [property: JsonPropertyName("at")] string? AvatarContentType = null,
+    [property: JsonPropertyName("t")] byte[]? Thumbnail = null)
+{
+    public string? AvatarDataUrl => Avatar is { Length: > 0 }
+        ? $"data:{AvatarContentType ?? "image/jpeg"};base64,{Convert.ToBase64String(Avatar)}"
+        : null;
+
+    public string? ThumbnailDataUrl => Thumbnail is { Length: > 0 }
+        ? $"data:image/jpeg;base64,{Convert.ToBase64String(Thumbnail)}"
+        : null;
+}
+
 /// <summary>A decrypted usage row.</summary>
 public sealed record DecryptedUsage(int DeviceId, string Tag, DateTime Hour, UsagePayload Payload);
 
@@ -206,6 +227,14 @@ public sealed class UserVault
     public async Task<VaultSettings> DecryptSettingsAsync(byte[] blob) =>
         Deserialize<VaultSettings>(await m_Crypto.DecryptAsync(Keys.EncryptionKey, blob, E2EContext.Settings))
         ?? VaultSettings.CreateDefault();
+
+    public async Task<byte[]> EncryptProfileAsync(ProfilePayload profile) =>
+        await m_Crypto.EncryptAsync(Keys.EncryptionKey, JsonSerializer.SerializeToUtf8Bytes(profile, s_Json),
+            E2EContext.Profile);
+
+    public async Task<ProfilePayload> DecryptProfileAsync(byte[] blob) =>
+        Deserialize<ProfilePayload>(await m_Crypto.DecryptAsync(Keys.EncryptionKey, blob, E2EContext.Profile))
+        ?? new ProfilePayload();
 
     /// <summary>Encrypts something for another user (friends' shared numbers).</summary>
     public async Task<byte[]> EncryptForAsync<T>(T value, byte[] privateKey, byte[] publicKey, byte[] recipientPublicKey,

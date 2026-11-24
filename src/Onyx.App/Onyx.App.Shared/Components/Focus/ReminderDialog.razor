@@ -1,0 +1,91 @@
+@using Onyx.App.Shared.Services.Focus
+@using Onyx.Collector.Core.Crypto
+@inject FocusService Focus
+
+<MudDialog>
+    <DialogContent>
+        <MudRadioGroup T="ReminderKind" @bind-Value="m_Reminder.Kind" Class="mb-2">
+            <MudRadio T="ReminderKind" Value="ReminderKind.Continuous" Color="Color.Primary">Take a break after</MudRadio>
+            <MudRadio T="ReminderKind" Value="ReminderKind.Daily" Color="Color.Primary">Daily limit of</MudRadio>
+        </MudRadioGroup>
+
+        <div class="d-flex gap-2 mb-1">
+            <MudNumericField T="int" Label="Hours" @bind-Value="m_Hours" Min="0" Max="23" Variant="Variant.Outlined"/>
+            <MudNumericField T="int" Label="Minutes" @bind-Value="m_Minutes" Min="0" Max="59" Step="5" Variant="Variant.Outlined"/>
+        </div>
+        <MudText Typo="Typo.caption" Class="text-muted d-block mb-3">
+            @(m_Reminder.Kind == ReminderKind.Continuous
+                ? "Counted from when you start using these apps; a pause of 5 minutes starts over. Repeats every as long."
+                : "Once a day, when the time on the device reaches it. Each device counts its own time.")
+        </MudText>
+
+        <AppSelectionPicker Selection="m_Reminder.Apps" Choices="Choices" EmptyMeans="None picked: all apps" Class="mb-3"/>
+        <DevicePicker @bind-Selected="m_Reminder.Devices" Choices="Choices" Class="mb-3"/>
+        <MudTextField T="string" Label="Your own message (optional)" @bind-Value="m_Reminder.Message" Variant="Variant.Outlined"
+                      MaxLength="200" Placeholder="Stand up and look out of the window."/>
+
+        <MudText Typo="Typo.body2" Class="mt-4 text-muted">@FocusService.Describe(Preview, Choices)</MudText>
+        @if (m_Error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-3" Dense="true">@m_Error</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAsync" Disabled="@(m_Saving || TotalMinutes <= 0)">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public ReminderSettings? Reminder { get; set; }
+    [Parameter, EditorRequired] public FocusChoices Choices { get; set; } = null!;
+
+    private ReminderSettings m_Reminder = new();
+    private int m_Hours = 1;
+    private int m_Minutes;
+    private bool m_Saving;
+    private string? m_Error;
+
+    private int TotalMinutes => m_Hours * 60 + m_Minutes;
+
+    private ReminderSettings Preview => new()
+    {
+        Kind = m_Reminder.Kind, Minutes = Math.Max(TotalMinutes, 1), Apps = m_Reminder.Apps, Devices = m_Reminder.Devices
+    };
+
+    protected override void OnInitialized()
+    {
+        if (Reminder is null)
+            return;
+        // Edit a copy, so Cancel leaves the original as it was.
+        m_Reminder = new ReminderSettings
+        {
+            Id = Reminder.Id, Enabled = Reminder.Enabled, Kind = Reminder.Kind, Minutes = Reminder.Minutes,
+            Apps = new AppSelection { Apps = [..Reminder.Apps.Apps], Categories = [..Reminder.Apps.Categories] },
+            Devices = [..Reminder.Devices], Message = Reminder.Message
+        };
+        m_Hours = Reminder.Minutes / 60;
+        m_Minutes = Reminder.Minutes % 60;
+    }
+
+    private async Task SaveAsync()
+    {
+        m_Saving = true;
+        try
+        {
+            m_Reminder.Minutes = TotalMinutes;
+            m_Reminder.Message = string.IsNullOrWhiteSpace(m_Reminder.Message) ? null : m_Reminder.Message.Trim();
+            await Focus.SaveReminderAsync(m_Reminder);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception e)
+        {
+            m_Error = $"Could not save: {e.Message}";
+        }
+        finally
+        {
+            m_Saving = false;
+        }
+    }
+}

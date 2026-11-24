@@ -11,10 +11,21 @@ web dashboard is the UI.
 | Hyprland | compositor IPC socket | cursor and window unchanged (Hyprland has no idle query) |
 | Sway | i3 IPC (`SWAYSOCK`) | screen lock only |
 | X11 (any desktop) | `_NET_ACTIVE_WINDOW` via libX11 | XScreenSaver extension |
-| GNOME / KDE on Wayland | not supported yet | |
+| GNOME on Wayland | the Onyx GNOME Shell extension (D-Bus) | Mutter IdleMonitor |
+| KDE Plasma 5/6 on Wayland | a KWin script the agent loads itself (D-Bus) | freedesktop ScreenSaver |
 
-GNOME and KDE on Wayland do not let ordinary programs see the focused window. Supporting them needs a GNOME
-Shell extension or a KWin script that reports it over D-Bus.
+GNOME and KDE on Wayland do not let ordinary programs see the focused window, so they need a small helper inside
+the desktop:
+
+- **GNOME** (45 or newer): run `onyx-agent gnome install` once, log out and in again, and restart the agent
+  (`systemctl --user restart onyx-agent`). The extension (`packaging/linux/gnome-extension`) answers one D-Bus
+  method on your session bus, `io.github.theonyxteam.Onyx.GetFocus`, with the focused window's app id, process
+  and title. It sends nothing anywhere itself. `onyx-agent gnome remove` uninstalls it.
+- **KDE Plasma**: nothing to install. When the agent starts it takes the name `io.github.theonyxteam.OnyxAgent`
+  on the session bus and loads `packaging/linux/kwin/onyx-focus.js` through KWin's scripting interface; the script
+  calls the agent whenever another window becomes active, and is unloaded when the agent stops.
+
+`onyx-agent status` shows which session was detected, and for GNOME whether the extension answers.
 
 ## How it works
 
@@ -22,6 +33,14 @@ The agent samples the focused app every 2 seconds, adds the time to hourly bucke
 `~/.local/state/onyx/pending.json`, and uploads every 5 minutes. The server replaces buckets it already has, so
 the current hour is re-sent until it is over and nothing is counted twice. Offline time is uploaded later.
 App names, categories and icons come from `.desktop` files.
+
+## Reminders and focus mode
+
+The agent checks every 30 seconds whether a reminder is due (for example a break after an hour without one) or
+whether focus mode is on while a distracting app is in front, and shows a desktop notification through
+`notify-send` (libnotify) or, without it, `gdbus`. The rules are part of the encrypted settings (Focus page on the
+dashboard) and are read again every few minutes. Daily limits count the time on this computer since the agent
+started that day.
 
 ## Websites
 

@@ -26,3 +26,13 @@ public interface IIconFetcher
     /// <exception cref="InvalidOperationException">With a message for the user.</exception>
     Task<byte[]> FetchAsync(string url);
 }
+
+/// <summary>External sign-in (Google, Microsoft, GitHub) in the system browser, for the native apps. The web app
+/// doesn't register one: it posts a form to the server instead.</summary>
+public interface IExternalLoginLauncher
+{
+    /// <summary>Opens the provider's sign-in and waits until the browser comes back to the app.</summary>
+    /// <returns>The result as an <c>/account/external#...</c> address to navigate to (with the verifier the
+    /// server needs to accept the code); null if the user cancelled.</returns>
+    Task<string?> SignInAsync(string provider);
+}

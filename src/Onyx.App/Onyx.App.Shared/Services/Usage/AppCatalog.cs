@@ -156,20 +156,7 @@ public sealed class AppCatalog(OnyxApiClient api, VaultService vault)
     }
 
     /// <summary>Platform categories (Android's, freedesktop's) mapped to the default categories.</summary>
-    public static string? MapReportedCategory(string? reported) => reported switch
-    {
-        null or "" => null,
-        "Game" => "Games",
-        "Audio" => "Music & Audio",
-        "Video" or "AudioVideo" => "Video",
-        "Social" => "Social",
-        "News" => "News & Reading",
-        "Productivity" or "Office" or "Education" or "Graphics" => "Productivity",
-        "Development" => "Development",
-        "Network" => "Browsing",
-        "Image" or "Maps" or "Accessibility" or "Settings" or "System" or "Utility" or "Science" => "Other",
-        _ => reported
-    };
+    public static string? MapReportedCategory(string? reported) => VaultSettings.MapReportedCategory(reported);
 
     public static string DataUrl(byte[] image)
     {

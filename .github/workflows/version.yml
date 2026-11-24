@@ -1,0 +1,89 @@
+name: Version
+
+# Every push to master that passes the build and tests (.NET workflow) is a new version: the minor number goes up
+# (v0.3 -> v0.4) and the version is tagged, released (device apps, see release.yml) and published as the server
+# image (docker.yaml).
+#
+# A major version is ordered by "[major]" in the commit message, by running this workflow by hand with
+# bump = major, or by setting OnyxVersion in Directory.Build.props above the last tag (see
+# .github/scripts/next-version.sh and docs/Writerside/topics/Releasing.md).
+
+on:
+  workflow_run:
+    workflows: [ ".NET" ]
+    types: [ completed ]
+    branches: [ "master" ]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Which number to increase"
+        type: choice
+        options: [ minor, major ]
+        default: minor
+
+# One version at a time, in push order.
+concurrency:
+  group: version
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  tag:
+    # Only pushes whose build and tests passed (not pull requests, not failed runs).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+      sha: ${{ steps.next.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0 # all tags
+
+      - name: Next version
+        id: next
+        run: |
+          version=$(.github/scripts/next-version.sh "${{ inputs.bump || 'minor' }}")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "Next version: v$version" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git rev-parse -q --verify "refs/tags/v${{ steps.next.outputs.version }}" >/dev/null; then
+            echo "::error::v${{ steps.next.outputs.version }} exists already"
+            exit 1
+          fi
+          git tag -a "v${{ steps.next.outputs.version }}" -m "Onyx ${{ steps.next.outputs.version }}" "${{ steps.next.outputs.sha }}"
+          git push origin "v${{ steps.next.outputs.version }}"
+
+  # Tags pushed by this workflow don't start other workflows, so the release and the image are called from here.
+  release:
+    needs: tag
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ needs.tag.outputs.version }}
+      ref: ${{ needs.tag.outputs.sha }}
+      publish: true
+    secrets: inherit
+    permissions:
+      contents: write
+
+  image:
+    needs: tag
+    uses: ./.github/workflows/docker.yaml
+    with:
+      version: ${{ needs.tag.outputs.version }}
+      ref: ${{ needs.tag.outputs.sha }}
+    permissions:
+      contents: read
+      packages: write

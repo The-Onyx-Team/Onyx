@@ -4,7 +4,8 @@ namespace Onyx.Collector.Core.Crypto;
 
 /// <summary>
 /// The user's settings, stored as one encrypted document (<c>VaultDto.Settings</c>). Shared by all clients:
-/// the dashboards read and edit everything, the desktop collectors read <see cref="ExcludedDomains"/>.
+/// the dashboards read and edit everything; the collectors read <see cref="ExcludedDomains"/>,
+/// <see cref="Reminders"/>, <see cref="Focus"/> and the categories in <see cref="Apps"/>.
 /// </summary>
 public sealed class VaultSettings
 {
@@ -25,6 +26,39 @@ public sealed class VaultSettings
 
     [JsonPropertyName("sharing")]
     public SharingSettings Sharing { get; set; } = new();
+
+    /// <summary>Notifications on the devices, e.g. after an hour without a break.</summary>
+    [JsonPropertyName("reminders")]
+    public List<ReminderSettings> Reminders { get; set; } = [];
+
+    [JsonPropertyName("focus")]
+    public FocusSettings Focus { get; set; } = new();
+
+    /// <summary>Reports the user put together (period, devices, apps, sections), to run again any time.</summary>
+    [JsonPropertyName("customReports")]
+    public List<CustomReportSettings> CustomReports { get; set; } = [];
+
+    /// <summary>The category an app is counted in: the user's own, otherwise the one its device reported.</summary>
+    public string? CategoryOf(string identifier, string? reportedCategory) =>
+        Apps.TryGetValue(identifier, out var app) && !string.IsNullOrWhiteSpace(app.Category)
+            ? app.Category.Trim()
+            : MapReportedCategory(reportedCategory);
+
+    /// <summary>Platform categories (Android's, the freedesktop ones) mapped to the default categories.</summary>
+    public static string? MapReportedCategory(string? reported) => reported switch
+    {
+        null or "" => null,
+        "Game" => "Games",
+        "Audio" => "Music & Audio",
+        "Video" or "AudioVideo" => "Video",
+        "Social" => "Social",
+        "News" => "News & Reading",
+        "Productivity" or "Office" or "Education" or "Graphics" => "Productivity",
+        "Development" => "Development",
+        "Network" => "Browsing",
+        "Image" or "Maps" or "Accessibility" or "Settings" or "System" or "Utility" or "Science" => "Other",
+        _ => reported
+    };
 
     public static VaultSettings CreateDefault() => new()
     {
@@ -147,4 +181,212 @@ public sealed class SharingSettings
 {
     [JsonPropertyName("level")]
     public ShareLevel Level { get; set; } = ShareLevel.Total;
+}
+
+/// <summary>Which apps a reminder or focus mode is about: apps (identifiers) and categories. Both empty means
+/// <paramref name="emptyMatchesAll"/> decides.</summary>
+public sealed class AppSelection
+{
+    /// <summary>App identifiers (all identifiers of an app shown as one, e.g. Firefox on Android and Linux).</summary>
+    [JsonPropertyName("apps")]
+    public List<string> Apps { get; set; } = [];
+
+    [JsonPropertyName("categories")]
+    public List<string> Categories { get; set; } = [];
+
+    [JsonIgnore]
+    public bool IsEmpty => Apps.Count == 0 && Categories.Count == 0;
+
+    public bool Matches(string identifier, string? category, bool emptyMatchesAll) =>
+        IsEmpty
+            ? emptyMatchesAll
+            : Apps.Contains(identifier, StringComparer.Ordinal)
+              || (category is not null && Categories.Contains(category, StringComparer.OrdinalIgnoreCase));
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<ReminderKind>))]
+public enum ReminderKind
+{
+    /// <summary>After <see cref="ReminderSettings.Minutes"/> of use without a break, and again every as long.</summary>
+    Continuous,
+
+    /// <summary>Once a day, when the time today on the device reaches <see cref="ReminderSettings.Minutes"/>.</summary>
+    Daily
+}
+
+public sealed class ReminderSettings
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = true;
+
+    [JsonPropertyName("kind")]
+    public ReminderKind Kind { get; set; }
+
+    [JsonPropertyName("minutes")]
+    public int Minutes { get; set; } = 60;
+
+    /// <summary>Apps and categories counted; empty: all apps.</summary>
+    [JsonPropertyName("apps")]
+    public AppSelection Apps { get; set; } = new();
+
+    /// <summary>Devices that remind; empty: all.</summary>
+    [JsonPropertyName("devices")]
+    public List<int> Devices { get; set; } = [];
+
+    /// <summary>The user's own text for the notification.</summary>
+    [JsonPropertyName("message")]
+    public string? Message { get; set; }
+}
+
+/// <summary>
+/// Focus mode: while it is on, the devices nudge the user whenever a distracting app comes to the front. It is on
+/// until <see cref="Until"/> (started by hand on any device) or during one of the <see cref="Schedules"/>.
+/// </summary>
+public sealed class FocusSettings
+{
+    /// <summary>Started by hand: on until this time.</summary>
+    [JsonPropertyName("until")]
+    public DateTimeOffset? Until { get; set; }
+
+    [JsonPropertyName("schedules")]
+    public List<FocusSchedule> Schedules { get; set; } = [];
+
+    /// <summary>Apps and categories that interrupt focus; empty: none (focus mode only shows on the dashboard).</summary>
+    [JsonPropertyName("distracting")]
+    public AppSelection Distracting { get; set; } = new()
+    {
+        Categories = ["Social", "Video", "Games"]
+    };
+
+    /// <summary>Devices that nudge; empty: all.</summary>
+    [JsonPropertyName("devices")]
+    public List<int> Devices { get; set; } = [];
+
+    /// <summary>Whether focus mode is on at <paramref name="now"/>, with schedules in <paramref name="zone"/>.</summary>
+    /// <returns>Until when it stays on, or null if it is off.</returns>
+    public DateTimeOffset? ActiveUntil(DateTimeOffset now, TimeZoneInfo zone)
+    {
+        DateTimeOffset? end = Until > now ? Until : null;
+        var local = TimeZoneInfo.ConvertTime(now, zone);
+        foreach (var schedule in Schedules)
+        {
+            if (schedule.EndOf(local) is { } scheduleEnd && (end is null || scheduleEnd > end))
+                end = scheduleEnd;
+        }
+
+        return end;
+    }
+
+    public bool AppliesTo(int? deviceId) => Devices.Count == 0 || (deviceId is { } id && Devices.Contains(id));
+}
+
+/// <summary>Focus on certain days between two times (crossing midnight if <see cref="End"/> is earlier).</summary>
+public sealed class FocusSchedule
+{
+    [JsonPropertyName("days")]
+    public List<DayOfWeek> Days { get; set; } = [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday];
+
+    [JsonPropertyName("start")]
+    public TimeOnly Start { get; set; } = new(9, 0);
+
+    [JsonPropertyName("end")]
+    public TimeOnly End { get; set; } = new(12, 0);
+
+    /// <summary>The end of the period <paramref name="local"/> is in, or null if it is in none.</summary>
+    public DateTimeOffset? EndOf(DateTimeOffset local)
+    {
+        var time = TimeOnly.FromTimeSpan(local.TimeOfDay);
+        var today = local.Date;
+        if (Start <= End)
+        {
+            return Days.Contains(local.DayOfWeek) && time >= Start && time < End
+                ? new DateTimeOffset(today + End.ToTimeSpan(), local.Offset)
+                : null;
+        }
+
+        // Crosses midnight: from Start on a listed day until End the next morning.
+        if (Days.Contains(local.DayOfWeek) && time >= Start)
+            return new DateTimeOffset(today.AddDays(1) + End.ToTimeSpan(), local.Offset);
+        if (Days.Contains(local.AddDays(-1).DayOfWeek) && time < End)
+            return new DateTimeOffset(today + End.ToTimeSpan(), local.Offset);
+        return null;
+    }
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<ReportPeriod>))]
+public enum ReportPeriod
+{
+    Last7Days,
+    Last30Days,
+    ThisMonth,
+    LastMonth,
+    Last3Months,
+    ThisYear,
+
+    /// <summary><see cref="CustomReportSettings.From"/> to <see cref="CustomReportSettings.To"/>.</summary>
+    Custom
+}
+
+/// <summary>A report the user put together.</summary>
+public sealed class CustomReportSettings
+{
+    /// <summary>What a report can show, in this order.</summary>
+    public static readonly IReadOnlyList<(string Key, string Name)> AllSections =
+    [
+        ("daily", "Every day"),
+        ("apps", "Top apps"),
+        ("websites", "Top websites"),
+        ("categories", "Categories"),
+        ("trend", "Weekly trend"),
+        ("heatmap", "Time of day"),
+        ("devices", "Each device")
+    ];
+
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = "My report";
+
+    [JsonPropertyName("period")]
+    public ReportPeriod Period { get; set; } = ReportPeriod.Last30Days;
+
+    [JsonPropertyName("from")]
+    public DateOnly? From { get; set; }
+
+    [JsonPropertyName("to")]
+    public DateOnly? To { get; set; }
+
+    /// <summary>Devices included; empty: all.</summary>
+    [JsonPropertyName("devices")]
+    public List<int> Devices { get; set; } = [];
+
+    /// <summary>Apps and categories included; empty: all.</summary>
+    [JsonPropertyName("apps")]
+    public AppSelection Apps { get; set; } = new();
+
+    /// <summary>Keys from <see cref="AllSections"/>.</summary>
+    [JsonPropertyName("sections")]
+    public List<string> Sections { get; set; } = ["daily", "apps", "categories", "heatmap"];
+
+    /// <summary>The first and last day (both included) for <paramref name="today"/>.</summary>
+    public (DateOnly From, DateOnly To) Range(DateOnly today)
+    {
+        var month = new DateOnly(today.Year, today.Month, 1);
+        return Period switch
+        {
+            ReportPeriod.Last7Days => (today.AddDays(-6), today),
+            ReportPeriod.Last30Days => (today.AddDays(-29), today),
+            ReportPeriod.ThisMonth => (month, today),
+            ReportPeriod.LastMonth => (month.AddMonths(-1), month.AddDays(-1)),
+            ReportPeriod.Last3Months => (month.AddMonths(-2), today),
+            ReportPeriod.ThisYear => (new DateOnly(today.Year, 1, 1), today),
+            _ => From is { } from && To is { } to && to >= from
+                ? (from, to > from.AddDays(365) ? from.AddDays(365) : to)
+                : (today.AddDays(-6), today)
+        };
+    }
 }

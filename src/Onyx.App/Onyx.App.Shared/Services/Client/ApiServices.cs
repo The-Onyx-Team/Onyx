@@ -24,11 +24,6 @@ public sealed class ApiProfileService(OnyxApiClient client) : IProfileService
     public Task<string?> UpdateAsync(string userName, string? phoneNumber) =>
         Try(() => client.UpdateProfileAsync(userName, phoneNumber));
 
-    public Task<string?> SetAvatarAsync(byte[] data, string contentType) =>
-        Try(() => client.SetAvatarAsync(data, contentType));
-
-    public Task<string?> DeleteAvatarAsync() => Try(() => client.DeleteAvatarAsync());
-
     public Task<string?> ConsentAsync() =>
         Try(() => client.SendAuthorizedAsync<object?>(HttpMethod.Post, "/api/user/consent",
             new ConsentDto(PrivacyPolicy.Version)));
@@ -65,9 +60,26 @@ public sealed class ClientUserProvider(AuthenticationStateProvider authState, On
             Has2Fa = profile.TwoFactorEnabled
         };
     }
+}
 
-    public Task<string> GetAuthenticatorKeyAsync() =>
-        client.SendAuthorizedAsync<string>(HttpMethod.Get, "/api/user/2fa/key");
+public sealed class ClientTwoFactorService(OnyxApiClient client) : ITwoFactorService
+{
+    public Task<TwoFactorStatusDto> GetStatusAsync() =>
+        client.SendAuthorizedAsync<TwoFactorStatusDto>(HttpMethod.Get, "/api/user/2fa");
+
+    public Task<TwoFactorKeyDto> GetKeyAsync() =>
+        client.SendAuthorizedAsync<TwoFactorKeyDto>(HttpMethod.Get, "/api/user/2fa/key");
+
+    public async Task<IReadOnlyList<string>> EnableAsync(string code) =>
+        (await client.SendAuthorizedAsync<RecoveryCodesDto>(HttpMethod.Post, "/api/user/2fa/enable",
+            new TwoFactorCodeDto(code))).Codes;
+
+    public Task DisableAsync(string code) =>
+        client.SendAuthorizedAsync<object?>(HttpMethod.Post, "/api/user/2fa/disable", new TwoFactorCodeDto(code));
+
+    public async Task<IReadOnlyList<string>> NewRecoveryCodesAsync(string code) =>
+        (await client.SendAuthorizedAsync<RecoveryCodesDto>(HttpMethod.Post, "/api/user/2fa/recovery-codes",
+            new TwoFactorCodeDto(code))).Codes;
 }
 
 /// <summary>Downloads pictures through the server (the browser can't fetch most other sites itself).</summary>

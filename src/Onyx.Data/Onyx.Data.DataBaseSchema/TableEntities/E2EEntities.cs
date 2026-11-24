@@ -35,6 +35,10 @@ public class UserVaultEntity
     /// <summary>Increases with every settings change (optimistic concurrency between devices).</summary>
     public int SettingsVersion { get; set; }
 
+    /// <summary>Encrypted profile: real name, phone number and profile picture. Null until the user saves one.
+    /// (User name and email stay readable: they are how people sign in and find each other.)</summary>
+    public byte[]? Profile { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

@@ -44,6 +44,7 @@ public static class E2EContext
     public const string MasterKey = "onyx/masterkey";
     public const string PrivateKey = "onyx/privatekey";
     public const string Settings = "onyx/settings";
+    public const string Profile = "onyx/profile";
 
     public static string Usage(int deviceId, string tag, DateTime hour) =>
         string.Create(CultureInfo.InvariantCulture,

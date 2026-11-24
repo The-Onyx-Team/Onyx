@@ -1,0 +1,8 @@
+{
+  "uuid": "onyx@the-onyx-team.github.io",
+  "name": "Onyx",
+  "description": "Tells the Onyx agent (onyx-agent) which app is in front, so it can record your app usage on GNOME with Wayland. It answers only on your own session bus and sends nothing anywhere itself.",
+  "shell-version": ["45", "46", "47", "48", "49"],
+  "url": "https://github.com/The-Onyx-Team/Onyx",
+  "version": 1
+}

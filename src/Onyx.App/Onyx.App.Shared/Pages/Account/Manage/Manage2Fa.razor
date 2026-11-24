@@ -1,65 +1,184 @@
 ﻿@page "/account/manage/2fa"
-@inject IUserProvider UserProvider
-@inject UrlEncoder UrlEncoder
+@using Onyx.Collector.Core
+@using Onyx.Data.ApiSchema
+@inject ITwoFactorService TwoFactor
+@inject IFileSaver FileSaver
+@inject ISnackbar Snackbar
 
-<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
-    @if (m_User is null)
+<PageTitle>Two-factor authentication · Onyx</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-1">Two-factor authentication</MudText>
+<MudText Typo="Typo.body2" Class="text-muted mb-4">
+    With two-factor authentication, signing in needs your password and a code from an authenticator app on your phone
+    (for example Aegis, Google Authenticator, Microsoft Authenticator or 2FAS). Your encryption passphrase is separate
+    and still protects your data.
+</MudText>
+
+<MudPaper Class="pa-4" Elevation="0" Outlined="true" Style="max-width: 560px">
+    @if (m_Error is not null)
     {
-    <MudText Typo="Typo.body1">Loading...</MudText>
+        <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@m_Error</MudAlert>
+    }
+
+    @if (m_Status is null)
+    {
+        @if (m_Error is null)
+        {
+            <div class="d-flex align-center gap-3"><MudProgressCircular Indeterminate="true" Size="Size.Small"/> Loading…</div>
+        }
+    }
+    else if (m_RecoveryCodes is not null)
+    {
+        <MudText Typo="Typo.h6" Class="mb-1">Save your recovery codes</MudText>
+        <MudText Typo="Typo.body2" Class="mb-3">
+            If you lose your phone, each of these codes signs you in once instead of a code from the app. Keep them
+            somewhere safe, for example in your password manager. They are shown only now.
+        </MudText>
+        <div class="recovery-codes mb-3">
+            @foreach (var recoveryCode in m_RecoveryCodes)
+            {
+                <code>@recoveryCode</code>
+            }
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Download" OnClick="DownloadCodesAsync">
+                Download
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => m_RecoveryCodes = null">
+                I saved them
+            </MudButton>
+        </div>
+    }
+    else if (!m_Status.Enabled)
+    {
+        <MudChip T="string" Color="Color.Default" Size="Size.Small" Class="ml-0 mb-3">Off</MudChip>
+        @if (m_Key is null)
+        {
+            <div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StartAsync" Disabled="m_Busy">
+                    Set up an authenticator app
+                </MudButton>
+            </div>
+        }
+        else
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-1">1. Scan this QR code with the app</MudText>
+            <div class="qr-code mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 @m_QrSize @m_QrSize" width="200" height="200"
+                     role="img" aria-label="QR code for the authenticator app">
+                    <rect width="100%" height="100%" fill="#fff"/>
+                    <path d="@m_QrPath" fill="#0E0E0E"/>
+                </svg>
+            </div>
+            <MudText Typo="Typo.body2" Class="mb-4">
+                Can't scan it? Enter this key in the app instead: <code class="otp-key">@m_Key.Key</code>
+            </MudText>
+
+            <MudText Typo="Typo.subtitle2" Class="mb-1">2. Enter the 6-digit code the app shows</MudText>
+            <div class="d-flex align-start gap-2">
+                <MudTextField T="string" @bind-Value="m_Code" Label="Code" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              InputMode="InputMode.numeric" MaxLength="7" Immediate="true" autocomplete="one-time-code"
+                              OnKeyUp="@(e => e.Key == "Enter" ? EnableAsync() : Task.CompletedTask)"/>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="EnableAsync" Class="mt-1"
+                           Disabled="@(m_Busy || string.IsNullOrWhiteSpace(m_Code))">Turn on</MudButton>
+            </div>
+        }
     }
     else
     {
-    <MudText Typo="Typo.h4" Class="mb-1">Set up two-factor authentication</MudText>
-    <MudText Typo="Typo.subtitle1" Class="mb-4">
-        Protect your account by adding an extra layer of security.
-    </MudText>
-
-    <MudGrid>
-        <MudItem xs="12" md="10" lg="6">
-            <MudCard Class="mt-1 px-4 py-4" Style="min-width: 25vw;" Outlined="true">
-                <MudCardContent>
-                    <MudText Typo="Typo.h5" Class="mb-2">Welcome @m_User.Name</MudText>
-                    <MudText Typo="Typo.body1" Class="mb-4">
-                        Scan the QR code below with your authenticator app.
-                    </MudText>
-                    <div style="display: flex; justify-content: center; margin-bottom: 24px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" height="200" width="200" stroke="none"
-                             version="1.1" viewBox="0 0 50 50">
-                            <path d="@m_SvgGraphicsPath" fill="#0E0E0E" />
-                        </svg>
-                    </div>
-                </MudCardContent>
-            </MudCard>
-        </MudItem>
-    </MudGrid>
+        <MudChip T="string" Color="Color.Success" Size="Size.Small" Class="ml-0 mb-2">On</MudChip>
+        <MudText Typo="Typo.body2" Class="mb-3">
+            Signing in asks for a code from your authenticator app. You have
+            <b>@m_Status.RecoveryCodesLeft</b> unused recovery @(m_Status.RecoveryCodesLeft == 1 ? "code" : "codes").
+            @if (m_Status.RecoveryCodesLeft <= 3)
+            {
+                <span>Make new ones before you run out.</span>
+            }
+        </MudText>
+        <MudText Typo="Typo.subtitle2" Class="mb-1">Confirm with a code from the app</MudText>
+        <MudTextField T="string" @bind-Value="m_Code" Label="Code or recovery code" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" Immediate="true" autocomplete="one-time-code" Class="mb-3"
+                      Style="max-width: 260px"/>
+        <div class="d-flex flex-wrap gap-2">
+            <MudButton Variant="Variant.Outlined" OnClick="NewCodesAsync"
+                       Disabled="@(m_Busy || string.IsNullOrWhiteSpace(m_Code))">New recovery codes</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="DisableAsync"
+                       Disabled="@(m_Busy || string.IsNullOrWhiteSpace(m_Code))">Turn off</MudButton>
+        </div>
     }
-</MudContainer>
-
-
+</MudPaper>
 
 @code {
-    private User? m_User;
-    private string? m_SvgGraphicsPath;
-
-    private const string AuthenticatorUriFormat = "otpauth://totp/{0}:{1}?secret={2}&issuer={0}&digits=6";
+    private TwoFactorStatusDto? m_Status;
+    private TwoFactorKeyDto? m_Key;
+    private IReadOnlyList<string>? m_RecoveryCodes;
+    private string? m_QrPath;
+    private int m_QrSize;
+    private string? m_Code;
+    private string? m_Error;
+    private bool m_Busy;
 
     protected override async Task OnInitializedAsync()
     {
-        m_User = await UserProvider.GetRequiredUserAsync();
-        var token = await UserProvider.GetAuthenticatorKeyAsync();
-
-        var path = GenerateQrCodeUri(m_User.Email ?? m_User.Name ?? "user", token);
-        var qr = QrCode.EncodeText(path, QrCode.Ecc.Medium);
-        m_SvgGraphicsPath = qr.ToGraphicsPath();
+        await RunAsync(async () => m_Status = await TwoFactor.GetStatusAsync());
     }
 
-    private string GenerateQrCodeUri(string email, string unformattedKey)
+    private Task StartAsync() => RunAsync(async () =>
     {
-        return string.Format(
-        CultureInfo.InvariantCulture,
-        AuthenticatorUriFormat,
-        UrlEncoder.Encode("Onyx App"),
-        UrlEncoder.Encode(email),
-        unformattedKey);
+        m_Key = await TwoFactor.GetKeyAsync();
+        var qr = QrCode.EncodeText(m_Key.Uri, QrCode.Ecc.Medium);
+        const int border = 2;
+        m_QrSize = qr.Size + 2 * border;
+        m_QrPath = qr.ToGraphicsPath(border);
+    });
+
+    private Task EnableAsync() => RunAsync(async () =>
+    {
+        if (string.IsNullOrWhiteSpace(m_Code))
+            return;
+        m_RecoveryCodes = await TwoFactor.EnableAsync(m_Code.Trim());
+        m_Key = null;
+        m_Code = null;
+        m_Status = await TwoFactor.GetStatusAsync();
+        Snackbar.Add("Two-factor authentication is on.", Severity.Success);
+    });
+
+    private Task NewCodesAsync() => RunAsync(async () =>
+    {
+        m_RecoveryCodes = await TwoFactor.NewRecoveryCodesAsync(m_Code!.Trim());
+        m_Code = null;
+        m_Status = await TwoFactor.GetStatusAsync();
+    });
+
+    private Task DisableAsync() => RunAsync(async () =>
+    {
+        await TwoFactor.DisableAsync(m_Code!.Trim());
+        m_Code = null;
+        m_Status = await TwoFactor.GetStatusAsync();
+        Snackbar.Add("Two-factor authentication is off.", Severity.Info);
+    });
+
+    private Task DownloadCodesAsync() =>
+        FileSaver.SaveAsync("onyx-recovery-codes.txt", "text/plain",
+            System.Text.Encoding.UTF8.GetBytes(
+                "Onyx recovery codes. Each one signs you in once instead of a code from your authenticator app.\n\n"
+                + string.Join("\n", m_RecoveryCodes ?? []) + "\n"));
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        m_Busy = true;
+        m_Error = null;
+        try
+        {
+            await action();
+        }
+        catch (Exception e) when (e is HttpRequestException or NotSignedInException or TaskCanceledException)
+        {
+            m_Error = OnyxApiClient.ErrorMessage(e);
+        }
+        finally
+        {
+            m_Busy = false;
+        }
     }
 }

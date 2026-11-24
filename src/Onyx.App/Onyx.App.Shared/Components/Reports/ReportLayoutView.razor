@@ -1,0 +1,84 @@
+@using Onyx.App.Shared.Services.Documents
+@* A report layout on the page, on the same pearl paper as the PDF. Charts are SVG drawn on this device. *@
+
+<div class="report-sheet">
+    <div class="report-header mb-4">
+        <img src="_content/Onyx.App.Shared/img/Icon.png" alt="" width="44" height="44" style="height: 44px" class="mr-3"/>
+        <div>
+            <MudText Typo="Typo.h5" Style="font-weight: 700">@Layout.Title</MudText>
+            <MudText Typo="Typo.body2" Class="report-muted">@Layout.Subtitle</MudText>
+        </div>
+        <div class="report-lock" title="Built on this device from your encrypted data">
+            <MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Small"/> end-to-end encrypted
+        </div>
+    </div>
+
+    @if (Layout.Stats.Count > 0)
+    {
+        <MudGrid Spacing="2" Class="mb-4 report-section">
+            @foreach (var stat in Layout.Stats)
+            {
+                <MudItem xs="6" md="@(12 / Math.Max(Layout.Stats.Count, 1))">
+                    <div class="report-stat">
+                        <MudText Typo="Typo.caption">@stat.Caption</MudText>
+                        <MudText Typo="Typo.h5" Style="font-weight: 700; overflow-wrap: anywhere">@stat.Value</MudText>
+                        <MudText Typo="Typo.body2">@stat.Note</MudText>
+                    </div>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+
+    @foreach (var block in Layout.Blocks)
+    {
+        switch (block)
+        {
+            case ChartBlock chart:
+                @Chart(chart)
+                break;
+            case SideBySideBlock side:
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" md="@((int)Math.Round(side.LeftShare * 12))">@Chart(side.Left)</MudItem>
+                    <MudItem xs="12" md="@(12 - (int)Math.Round(side.LeftShare * 12))">@Chart(side.Right)</MudItem>
+                </MudGrid>
+                break;
+            case TextBlock text:
+                <MudText Typo="Typo.body2" Class="mb-4 report-section">@text.Text</MudText>
+                break;
+            case HeadingBlock heading:
+                <MudText Typo="Typo.h6" Class="mt-6 mb-2" Style="font-weight: 700">@heading.Text</MudText>
+                break;
+            case DeviceBlock device:
+                <div class="report-section mb-4">
+                    <MudText Typo="Typo.subtitle1" Style="font-weight: 600">
+                        @device.Heading <span class="report-muted" style="font-weight: 400">@device.Note</span>
+                    </MudText>
+                    @Chart(new ChartBlock(device.ChartKey))
+                </div>
+                break;
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ReportLayout Layout { get; set; } = null!;
+
+    // ReportCharts escapes all text it puts into the SVG.
+    private RenderFragment Chart(ChartBlock block) => __builder =>
+    {
+        if (Layout.Charts.TryGetValue(block.Key, out var chart))
+        {
+            <div class="report-section mb-4">
+                @if (block.Title is not null)
+                {
+                    <MudText Typo="Typo.h6" Style="font-weight: 700">@block.Title</MudText>
+                }
+                @if (block.Caption is not null)
+                {
+                    <MudText Typo="Typo.body2" Class="mb-2 report-muted">@block.Caption</MudText>
+                }
+                <div class="report-chart" role="img" aria-label="@(block.Title ?? "Chart")">@((MarkupString)chart.ToSvg())</div>
+            </div>
+        }
+    };
+}
