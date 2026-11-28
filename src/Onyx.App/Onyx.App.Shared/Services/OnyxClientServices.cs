@@ -48,6 +48,8 @@ public static class OnyxClientServices
         services.AddScoped<IReportService, ClientReportService>();
         services.AddScoped<GoalService>();
         services.AddScoped<SocialService>();
+        services.AddScoped<Integrations.IntegrationService>();
+        services.AddScoped<Client.DeviceLinkService>();
         services.AddScoped<PersonalDataService>();
         return services;
     }

@@ -11,7 +11,11 @@ public sealed class E2EUsageDataService(OnyxApiClient api, VaultService vault, A
 {
     private List<DeviceDto>? m_Devices;
 
-    public async Task<List<UsageDto>> GetUsageDataAsync(DateTime startTime, DateTime endTime, int? deviceId = null)
+    public async Task<List<UsageDto>> GetUsageDataAsync(DateTime startTime, DateTime endTime, int? deviceId = null) =>
+        (await GetUsageAndUnlocksAsync(startTime, endTime, deviceId)).Usage;
+
+    public async Task<(List<UsageDto> Usage, List<DeviceUnlocks> Unlocks)> GetUsageAndUnlocksAsync(DateTime startTime,
+        DateTime endTime, int? deviceId = null)
     {
         var rows = await GetDecryptedAsync(startTime, endTime, deviceId);
         var groups = await catalog.GroupsByTagAsync();
@@ -21,14 +25,25 @@ public sealed class E2EUsageDataService(OnyxApiClient api, VaultService vault, A
         var deviceNames = m_Devices.ToDictionary(d => d.Id, d => d.Name);
 
         var result = new List<UsageDto>(rows.Count);
+        var unlocks = new List<DeviceUnlocks>();
         foreach (var row in rows)
         {
+            if (row.Payload.AppIdentifier == DeviceActivity.Identifier)
+            {
+                var count = row.Payload.Parts.Sum(p => p.Opens);
+                if (count > 0)
+                    unlocks.Add(new DeviceUnlocks(row.DeviceId,
+                        deviceNames.GetValueOrDefault(row.DeviceId, "Removed device"), row.Hour, count));
+                continue;
+            }
+
             var group = groups.GetValueOrDefault(row.Tag);
             if (group?.Hidden == true)
                 continue;
             var entry = group?.Members.First(m => m.Tag == row.Tag);
             foreach (var part in row.Payload.Parts)
             {
+                var domain = part.Domain is { } d && !WebDomain.IsExcluded(d, excluded) ? d : null;
                 result.Add(new UsageDto
                 {
                     // Apps without information yet (the device hasn't sent it) are shown by their identifier.
@@ -39,12 +54,14 @@ public sealed class E2EUsageDataService(OnyxApiClient api, VaultService vault, A
                     DeviceName = deviceNames.GetValueOrDefault(row.DeviceId, "Removed device"),
                     Date = row.Hour,
                     TimeSpan = TimeSpan.FromSeconds(part.Seconds),
-                    Domain = part.Domain is { } d && !WebDomain.IsExcluded(d, excluded) ? d : null
+                    Domain = domain,
+                    // Visits of an excluded website are not opens of the browser.
+                    Opens = domain is null && part.Domain is not null ? 0 : part.Opens
                 });
             }
         }
 
-        return result;
+        return (result, unlocks);
     }
 
     /// <summary>The decrypted rows, as stored (one per device, app and hour).</summary>

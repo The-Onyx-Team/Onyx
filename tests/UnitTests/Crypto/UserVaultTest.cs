@@ -104,6 +104,31 @@ public class UserVaultTest
     }
 
     [Fact]
+    public async Task Usage_KeepsOpensAndUnlocks_AndReadsRowsWrittenWithoutThem()
+    {
+        var (vault, _, _) = await CreateAsync();
+        var hour = new DateTime(2026, 11, 23, 9, 0, 0, DateTimeKind.Utc);
+        UsageEntryDto[] entries =
+        [
+            new("android:com.chat", "Chat", null, hour, TimeSpan.FromMinutes(3), Opens: 4),
+            new("android:com.chat", "Chat", null, hour, TimeSpan.Zero, Opens: 1),
+            new(DeviceActivity.Identifier, DeviceActivity.Name, null, hour, TimeSpan.Zero, Opens: 7),
+        ];
+
+        var (rows, _) = await vault.EncryptUsageAsync(7, entries);
+        var decrypted = await vault.DecryptUsageAsync(rows.Select(r => new EncryptedUsageDto(7, r.Tag, r.Hour, r.Data)).ToList());
+
+        decrypted.Single(d => d.Payload.AppIdentifier == "android:com.chat").Payload.Parts
+            .ShouldHaveSingleItem().ShouldBe(new UsagePart(null, 180, 5));
+        decrypted.Single(d => d.Payload.AppIdentifier == DeviceActivity.Identifier).Payload.Parts
+            .ShouldHaveSingleItem().ShouldBe(new UsagePart(null, 0, 7));
+
+        // Zero opens are left out, so rows without opens look exactly like those written before.
+        System.Text.Json.JsonSerializer.Serialize(new UsagePart(null, 60)).ShouldNotContain("\"o\"");
+        System.Text.Json.JsonSerializer.Deserialize<UsagePart>("{\"d\":null,\"s\":60}")!.Opens.ShouldBe(0);
+    }
+
+    [Fact]
     public async Task Usage_MovedToAnotherHourOrDevice_DoesNotDecrypt()
     {
         var (vault, _, _) = await CreateAsync();

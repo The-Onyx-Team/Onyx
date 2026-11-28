@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- Onyx for Wear OS: records which apps are used on the watch, like the phone app, and uploads them encrypted.
+         No dashboard: the watch is linked by a code entered on another device (Devices → Link a watch).
+         MAUI doesn't target Wear OS, so this is a plain .NET for Android app with native views. -->
+
+    <PropertyGroup>
+        <TargetFramework>net10.0-android</TargetFramework>
+        <!-- Wear OS 2 is Android 9 (API 28); Wear OS 3 and newer are API 30+. -->
+        <SupportedOSPlatformVersion>28</SupportedOSPlatformVersion>
+        <OutputType>Exe</OutputType>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>Onyx.Collector.Wear</RootNamespace>
+        <ApplicationId>com.onyx_team.onyx.wear</ApplicationId>
+        <ApplicationTitle>Onyx</ApplicationTitle>
+        <ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
+        <ApplicationVersion>1</ApplicationVersion>
+    </PropertyGroup>
+
+    <!-- Same switches as the phone app: -p:OnyxServerUrl=https://onyx.example.com sets the server a fresh install
+         starts with; -p:OnyxPrivateNetwork=true also allows http:// and user-installed CAs (VPN-only servers). -->
+    <ItemGroup Condition="'$(OnyxServerUrl)' != ''">
+        <AssemblyMetadata Include="OnyxServerUrl" Value="$(OnyxServerUrl)"/>
+    </ItemGroup>
+    <PropertyGroup Condition="'$(OnyxPrivateNetwork)' == 'true'">
+        <DefineConstants>$(DefineConstants);ONYX_PRIVATE_NETWORK</DefineConstants>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Onyx.Collector.Core\Onyx.Collector.Core.csproj"/>
+        <!-- Must match the version MAUI pins in the phone app (see CLAUDE.md). -->
+        <PackageReference Include="Xamarin.AndroidX.Work.Runtime" Version="2.10.2.1"/>
+        <!-- The phone's reader: watch and phone count usage the same way. -->
+        <Compile Include="..\..\Onyx.App\Onyx.App\Platforms\Android\UsageData\AndroidUsageReader.cs" Link="AndroidUsageReader.cs"/>
+    </ItemGroup>
+
+</Project>

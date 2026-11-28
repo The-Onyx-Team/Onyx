@@ -33,6 +33,28 @@ your own text.
 
 Each device decides on its own from what it records itself; a daily limit counts that device's time.
 
+## Stay in control
+
+Before an app opens, the phone asks a question; the app opens once you answer it correctly, **Not now** (or Back)
+goes to the home screen. A wrong answer brings a new question. Set it up on the **Focus** page:
+
+| Setting | |
+|---|---|
+| Questions | Mental arithmetic, capitals of the world, or your own questions (vocabulary, facts to learn). Answers ignore case, accents and punctuation. |
+| Ask again after | After a right answer the app opens without a question for this long (1 minute to 1 hour). |
+| Exempt | Apps and categories that open as usual. The phone app, Onyx, the home screen, settings and keyboards never ask. |
+| Devices | Only some phones; none picked means all. |
+
+For your own questions, separate several right answers with a vertical bar: `colour|color`.
+
+It works in the **Android app** only, and only after you allow it once: Android shows an app which other app is
+in front immediately only through an accessibility service. Onyx's service receives nothing but that (no screen
+content, nothing you type). On the Focus page tap **Open accessibility settings** and turn on **Onyx: Stay in
+control**. On Android 13 and newer, apps installed outside Google Play first need **App info → ⋮ → Allow restricted
+settings**. Changes saved on the phone apply at once; changes from another device arrive within a few minutes.
+
+Like everything else, the settings (including your own questions) are end-to-end encrypted.
+
 ## Reports
 
 The **Reports** page has two tabs:

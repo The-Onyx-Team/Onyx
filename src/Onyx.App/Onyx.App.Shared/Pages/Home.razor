@@ -10,6 +10,7 @@
 @inject AppCatalog Catalog
 @inject GoalService Goals
 @inject SocialService Social
+@inject Onyx.App.Shared.Services.Integrations.IntegrationService Integrations
 @inject ClientTimeZone ClientTimeZone
 @inject VaultService Vault
 
@@ -89,7 +90,7 @@
     else
     {
         <MudGrid Spacing="3">
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="@TileWidth">
                 <MudPaper Class="pa-4" Elevation="1" Style="height: 100%">
                     <MudText Typo="Typo.caption">Screen time, @PeriodText</MudText>
                     <MudText Typo="Typo.h4">@UsageSummary.Format(m_Summary.Total)</MudText>
@@ -99,20 +100,41 @@
                     }
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="@TileWidth">
                 <MudPaper Class="pa-4" Elevation="1" Style="height: 100%">
                     <MudText Typo="Typo.caption">Most used</MudText>
                     <MudText Typo="Typo.h5">@m_Summary.Apps[0].Name</MudText>
                     <MudText Typo="Typo.body2">@UsageSummary.Format(m_Summary.Apps[0].Time) (@m_Summary.Apps[0].Share.ToString("P0"))</MudText>
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="@TileWidth">
                 <MudPaper Class="pa-4" Elevation="1" Style="height: 100%">
                     <MudText Typo="Typo.caption">Apps used</MudText>
                     <MudText Typo="Typo.h4">@m_Summary.Apps.Count</MudText>
                     <MudText Typo="Typo.body2">on @m_Summary.Devices.Count device(s)</MudText>
                 </MudPaper>
             </MudItem>
+            @if (ShowOpens)
+            {
+                <MudItem xs="12" sm="@TileWidth">
+                    <MudPaper Class="pa-4" Elevation="1" Style="height: 100%">
+                        @if (m_Summary.Unlocks > 0)
+                        {
+                            <MudText Typo="Typo.caption">Unlocks</MudText>
+                            <MudText Typo="Typo.h4">@m_Summary.Unlocks</MudText>
+                            <MudText Typo="Typo.body2">
+                                @(m_Summary.Range != DashboardRange.Day ? $"{m_Summary.Unlocks / ElapsedDays} per day, " : "")@m_Summary.Opens app opens
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption">App opens</MudText>
+                            <MudText Typo="Typo.h4">@m_Summary.Opens</MudText>
+                            <MudText Typo="Typo.body2">times an app was brought to the front</MudText>
+                        }
+                    </MudPaper>
+                </MudItem>
+            }
 
             <MudItem xs="12" md="8">
                 <MudPaper Class="pa-4" Elevation="1">
@@ -150,6 +172,10 @@
                             <MudTh>App</MudTh>
                             <MudTh>Category</MudTh>
                             <MudTh Style="text-align: right">Time</MudTh>
+                            @if (ShowOpens)
+                            {
+                                <MudTh Style="text-align: right">Opens</MudTh>
+                            }
                             <MudTh Style="width: 30%">Share</MudTh>
                         </HeaderContent>
                         <RowTemplate>
@@ -161,6 +187,10 @@
                             </MudTd>
                             <MudTd DataLabel="Category">@(context.Category ?? "-")</MudTd>
                             <MudTd DataLabel="Time" Style="text-align: right">@UsageSummary.Format(context.Time)</MudTd>
+                            @if (ShowOpens)
+                            {
+                                <MudTd DataLabel="Opens" Style="text-align: right">@(context.Opens > 0 ? context.Opens.ToString() : "–")</MudTd>
+                            }
                             <MudTd DataLabel="Share">
                                 <MudProgressLinear Color="Color.Primary" Value="@(context.Share * 100)"/>
                             </MudTd>
@@ -185,11 +215,19 @@
                             <HeaderContent>
                                 <MudTh>Website</MudTh>
                                 <MudTh Style="text-align: right">Time</MudTh>
+                                @if (ShowOpens)
+                                {
+                                    <MudTh Style="text-align: right">Visits</MudTh>
+                                }
                                 <MudTh Style="width: 30%">Share</MudTh>
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd DataLabel="Website">@context.Name</MudTd>
                                 <MudTd DataLabel="Time" Style="text-align: right">@UsageSummary.Format(context.Time)</MudTd>
+                                @if (ShowOpens)
+                                {
+                                    <MudTd DataLabel="Visits" Style="text-align: right">@(context.Opens > 0 ? context.Opens.ToString() : "–")</MudTd>
+                                }
                                 <MudTd DataLabel="Share">
                                     <MudProgressLinear Color="Color.Secondary" Value="@(context.Share * 100)"/>
                                 </MudTd>
@@ -238,6 +276,11 @@
     private int ElapsedDays => m_Summary is null
         ? 1
         : Math.Clamp((int)(m_Today - m_Summary.LocalStart).TotalDays + 1, 1, m_Summary.PeriodLabels.Length);
+
+    /// <summary>Opens and unlocks are shown once any device has recorded them for the period.</summary>
+    private bool ShowOpens => m_Summary is { } s && (s.Opens > 0 || s.Unlocks > 0);
+
+    private int TileWidth => ShowOpens ? 3 : 4;
 
     private string PeriodText => m_Summary is null
         ? ""
@@ -297,6 +340,15 @@
         {
             // Sent again next time.
         }
+
+        try
+        {
+            await Integrations.PublishDueAsync(m_Zone);
+        }
+        catch (Exception)
+        {
+            // Integrations read the previous snapshot until the next time.
+        }
     }
 
     private async Task OnRangeChanged(DashboardRange range)
@@ -325,8 +377,8 @@
         try
         {
             // One hour of margin on both ends for zones with a non-whole-hour offset.
-            var usage = await UsageService.GetUsageDataAsync(utcStart.AddHours(-1), utcEnd.AddHours(1), m_DeviceId);
-            m_Summary = UsageSummary.Create(usage, localStart, localEnd, m_Range, m_Zone);
+            var (usage, unlocks) = await UsageService.GetUsageAndUnlocksAsync(utcStart.AddHours(-1), utcEnd.AddHours(1), m_DeviceId);
+            m_Summary = UsageSummary.Create(usage, localStart, localEnd, m_Range, m_Zone, unlocks);
             // Hours of a single day are short, so the day view counts minutes. MudBlazor's tick step is an integer.
             var scale = m_Range == DashboardRange.Day ? 60 : 1;
             m_ChartSeries = m_Summary.Series

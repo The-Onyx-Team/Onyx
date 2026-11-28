@@ -7,8 +7,14 @@
     <base href="/" />
     <title>Onyx</title>
     <link rel="icon" type="image/png" href="_content/Onyx.App.Shared/img/Icon.png" />
-    <link rel="apple-touch-icon" href="_content/Onyx.App.Shared/img/Icon.png" />
+    @* Installable as an app (PWA): "Add to Home Screen" on iPhone and iPad, "Install" in Chromium browsers. *@
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
     <meta name="theme-color" content="#0B0C0E" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Onyx" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet"/>

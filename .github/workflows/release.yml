@@ -116,11 +116,24 @@ jobs:
           cp out/android/*-Signed.apk onyx-android.apk
           cp out/android/*-Signed.aab onyx-android.aab
 
+          # The Wear OS app (installed over adb, so an APK only), signed with the same key.
+          dotnet publish src/Onyx.Collector/Onyx.Collector.Wear/Onyx.Collector.Wear.csproj -c Release -o out/wear \
+            -p:Version="$version" -p:ApplicationVersion=${{ github.run_number }} \
+            -p:AndroidPackageFormats=apk \
+            -p:AndroidKeyStore=true \
+            -p:AndroidSigningKeyStore="$RUNNER_TEMP/onyx.keystore" \
+            -p:AndroidSigningStorePass=env:KEYSTORE_PASSWORD \
+            -p:AndroidSigningKeyAlias="$KEY_ALIAS" \
+            -p:AndroidSigningKeyPass=env:KEY_PASSWORD
+          cp out/wear/*-Signed.apk onyx-wear.apk
+
       - uses: actions/upload-artifact@v4
         if: steps.keystore.outputs.signed == 'true'
         with:
           name: onyx-android
-          path: onyx-android.apk
+          path: |
+            onyx-android.apk
+            onyx-wear.apk
 
       # For uploading to the Play Console (internal / closed testing track). Not attached to the release.
       - uses: actions/upload-artifact@v4

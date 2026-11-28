@@ -7,6 +7,7 @@
 @inject IStatsService StatsService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject DeviceLinkService DeviceLink
 
 <PageTitle>Devices</PageTitle>
 
@@ -64,7 +65,29 @@
         </MudPaper>
     }
 
-    <MudText Typo="Typo.h6" Class="mb-2">Your devices</MudText>
+    <div class="d-flex align-center mb-2">
+        <MudText Typo="Typo.h6">Your devices</MudText>
+        <MudSpacer/>
+        <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Outlined.Watch"
+                   OnClick="() => m_Linking = !m_Linking">Link a watch</MudButton>
+    </div>
+
+    @if (m_Linking)
+    {
+        <MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true">
+            <MudText Typo="Typo.body2" Class="mb-2">
+                Open Onyx on the watch; it shows a code. Enter it here: the watch signs in to your account and gets
+                the encryption key, encrypted so that only the watch can read it.
+            </MudText>
+            <div class="d-flex align-center gap-2">
+                <MudTextField T="string" @bind-Value="m_LinkCode" Label="Code from the watch" Placeholder="7K2QM-X9D4R"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" MaxLength="12"
+                              Style="max-width: 220px; font-family: monospace; text-transform: uppercase"/>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="m_LinkBusy || string.IsNullOrWhiteSpace(m_LinkCode)"
+                           OnClick="LinkAsync">Link</MudButton>
+            </div>
+        </MudPaper>
+    }
 
     @if (m_Devices is null)
     {
@@ -104,6 +127,34 @@
     private List<DeviceDto>? m_Devices;
     private bool m_Syncing;
     private bool m_Switching;
+    private bool m_Linking;
+    private bool m_LinkBusy;
+    private string? m_LinkCode;
+
+    private async Task LinkAsync()
+    {
+        m_LinkBusy = true;
+        try
+        {
+            if (await DeviceLink.LinkAsync(m_LinkCode ?? "") is { } error)
+            {
+                Snackbar.Add(error, Severity.Warning);
+                return;
+            }
+
+            Snackbar.Add("Linked. The watch uploads its usage from now on and appears here after its first upload.", Severity.Success);
+            m_Linking = false;
+            m_LinkCode = null;
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"Could not link: {e.Message}", Severity.Error);
+        }
+        finally
+        {
+            m_LinkBusy = false;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {

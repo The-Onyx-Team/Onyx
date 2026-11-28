@@ -9,9 +9,12 @@ public enum DashboardRange
     Month
 }
 
-public record AppTotal(int AppId, string Name, string? Category, TimeSpan Time, double Share);
+/// <param name="Opens">How often the app was brought to the front (zero for data recorded before opens were
+/// counted).</param>
+public record AppTotal(int AppId, string Name, string? Category, TimeSpan Time, double Share, int Opens = 0);
 
-public record NamedTotal(string Name, TimeSpan Time, double Share);
+/// <param name="Opens">For websites: how often they were opened.</param>
+public record NamedTotal(string Name, TimeSpan Time, double Share, int Opens = 0);
 
 /// <summary>A chart series: one value (hours) per period.</summary>
 public record SeriesData(string Name, double[] Hours);
@@ -37,6 +40,12 @@ public sealed class UsageSummary
 
     /// <summary>Browser time with a known website.</summary>
     public TimeSpan WebsiteTime { get; private init; }
+
+    /// <summary>How often an app was brought to the front.</summary>
+    public int Opens { get; private init; }
+
+    /// <summary>Device unlocks (devices that record them, i.e. Android).</summary>
+    public int Unlocks { get; private init; }
     public string[] PeriodLabels { get; private init; } = [];
     public IReadOnlyList<SeriesData> Series { get; private init; } = [];
 
@@ -60,21 +69,32 @@ public sealed class UsageSummary
             TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(localEnd, DateTimeKind.Unspecified), zone));
 
     public static UsageSummary Create(IReadOnlyList<UsageDto> usage, DateTime localStart, DateTime localEnd,
-        DashboardRange range, TimeZoneInfo zone)
+        DashboardRange range, TimeZoneInfo zone, IReadOnlyList<DeviceUnlocks>? unlocks = null)
     {
+        bool InPeriod(DateTime utc)
+        {
+            var local = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), zone);
+            return local >= localStart && local < localEnd;
+        }
+
         var rows = usage
             .Select(u => (Usage: u, Local: TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(u.Date, DateTimeKind.Utc), zone)))
             .Where(r => r.Local >= localStart && r.Local < localEnd)
             .ToList();
+        var unlockRows = (unlocks ?? []).Where(u => InPeriod(u.Hour)).ToList();
 
         var total = Sum(rows.Select(r => r.Usage.TimeSpan));
         double ShareOf(TimeSpan t) => total > TimeSpan.Zero ? t / total : 0;
 
         var apps = rows
             .GroupBy(r => r.Usage.AppId)
-            .Select(g => new { First = g.First().Usage, Time = Sum(g.Select(r => r.Usage.TimeSpan)) })
+            .Select(g => new
+            {
+                First = g.First().Usage, Time = Sum(g.Select(r => r.Usage.TimeSpan)),
+                Opens = g.Where(r => r.Usage.Domain is null).Sum(r => r.Usage.Opens)
+            })
             .OrderByDescending(a => a.Time)
-            .Select(a => new AppTotal(a.First.AppId, a.First.AppName, a.First.Category, a.Time, ShareOf(a.Time)))
+            .Select(a => new AppTotal(a.First.AppId, a.First.AppName, a.First.Category, a.Time, ShareOf(a.Time), a.Opens))
             .ToList();
 
         var categories = rows
@@ -95,7 +115,7 @@ public sealed class UsageSummary
         var websiteTime = Sum(websiteRows.Select(r => r.Usage.TimeSpan));
         var websites = websiteRows
             .GroupBy(r => r.Usage.Domain!)
-            .Select(g => new NamedTotal(g.Key, Sum(g.Select(r => r.Usage.TimeSpan)), 0))
+            .Select(g => new NamedTotal(g.Key, Sum(g.Select(r => r.Usage.TimeSpan)), 0, g.Sum(r => r.Usage.Opens)))
             .OrderByDescending(w => w.Time)
             .Select(w => w with { Share = websiteTime > TimeSpan.Zero ? w.Time / websiteTime : 0 })
             .ToList();
@@ -143,6 +163,8 @@ public sealed class UsageSummary
             Devices = devices,
             Websites = websites,
             WebsiteTime = websiteTime,
+            Opens = apps.Sum(a => a.Opens),
+            Unlocks = unlockRows.Sum(u => u.Count),
             PeriodLabels = labels,
             Series = series
         };

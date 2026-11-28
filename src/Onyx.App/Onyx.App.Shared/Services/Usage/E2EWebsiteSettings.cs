@@ -56,7 +56,8 @@ public sealed class E2EWebsiteSettings(OnyxApiClient api, VaultService vault, E2
                 {
                     Parts = r.Payload.Parts
                         .GroupBy(p => p.Domain is { } d && matches(d) ? null : p.Domain)
-                        .Select(g => new UsagePart(g.Key, g.Sum(p => p.Seconds)))
+                        // The browser keeps its own opens; visits of the removed websites are dropped.
+                        .Select(g => new UsagePart(g.Key, g.Sum(p => p.Seconds), g.Where(p => p.Domain == g.Key).Sum(p => p.Opens)))
                         .ToList()
                 }
             })

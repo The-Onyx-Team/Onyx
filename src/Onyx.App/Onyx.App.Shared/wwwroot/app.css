@@ -156,17 +156,19 @@ code {
         flex-direction: column-reverse;
     }
 
+    /* The bottom bar stays clear of the iPhone's home indicator when Onyx is installed to the home screen
+       (viewport-fit=cover); the inset is 0 everywhere else. */
     #app-box {
-        height: calc(100dvh - 64px);
+        height: calc(100dvh - 64px - env(safe-area-inset-bottom, 0px));
     }
 
     #nav {
         flex-direction: row;
         justify-content: space-around;
         width: 100%;
-        flex: 0 0 64px;
-        height: 64px;
-        padding: 4px;
+        flex: 0 0 calc(64px + env(safe-area-inset-bottom, 0px));
+        height: calc(64px + env(safe-area-inset-bottom, 0px));
+        padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
         border-right: none;
         border-top: 1px solid var(--onyx-750);
         overflow: hidden;
@@ -507,6 +509,17 @@ code {
 
 .settings-section {
     border-radius: var(--radius) !important;
+}
+
+.integration-row {
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+
+.integration-key {
+    font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+    max-width: 640px;
 }
 
 .danger-zone {

@@ -22,8 +22,11 @@ public class AndroidUsageReader : IAppIconSource
     private const int ActivityPaused = 2;
     private const int ScreenNonInteractive = 16;
     private const int KeyguardShown = 17;
+    private const int KeyguardHidden = 18;
     private const int ActivityStopped = 23;
     private const int DeviceShutdown = 26;
+
+    private const string SystemUi = "com.android.systemui";
 
     /// <summary>Events are read from this long before the first bucket, so apps opened earlier are seen.</summary>
     private static readonly TimeSpan s_LookBehind = TimeSpan.FromHours(6);
@@ -41,20 +44,35 @@ public class AndroidUsageReader : IAppIconSource
         return mode == AppOpsManagerMode.Allowed;
     }
 
-    /// <summary>Hourly buckets from <paramref name="fromHour"/> (UTC) up to now.</summary>
-    public List<UsageEntryDto> ReadBuckets(DateTime fromHour, DateTimeOffset now) =>
-        UsageBuckets.FromIntervals(ReadIntervals(new DateTimeOffset(fromHour) - s_LookBehind, now)
-                .Select(i => (i.App, i.Start, i.End)))
+    private static readonly ForegroundApp s_Device = new(DeviceActivity.Identifier, DeviceActivity.Name);
+
+    /// <summary>Hourly buckets from <paramref name="fromHour"/> (UTC) up to now, with app opens and unlocks.</summary>
+    public List<UsageEntryDto> ReadBuckets(DateTime fromHour, DateTimeOffset now)
+    {
+        var activity = ReadActivity(new DateTimeOffset(fromHour) - s_LookBehind, now);
+        return UsageBuckets.FromIntervals(activity.Intervals.Select(i => (i.App, i.Start, i.End)),
+                activity.Opens.Concat(activity.Unlocks.Select(at => (s_Device, at))))
             .Where(e => e.BucketStart >= fromHour)
             .ToList();
+    }
 
     /// <summary>When which app was in front, from Android's event log (reminders, focus mode).</summary>
-    public List<ActivityInterval> ReadIntervals(DateTimeOffset from, DateTimeOffset now)
+    public List<ActivityInterval> ReadIntervals(DateTimeOffset from, DateTimeOffset now) => ReadActivity(from, now).Intervals;
+
+    /// <summary>Foreground intervals, when an app was opened, and when the device was unlocked.</summary>
+    /// <remarks>An app counts as opened when its first activity resumes after another app was in front, or after
+    /// the screen was off or locked; switching between activities of the same app is not an open.</remarks>
+    private (List<ActivityInterval> Intervals, List<(ForegroundApp App, DateTimeOffset At)> Opens, List<DateTimeOffset> Unlocks)
+        ReadActivity(DateTimeOffset from, DateTimeOffset now)
     {
         var manager = (UsageStatsManager)Context.GetSystemService(Context.UsageStatsService)!;
         var events = manager.QueryEvents(from.ToUnixTimeMilliseconds(), now.ToUnixTimeMilliseconds());
         if (events is null)
-            return [];
+            return ([], [], []);
+
+        var opens = new List<(ForegroundApp, DateTimeOffset)>();
+        var unlocks = new List<DateTimeOffset>();
+        string? lastInFront = null;
 
         var ignored = IgnoredPackages();
         var apps = new Dictionary<string, ForegroundApp>();
@@ -64,15 +82,18 @@ public class AndroidUsageReader : IAppIconSource
         var resumed = new Dictionary<string, HashSet<string>>();
         var since = new Dictionary<string, DateTimeOffset>();
 
+        ForegroundApp AppOf(string package)
+        {
+            if (!apps.TryGetValue(package, out var app))
+                apps[package] = app = Describe(package);
+            return app;
+        }
+
         void Close(string package, DateTimeOffset at)
         {
             resumed.Remove(package);
             if (since.Remove(package, out var start) && at > start && !ignored.Contains(package))
-            {
-                if (!apps.TryGetValue(package, out var app))
-                    apps[package] = app = Describe(package);
-                intervals.Add((app, start, at));
-            }
+                intervals.Add((AppOf(package), start, at));
         }
 
         var evt = new UsageEvents.Event();
@@ -88,8 +109,16 @@ public class AndroidUsageReader : IAppIconSource
                     if (!resumed.TryGetValue(package, out var activities))
                         resumed[package] = activities = [];
                     if (activities.Count == 0)
+                    {
                         since[package] = at;
+                        if (!ignored.Contains(package) && package != lastInFront)
+                            opens.Add((AppOf(package), at));
+                    }
                     activities.Add(evt.ClassName ?? "");
+                    // Home screen (or Onyx) and back into the same app is an open; the notification shade over
+                    // it is not.
+                    if (package != SystemUi)
+                        lastInFront = ignored.Contains(package) ? null : package;
                     break;
 
                 case ActivityPaused or ActivityStopped when package is not null:
@@ -104,6 +133,11 @@ public class AndroidUsageReader : IAppIconSource
                 case ScreenNonInteractive or KeyguardShown or DeviceShutdown:
                     foreach (var p in resumed.Keys.ToList())
                         Close(p, at);
+                    lastInFront = null;
+                    break;
+
+                case KeyguardHidden:
+                    unlocks.Add(at);
                     break;
             }
         }
@@ -112,7 +146,8 @@ public class AndroidUsageReader : IAppIconSource
         foreach (var p in resumed.Keys.ToList())
             Close(p, now);
 
-        return intervals.OrderBy(i => i.Item2).Select(i => new ActivityInterval(i.Item1, i.Item2, i.Item3)).ToList();
+        return (intervals.OrderBy(i => i.Item2).Select(i => new ActivityInterval(i.Item1, i.Item2, i.Item3)).ToList(),
+            opens, unlocks);
     }
 
     public byte[]? GetIconPng(string appIdentifier)
@@ -132,7 +167,8 @@ public class AndroidUsageReader : IAppIconSource
         }
     }
 
-    private static ForegroundApp Describe(string package)
+    /// <summary>Name and Android category of an installed app.</summary>
+    internal static ForegroundApp Describe(string package)
     {
         var pm = Context.PackageManager!;
         try
@@ -154,7 +190,7 @@ public class AndroidUsageReader : IAppIconSource
     /// <summary>This app, the launcher (home screen) and the system UI are not "usage".</summary>
     private static HashSet<string> IgnoredPackages()
     {
-        var ignored = new HashSet<string> { Context.PackageName!, "com.android.systemui" };
+        var ignored = new HashSet<string> { Context.PackageName!, SystemUi };
 
         var home = new Intent(Intent.ActionMain).AddCategory(Intent.CategoryHome);
         foreach (var info in Context.PackageManager!.QueryIntentActivities(home, PackageInfoFlags.MatchDefaultOnly))

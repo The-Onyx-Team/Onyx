@@ -3,10 +3,13 @@
 #
 #   packaging/android/build-apk.sh --server https://onyx.example.com
 #   packaging/android/build-apk.sh --server http://10.8.0.1:8080 --private-network --install
+#   packaging/android/build-apk.sh --wear --server https://onyx.example.com --install
 #
 #   --server URL        Server a fresh install starts with (can still be changed on the login page).
 #   --private-network   Also allow http:// servers and user-installed CA certificates (VPN/LAN-only servers).
 #   --install           Install on the phone connected over USB/Wi-Fi debugging (adb).
+#   --wear              Build the Wear OS app (out/onyx-wear.apk) instead of the phone app; --install then
+#                       installs on the watch (pair it with adb first, see Wear-OS.md).
 #
 # The signing key is created on first use in ~/.config/onyx-build/ (override with ONYX_KEYSTORE). Keep it: an
 # update must be signed with the same key, otherwise Android makes you uninstall the old app first.
@@ -18,13 +21,15 @@ repo="$(cd "$(dirname "$0")/../.." && pwd)"
 server=""
 private_network=false
 install=false
+wear=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --server) server="$2"; shift 2 ;;
         --private-network) private_network=true; shift ;;
         --install) install=true; shift ;;
-        -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
+        --wear) wear=true; shift ;;
+        -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
         *) echo "Unknown option: $1" >&2; exit 2 ;;
     esac
 done
@@ -72,13 +77,20 @@ args=(
 [[ -n "$server" ]] && args+=(-p:OnyxServerUrl="$server")
 $private_network && args+=(-p:OnyxPrivateNetwork=true)
 
+project="$repo/src/Onyx.App/Onyx.App/Onyx.App.csproj"
+output="$repo/out/onyx-android.apk"
+if $wear; then
+    project="$repo/src/Onyx.Collector/Onyx.Collector.Wear/Onyx.Collector.Wear.csproj"
+    output="$repo/out/onyx-wear.apk"
+fi
+
 rm -rf "$repo/out/android"
-dotnet publish "$repo/src/Onyx.App/Onyx.App/Onyx.App.csproj" "${args[@]}"
+dotnet publish "$project" "${args[@]}"
 
 apk="$(ls "$repo"/out/android/*-Signed.apk | head -n 1)"
-cp "$apk" "$repo/out/onyx-android.apk"
-echo "APK: $repo/out/onyx-android.apk"
+cp "$apk" "$output"
+echo "APK: $output"
 
 if $install; then
-    "$sdk/platform-tools/adb" install -r "$repo/out/onyx-android.apk"
+    "$sdk/platform-tools/adb" install -r "$output"
 fi

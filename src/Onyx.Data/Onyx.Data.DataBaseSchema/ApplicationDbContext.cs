@@ -22,6 +22,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<EncryptedApp> EncryptedApps { get; set; }
     public DbSet<Friendship> Friendships { get; set; }
     public DbSet<SharedStat> SharedStats { get; set; }
+    public DbSet<Integration> Integrations { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -175,6 +176,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         builder.Entity<SharedStat>()
             .HasIndex(a => new { a.RecipientId, a.PeriodStart });
+
+        builder.Entity<Integration>()
+            .HasOne(a => a.User)
+            .WithMany()
+            .HasForeignKey(a => a.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
         //Devices Table config
         builder.Entity<Device>()
             .HasOne(a => a.User)

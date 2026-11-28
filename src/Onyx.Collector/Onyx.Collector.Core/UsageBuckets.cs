@@ -31,9 +31,13 @@ public static class UsageBuckets
     /// Sums foreground intervals into entries, one per app and hour. Durations are capped at one hour, which
     /// overlapping intervals reported by a platform could otherwise exceed.
     /// </summary>
-    public static List<UsageEntryDto> FromIntervals(IEnumerable<(ForegroundApp App, DateTimeOffset Start, DateTimeOffset End)> intervals)
+    /// <param name="opens">When an app was brought to the front; counted in the hour of that instant. Opens of
+    /// <see cref="DeviceActivity.Identifier"/> are device unlocks.</param>
+    public static List<UsageEntryDto> FromIntervals(
+        IEnumerable<(ForegroundApp App, DateTimeOffset Start, DateTimeOffset End)> intervals,
+        IEnumerable<(ForegroundApp App, DateTimeOffset At)>? opens = null)
     {
-        var totals = new Dictionary<(string, DateTime), (ForegroundApp App, TimeSpan Time)>();
+        var totals = new Dictionary<(string, DateTime), (ForegroundApp App, TimeSpan Time, int Opens)>();
 
         foreach (var (app, start, end) in intervals)
         {
@@ -41,15 +45,23 @@ public static class UsageBuckets
             {
                 var key = (app.Identifier, hour);
                 totals[key] = totals.TryGetValue(key, out var existing)
-                    ? (app, existing.Time + time)
-                    : (app, time);
+                    ? (app, existing.Time + time, existing.Opens)
+                    : (app, time, 0);
             });
         }
 
+        foreach (var (app, at) in opens ?? [])
+        {
+            var key = (app.Identifier, HourOf(at));
+            totals[key] = totals.TryGetValue(key, out var existing)
+                ? existing with { Opens = existing.Opens + 1 }
+                : (app, TimeSpan.Zero, 1);
+        }
+
         return totals
-            .Where(t => t.Value.Time > TimeSpan.Zero)
+            .Where(t => t.Value.Time > TimeSpan.Zero || t.Value.Opens > 0)
             .Select(t => new UsageEntryDto(t.Key.Item1, t.Value.App.Name, t.Value.App.Category, t.Key.Item2,
-                t.Value.Time < BucketLength ? t.Value.Time : BucketLength))
+                t.Value.Time < BucketLength ? t.Value.Time : BucketLength, Opens: t.Value.Opens))
             .OrderBy(e => e.BucketStart)
             .ToList();
     }

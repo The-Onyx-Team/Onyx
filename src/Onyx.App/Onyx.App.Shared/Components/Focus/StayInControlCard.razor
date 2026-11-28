@@ -1,0 +1,167 @@
+@using Onyx.App.Shared.Services.Focus
+@using Onyx.Collector.Core.Crypto
+@* Stay in control mode: a question before an app opens. Edited everywhere, enforced by the Android app. *@
+@inject FocusService Focus
+@inject IPlatformService Platform
+@inject ISnackbar Snackbar
+
+<MudPaper Class="pa-4" Elevation="0" Outlined="true">
+    <div class="d-flex align-center gap-2 mb-2">
+        <MudIcon Icon="@Icons.Material.Outlined.Psychology" Color="@(m_Control.Enabled ? Color.Primary : Color.Default)"/>
+        <MudText Typo="Typo.h6">Stay in control</MudText>
+        <MudSpacer/>
+        <MudSwitch T="bool" @bind-Value="m_Control.Enabled" @bind-Value:after="MarkChanged" Color="Color.Primary"
+                   Label="@(m_Control.Enabled ? "On" : "Off")"/>
+    </div>
+    <MudText Typo="Typo.body2" Class="text-muted mb-3">
+        Before an app opens, your phone asks a question from a subject you choose. Answer it to continue, or go back to
+        the home screen. Apps you exempt open as usual, and so do the phone, Onyx and the home screen. Android only.
+    </MudText>
+
+    @switch (Platform.StayInControlAllowed)
+    {
+        case null:
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                It works in the Onyx Android app. Allow it there once: Android has to let Onyx see which app opens.
+            </MudAlert>
+            break;
+        case false:
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+                Android doesn't let Onyx see which app opens yet. Turn on <b>Onyx: Stay in control</b> under
+                Accessibility (Installed apps). If it is greyed out: App info → ⋮ → <b>Allow restricted settings</b>
+                (needed for apps installed outside Google Play), then try again.
+                <div class="mt-2">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="Platform.OpenStayInControlSettings">
+                        Open accessibility settings
+                    </MudButton>
+                </div>
+            </MudAlert>
+            break;
+        default:
+            <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">Allowed on this phone.</MudAlert>
+            break;
+    }
+
+    <div class="d-flex flex-wrap gap-3 mb-2">
+        <MudSelect T="ControlSubject" Label="Questions" @bind-Value="m_Control.Subject" @bind-Value:after="MarkChanged"
+                   Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 220px">
+            <MudSelectItem T="ControlSubject" Value="ControlSubject.Arithmetic">Mental arithmetic</MudSelectItem>
+            <MudSelectItem T="ControlSubject" Value="ControlSubject.Capitals">Capitals of the world</MudSelectItem>
+            <MudSelectItem T="ControlSubject" Value="ControlSubject.Own">My own questions</MudSelectItem>
+        </MudSelect>
+        <MudSelect T="int" Label="Ask again after" @bind-Value="m_Control.GraceMinutes" @bind-Value:after="MarkChanged"
+                   Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 180px">
+            @foreach (var minutes in s_Grace)
+            {
+                <MudSelectItem T="int" Value="minutes">@(minutes < 60 ? $"{minutes} min" : $"{minutes / 60} h")</MudSelectItem>
+            }
+        </MudSelect>
+    </div>
+
+    @if (m_Control.Subject == ControlSubject.Own)
+    {
+        <MudText Typo="Typo.caption" Class="text-muted d-block mb-1">
+            Vocabulary, dates, anything you want to learn. Several right answers: separate them with |, e.g. colour|color.
+            Without questions the phone asks arithmetic.
+        </MudText>
+        @for (var i = 0; i < m_Questions.Count; i++)
+        {
+            var index = i;
+            <div class="d-flex gap-2 align-center mb-1">
+                <MudTextField T="string" Label="Question" Value="m_Questions[index].Question" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" ValueChanged="v => SetQuestion(index, v, null)"/>
+                <MudTextField T="string" Label="Answer" Value="m_Questions[index].Answer" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" ValueChanged="v => SetQuestion(index, null, v)"/>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" aria-label="Remove"
+                               OnClick="() => RemoveQuestion(index)"/>
+            </div>
+        }
+        <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Add" Class="mb-3" OnClick="AddQuestion">Add question</MudButton>
+    }
+
+    <MudText Typo="Typo.subtitle2" Class="mb-1">Exempt</MudText>
+    <AppSelectionPicker Selection="m_Control.Exempt" Choices="Choices" SelectionChanged="MarkChanged"
+                        EmptyMeans="None picked: every app asks" Class="mb-2"/>
+    <DevicePicker Selected="m_Control.Devices" SelectedChanged="DevicesChanged" Choices="Choices" Class="mb-3"/>
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="!m_Changed || m_Busy" OnClick="SaveAsync">Save</MudButton>
+</MudPaper>
+
+@code {
+    private static readonly int[] s_Grace = [1, 5, 10, 15, 30, 60];
+
+    [Parameter, EditorRequired] public ControlSettings Control { get; set; } = new();
+    [Parameter, EditorRequired] public FocusChoices Choices { get; set; } = null!;
+
+    private ControlSettings m_Control = new();
+    private List<ControlQuestion> m_Questions = [];
+    private bool m_Changed;
+    private bool m_Busy;
+
+    protected override void OnParametersSet()
+    {
+        if (m_Changed)
+            return;
+        // Edited on a copy, so the page's settings only change once saved.
+        m_Control = new ControlSettings
+        {
+            Enabled = Control.Enabled, Subject = Control.Subject, GraceMinutes = Control.GraceMinutes,
+            Exempt = new AppSelection { Apps = [..Control.Exempt.Apps], Categories = [..Control.Exempt.Categories] },
+            Devices = [..Control.Devices]
+        };
+        m_Questions = [..Control.Questions];
+    }
+
+    private void MarkChanged() => m_Changed = true;
+
+    private void DevicesChanged(List<int> devices)
+    {
+        m_Control.Devices = devices;
+        m_Changed = true;
+    }
+
+    private void AddQuestion()
+    {
+        m_Questions.Add(new ControlQuestion("", ""));
+        m_Changed = true;
+    }
+
+    private void RemoveQuestion(int index)
+    {
+        m_Questions.RemoveAt(index);
+        m_Changed = true;
+    }
+
+    private void SetQuestion(int index, string? question, string? answer)
+    {
+        m_Questions[index] = m_Questions[index] with
+        {
+            Question = question ?? m_Questions[index].Question, Answer = answer ?? m_Questions[index].Answer
+        };
+        m_Changed = true;
+    }
+
+    private async Task SaveAsync()
+    {
+        m_Busy = true;
+        try
+        {
+            m_Control.Questions = m_Questions
+                .Where(q => !string.IsNullOrWhiteSpace(q.Question) && !string.IsNullOrWhiteSpace(q.Answer))
+                .Select(q => new ControlQuestion(q.Question.Trim(), q.Answer.Trim()))
+                .ToList();
+            var settings = await Focus.SaveControlAsync(m_Control);
+            await Platform.SettingsSavedAsync(settings);
+            m_Changed = false;
+            Snackbar.Add(m_Control.Enabled ? "Stay in control is on." : "Stay in control saved.", Severity.Success);
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"Could not save: {e.Message}", Severity.Error);
+        }
+        finally
+        {
+            m_Busy = false;
+        }
+    }
+}

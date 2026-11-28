@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <uses-feature android:name="android.hardware.type.watch" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Special access granted in the watch's settings (or with adb); needed to read which apps were used. -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
+
+    <!-- Names and icons of the watch's apps, and its home screen (watch face), which is not usage. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
+    </queries>
+
+    <application android:allowBackup="false" android:icon="@mipmap/appicon" android:label="Onyx">
+        <!-- Works without a phone app: it talks to the Onyx server over the watch's own connection. -->
+        <meta-data android:name="com.google.android.wearable.standalone" android:value="true" />
+    </application>
+</manifest>

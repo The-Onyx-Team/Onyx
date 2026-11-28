@@ -31,8 +31,8 @@ domains locally. The server can't: everything about websites is end-to-end encry
 
 ## Server
 
-- The domains travel inside the encrypted usage rows: one row per device, app and hour, with the time per website
-  inside it. The server stores the row without being able to read it.
+- The domains travel inside the encrypted usage rows: one row per device, app and hour, with the time and the
+  number of visits per website inside it (a visit: the browser in front shows another site than two seconds before). The server stores the row without being able to read it.
 - **An upload replaces whole app hours**: a row replaces the stored row of the same app and hour. Collectors
   therefore always send complete hours (`PendingUsageStore.Acknowledge` keeps or drops an app's hour as a whole,
   `OnyxApiClient.ChunkByHour` never splits an hour across requests).

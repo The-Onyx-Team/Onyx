@@ -112,3 +112,30 @@ public class SharedStat
 
     public DateTime UpdatedAt { get; set; }
 }
+
+/// <summary>
+/// A read-only share of a user's numbers for another program. The server keeps the hash of its access token and
+/// the snapshot the user's devices encrypted for it; it has no key for the snapshot.
+/// </summary>
+[Table("Integrations")]
+public class Integration
+{
+    /// <summary>Random id chosen by the client (base64url, 22 characters).</summary>
+    [Key, StringLength(32)] public string Id { get; set; } = "";
+
+    [StringLength(450)] public string UserId { get; set; } = "";
+    public ApplicationUser? User { get; set; }
+
+    /// <summary>SHA-256 of the access token.</summary>
+    [Required, MaxLength(32)] public byte[] TokenHash { get; set; } = [];
+
+    public DateTime CreatedAt { get; set; }
+
+    /// <summary>When the integration last downloaded its snapshot.</summary>
+    public DateTime? LastUsedAt { get; set; }
+
+    /// <summary>The encrypted snapshot; null until a device has published one.</summary>
+    public byte[]? Data { get; set; }
+
+    public DateTime? DataUpdatedAt { get; set; }
+}

@@ -14,9 +14,12 @@ public sealed record UsagePayload(
 
 /// <param name="Domain">Website, for browsers on devices that record websites; null otherwise.</param>
 /// <param name="Seconds">Foreground time.</param>
+/// <param name="Opens">How often the app (Domain null) or the website was opened; unlocks for
+/// <see cref="DeviceActivity.Identifier"/>. Left out of the JSON when zero, as in rows written before it existed.</param>
 public sealed record UsagePart(
     [property: JsonPropertyName("d")] string? Domain,
-    [property: JsonPropertyName("s")] int Seconds);
+    [property: JsonPropertyName("s")] int Seconds,
+    [property: JsonPropertyName("o"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] int Opens = 0);
 
 /// <summary>Content of an encrypted app row: what the devices report, plus the user's own icon.</summary>
 public sealed record AppInfoPayload(
@@ -161,8 +164,9 @@ public sealed class UserVault
             identifiers[tag] = group.Key.AppIdentifier;
             var payload = new UsagePayload(group.Key.AppIdentifier, group
                 .GroupBy(e => string.IsNullOrEmpty(e.Domain) ? null : e.Domain)
-                .Select(g => new UsagePart(g.Key, (int)Math.Round(g.Sum(e => e.ForegroundTime.TotalSeconds))))
-                .Where(p => p.Seconds > 0)
+                .Select(g => new UsagePart(g.Key, (int)Math.Round(g.Sum(e => e.ForegroundTime.TotalSeconds)),
+                    g.Sum(e => e.Opens)))
+                .Where(p => p.Seconds > 0 || p.Opens > 0)
                 .ToList());
             plain.Add((tag, group.Key.Hour, JsonSerializer.SerializeToUtf8Bytes(payload, s_Json),
                 E2EContext.Usage(deviceId, tag, group.Key.Hour)));

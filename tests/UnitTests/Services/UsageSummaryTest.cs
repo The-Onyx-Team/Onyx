@@ -25,6 +25,30 @@ public class UsageSummaryTest
     };
 
     [Fact]
+    public void Create_CountsAppOpensWithoutWebsiteVisits_AndUnlocksOfThePeriod()
+    {
+        var day = new DateTime(2026, 11, 9);
+        var hour = new DateTime(2026, 11, 9, 8, 0, 0, DateTimeKind.Utc);
+        var browser = Usage(1, "Firefox", hour, 20);
+        browser.Opens = 2;
+        var site = Usage(1, "Firefox", hour, 10);
+        site.Domain = "github.com";
+        site.Opens = 5;
+        var unlocks = new[]
+        {
+            new DeviceUnlocks(1, "Phone", hour, 9),
+            new DeviceUnlocks(1, "Phone", new DateTime(2026, 11, 8, 12, 0, 0, DateTimeKind.Utc), 50) // another day
+        };
+
+        var summary = UsageSummary.Create([browser, site], day, day.AddDays(1), DashboardRange.Day, s_Vienna, unlocks);
+
+        summary.Apps.ShouldHaveSingleItem().Opens.ShouldBe(2);
+        summary.Websites.ShouldHaveSingleItem().Opens.ShouldBe(5);
+        summary.Opens.ShouldBe(2);
+        summary.Unlocks.ShouldBe(9);
+    }
+
+    [Fact]
     public void Period_WeekStartsOnMonday()
     {
         var (start, end) = UsageSummary.Period(new DateTime(2026, 11, 8), DashboardRange.Week); // a Sunday

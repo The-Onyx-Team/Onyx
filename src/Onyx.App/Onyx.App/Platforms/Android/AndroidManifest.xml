@@ -18,6 +18,10 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.HOME" />
         </intent>
+        <!-- Stay in control never asks before the phone app (emergency calls). -->
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+        </intent>
         <!-- External sign-in (Google, Microsoft, GitHub) opens a browser tab (WebAuthenticator). -->
         <intent>
             <action android:name="android.support.customtabs.action.CustomTabsService" />

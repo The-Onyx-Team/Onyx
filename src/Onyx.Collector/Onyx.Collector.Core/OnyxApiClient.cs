@@ -83,6 +83,39 @@ public sealed class OnyxApiClient(HttpClient http, ICredentialStore store, ILogg
         await store.SaveAsync(new CollectorCredentials(tokens.Token, tokens.RefreshToken));
     }
 
+    /// <summary>Starts linking this device by code (<see cref="DeviceLink"/>): the user enters the code on a
+    /// signed-in device.</summary>
+    public async Task<LinkStartedDto> StartLinkAsync(byte[] publicKey, CancellationToken ct = default)
+    {
+        using var response = await http.PostAsJsonAsync("/api/link", new StartLinkDto(publicKey), s_Json, ct);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<LinkStartedDto>(s_Json, ct)
+               ?? throw new InvalidOperationException("Empty response");
+    }
+
+    /// <summary>Checks whether the user entered the code; if so, signs this device in with the tokens and the
+    /// encryption key it received.</summary>
+    /// <returns>False while the code hasn't been entered.</returns>
+    /// <exception cref="NotSignedInException">The code expired; start again.</exception>
+    public async Task<bool> CompleteLinkAsync(LinkStartedDto link, byte[] privateKey, byte[] publicKey,
+        CancellationToken ct = default)
+    {
+        using var response = await http.PostAsJsonAsync($"/api/link/{link.Code}/poll", new PollLinkDto(link.PollToken), s_Json, ct);
+        if (response.StatusCode == HttpStatusCode.Accepted)
+            return false;
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            throw new NotSignedInException("The code expired");
+        response.EnsureSuccessStatusCode();
+
+        var result = await response.Content.ReadFromJsonAsync<LinkResultDto>(s_Json, ct)
+                     ?? throw new InvalidOperationException("Empty response");
+        var shared = await Crypto.SharedKeyAsync(privateKey, publicKey, result.PublicKey);
+        var masterKey = await Crypto.DecryptAsync(shared, result.EncryptedKey, DeviceLink.Context(link.Code));
+        await store.SaveAsync(new CollectorCredentials(result.Token, result.RefreshToken, null, Convert.ToBase64String(masterKey)));
+        m_Vault = null;
+        return true;
+    }
+
     public async Task LogoutAsync()
     {
         m_Vault = null;
@@ -141,7 +174,7 @@ public sealed class OnyxApiClient(HttpClient http, ICredentialStore store, ILogg
 
             stored += result.Stored;
             foreach (var tag in result.TagsMissingInfo)
-                if (identifiers.TryGetValue(tag, out var identifier))
+                if (identifiers.TryGetValue(tag, out var identifier) && identifier != DeviceActivity.Identifier)
                     missing[tag] = identifier;
         }
 

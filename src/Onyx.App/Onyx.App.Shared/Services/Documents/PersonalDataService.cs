@@ -111,6 +111,12 @@ public sealed class PersonalDataService(
                 ("First recorded hour", Local(rows.Min(r => r.Hour))),
                 ("Last recorded hour", Local(rows.Max(r => r.Hour))),
                 ("Total screen time", Hours(parts.Sum(p => p.Part.Seconds))),
+                ("App opens", parts
+                    .Where(p => p.Part.Domain is null && p.Row.Payload.AppIdentifier != DeviceActivity.Identifier)
+                    .Sum(p => p.Part.Opens).ToString(CultureInfo.InvariantCulture)),
+                ("Device unlocks", parts
+                    .Where(p => p.Row.Payload.AppIdentifier == DeviceActivity.Identifier)
+                    .Sum(p => p.Part.Opens).ToString(CultureInfo.InvariantCulture)),
                 ("Hourly records", rows.Count.ToString(CultureInfo.InvariantCulture)));
             usageSection.Paragraph("Screen time per month:");
             usageSection.Bars(parts
@@ -153,6 +159,9 @@ public sealed class PersonalDataService(
             .Values(
                 ("Categories", string.Join(", ", settings.Categories.Select(c => c.Name))),
                 ("Excluded websites", settings.ExcludedDomains.Count == 0 ? "none" : string.Join(", ", settings.ExcludedDomains)),
+                ("Integrations", settings.Integrations.Count == 0
+                    ? "none"
+                    : string.Join(", ", settings.Integrations.Select(i => $"{i.Name} ({i.Days} days)"))),
                 ("Shared with friends", settings.Sharing.Level switch
                 {
                     Collector.Core.Crypto.ShareLevel.Nothing => "nothing",
@@ -175,13 +184,18 @@ public sealed class PersonalDataService(
                 g.Name, g.IsAdmin ? "admin" : g.Accepted ? "member" : "invited", g.Members.Count(m => m.Accepted).ToString()
             }), 2);
 
+        // Integration keys are live credentials: the export says which integrations exist, not their secrets.
+        var exportedSettings = JsonSerializer.SerializeToNode(settings, s_Json)!;
+        foreach (var integration in exportedSettings["integrations"]?.AsArray() ?? [])
+            integration?.AsObject().Remove("secret");
+
         var json = JsonSerializer.SerializeToUtf8Bytes(new
         {
             generatedAt = now,
             server = server.ServerUrl,
             account,
             profile = new { profile.DisplayName, profile.PhoneNumber, profilePicture = profile.AvatarDataUrl },
-            settings,
+            settings = exportedSettings,
             apps = groups.SelectMany(g => g.Members).Select(m => new
             {
                 m.Identifier, m.ReportedName, m.ReportedCategory, name = m.Name, category = m.Category, m.Hidden
@@ -194,7 +208,8 @@ public sealed class PersonalDataService(
                 app = r.Payload.AppIdentifier,
                 appName = groupByTag.GetValueOrDefault(r.Tag)?.Name,
                 website = p.Domain,
-                seconds = p.Seconds
+                seconds = p.Seconds,
+                opens = p.Opens
             }))
         }, s_Json);
 

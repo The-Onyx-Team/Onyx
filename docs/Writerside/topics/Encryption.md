@@ -7,11 +7,12 @@ ciphertext and keeps it in sync between devices, but has no key to read it, and 
 
 | Encrypted (only the user's devices can read it) | Plain text (the server needs it) |
 |---|---|
-| Usage: which app, for how long, which websites | Account: user name, email, password hash, two-factor key |
+| Usage: which app, for how long, how often it was opened, which websites, device unlocks | Account: user name, email, password hash, two-factor key |
 | App names, categories and icons | Devices: name, platform, last upload |
-| Settings: own app names, categories, hidden apps, excluded websites, goals, reminders, focus mode, saved reports, sharing level | At which hours data exists, and how many apps per hour |
+| Settings: own app names, categories, hidden apps, excluded websites, goals, reminders, focus mode, saved reports, sharing level | At which hours data exists, and how many apps per hour (unlocks count as one more) |
 | Profile: real name, phone number, profile picture | Who is friends with whom, group memberships |
 | Numbers shared with friends (encrypted for each friend), with the real name and a 64 px picture | |
+| Snapshots for [integrations](Integrations.md) (encrypted for each integration's key) | Hash of each integration's access token, when it published and last read |
 
 The **user name** and **email address** stay readable on purpose: they are how people sign in, receive
 confirmation and password-reset emails, and find each other as friends. Accounts from before the profile was

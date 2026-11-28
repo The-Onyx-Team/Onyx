@@ -83,13 +83,17 @@ public class AndroidReminders(OnyxApiClient client, ICredentialStore credentials
     }
 
     /// <summary>The settings from the server, or the last ones read when offline or locked.</summary>
-    private async Task<VaultSettings?> LoadSettingsAsync()
+    private async Task<VaultSettings?> LoadSettingsAsync() => await RefreshSettingsAsync() ?? ReadSavedSettings();
+
+    /// <summary>Reads the settings from the server and keeps them for offline use (also by Stay in control).</summary>
+    /// <returns>Null when offline, signed out or locked.</returns>
+    public async Task<VaultSettings?> RefreshSettingsAsync()
     {
         try
         {
             if (await client.GetVaultSettingsAsync() is { } fresh)
             {
-                await File.WriteAllTextAsync(SettingsPath, JsonSerializer.Serialize(fresh, s_Json));
+                SaveSettings(fresh);
                 return fresh;
             }
         }
@@ -98,7 +102,19 @@ public class AndroidReminders(OnyxApiClient client, ICredentialStore credentials
             logger.LogDebug(e, "Using the saved reminder settings");
         }
 
-        return Read<VaultSettings>(SettingsPath);
+        return null;
+    }
+
+    /// <summary>The settings last read or saved on this device.</summary>
+    public static VaultSettings? ReadSavedSettings() => Read<VaultSettings>(SettingsPath);
+
+    public static DateTime SavedSettingsTime => File.Exists(SettingsPath) ? File.GetLastWriteTimeUtc(SettingsPath) : default;
+
+    public static void SaveSettings(VaultSettings settings)
+    {
+        var temp = SettingsPath + ".tmp";
+        File.WriteAllText(temp, JsonSerializer.Serialize(settings, s_Json));
+        File.Move(temp, SettingsPath, overwrite: true);
     }
 
     private static T? Read<T>(string path) where T : class

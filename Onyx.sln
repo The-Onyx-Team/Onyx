@@ -62,6 +62,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Onyx.App", "Onyx.App", "{6A
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Onyx.App.Web.Client", "src\Onyx.App\Onyx.App.Web.Client\Onyx.App.Web.Client.csproj", "{ACDF88D0-FBBC-41AB-8DFC-08DCCAAC4FB9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Onyx.Collector.Wear", "src\Onyx.Collector\Onyx.Collector.Wear\Onyx.Collector.Wear.csproj", "{5CDD4AC5-08AB-42F9-B59A-5E23253961C6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -240,6 +242,18 @@ Global
 		{ACDF88D0-FBBC-41AB-8DFC-08DCCAAC4FB9}.Release|x64.Build.0 = Release|Any CPU
 		{ACDF88D0-FBBC-41AB-8DFC-08DCCAAC4FB9}.Release|x86.ActiveCfg = Release|Any CPU
 		{ACDF88D0-FBBC-41AB-8DFC-08DCCAAC4FB9}.Release|x86.Build.0 = Release|Any CPU
+		{5CDD4AC5-08AB-42F9-B59A-5E23253961C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5CDD4AC5-08AB-42F9-B59A-5E23253961C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5CDD4AC5-08AB-42F9-B59A-5E23253961C6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5CDD4AC5-08AB-42F9-B59A-5E23253961C6}.Debug|x64.Build.0 = Debug|Any CPU
+		{5CDD4AC5-08AB-42F9-B59A-5E23253961C6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5CDD4AC5-08AB-42F9-B59A-5E23253961C6}.Debug|x86.Build.0 = Debug|Any CPU
+		{5CDD4AC5-08AB-42F9-B59A-5E23253961C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5CDD4AC5-08AB-42F9-B59A-5E23253961C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5CDD4AC5-08AB-42F9-B59A-5E23253961C6}.Release|x64.ActiveCfg = Release|Any CPU
+		{5CDD4AC5-08AB-42F9-B59A-5E23253961C6}.Release|x64.Build.0 = Release|Any CPU
+		{5CDD4AC5-08AB-42F9-B59A-5E23253961C6}.Release|x86.ActiveCfg = Release|Any CPU
+		{5CDD4AC5-08AB-42F9-B59A-5E23253961C6}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -262,5 +276,6 @@ Global
 		{68C0352B-02B2-4210-A4E1-60446A814892} = {EEC869BE-4264-071E-C678-5CD8D5D529BB}
 		{6A2677A5-581C-5D51-86DD-D1B8A7914EAB} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{ACDF88D0-FBBC-41AB-8DFC-08DCCAAC4FB9} = {6A2677A5-581C-5D51-86DD-D1B8A7914EAB}
+		{5CDD4AC5-08AB-42F9-B59A-5E23253961C6} = {EEC869BE-4264-071E-C678-5CD8D5D529BB}
 	EndGlobalSection
 EndGlobal

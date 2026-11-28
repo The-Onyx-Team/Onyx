@@ -479,6 +479,41 @@ namespace Onyx.Data.SqlServer.Migrations
                     b.ToTable("Groups");
                 });
 
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Integration", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("Data")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<DateTime?>("DataUpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varbinary(32)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Integrations");
+                });
+
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.RegisteredApp", b =>
                 {
                     b.Property<int>("Id")
@@ -821,6 +856,17 @@ namespace Onyx.Data.SqlServer.Migrations
                         .IsRequired();
 
                     b.Navigation("Admin");
+                });
+
+            modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.Integration", b =>
+                {
+                    b.HasOne("Onyx.Data.DataBaseSchema.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Onyx.Data.DataBaseSchema.TableEntities.RegisteredApp", b =>

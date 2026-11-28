@@ -26,6 +26,18 @@ public class MauiPlatformService : IPlatformService
 #endif
     }
 
+#if ANDROID
+    public bool? StayInControlAllowed => Control.StayInControlService.IsEnabled();
+
+    public void OpenStayInControlSettings() => Control.StayInControlService.OpenSettings();
+
+    public Task SettingsSavedAsync(Onyx.Collector.Core.Crypto.VaultSettings settings)
+    {
+        UsageData.AndroidReminders.SaveSettings(settings);
+        return Task.CompletedTask;
+    }
+#endif
+
     public string? ReminderDelivery =>
 #if ANDROID
         "This phone checks every 15 minutes (Android doesn't allow more often), so focus mode nudges can come a little late.";

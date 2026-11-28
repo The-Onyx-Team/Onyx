@@ -38,6 +38,15 @@ public sealed class VaultSettings
     [JsonPropertyName("customReports")]
     public List<CustomReportSettings> CustomReports { get; set; } = [];
 
+    /// <summary>Integrations that read the user's numbers (see <see cref="IntegrationKey"/>). Their secrets are
+    /// kept here, so every device of the user can publish snapshots for them.</summary>
+    [JsonPropertyName("integrations")]
+    public List<IntegrationSettings> Integrations { get; set; } = [];
+
+    /// <summary>Stay in control mode: a question before an app opens (Android).</summary>
+    [JsonPropertyName("control")]
+    public ControlSettings Control { get; set; } = new();
+
     /// <summary>The category an app is counted in: the user's own, otherwise the one its device reported.</summary>
     public string? CategoryOf(string identifier, string? reportedCategory) =>
         Apps.TryGetValue(identifier, out var app) && !string.IsNullOrWhiteSpace(app.Category)
@@ -390,3 +399,92 @@ public sealed class CustomReportSettings
         };
     }
 }
+
+/// <summary>An integration: its key and what it may read.</summary>
+public sealed class IntegrationSettings
+{
+    /// <summary>Days of history an integration can get at most.</summary>
+    public const int MaxDays = 365;
+
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = "";
+
+    /// <summary>The key's secret (base64url).</summary>
+    [JsonPropertyName("secret")]
+    public string Secret { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("created")]
+    public DateTimeOffset Created { get; set; }
+
+    /// <summary>Days of history in the snapshot, today included.</summary>
+    [JsonPropertyName("days")]
+    public int Days { get; set; } = 30;
+
+    /// <summary>Time per app, with opens.</summary>
+    [JsonPropertyName("apps")]
+    public bool Apps { get; set; } = true;
+
+    [JsonPropertyName("categories")]
+    public bool Categories { get; set; } = true;
+
+    /// <summary>Time and visits per website.</summary>
+    [JsonPropertyName("websites")]
+    public bool Websites { get; set; }
+
+    /// <summary>Time per device, by name.</summary>
+    [JsonPropertyName("devices")]
+    public bool Devices { get; set; }
+
+    [JsonIgnore]
+    public IntegrationKey Key => new(Id, IntegrationKey.FromBase64Url(Secret));
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<ControlSubject>))]
+public enum ControlSubject
+{
+    /// <summary>Mental arithmetic, generated.</summary>
+    Arithmetic,
+
+    /// <summary>Capitals of countries, from a built-in list.</summary>
+    Capitals,
+
+    /// <summary>The user's own questions (vocabulary, facts to learn, ...).</summary>
+    Own
+}
+
+/// <summary>Stay in control mode: before an app opens, the device asks a question; the app opens once it is
+/// answered correctly.</summary>
+public sealed class ControlSettings
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; }
+
+    [JsonPropertyName("subject")]
+    public ControlSubject Subject { get; set; } = ControlSubject.Arithmetic;
+
+    /// <summary>For <see cref="ControlSubject.Own"/>.</summary>
+    [JsonPropertyName("questions")]
+    public List<ControlQuestion> Questions { get; set; } = [];
+
+    /// <summary>Apps and categories that open without a question.</summary>
+    [JsonPropertyName("exempt")]
+    public AppSelection Exempt { get; set; } = new();
+
+    /// <summary>After a correct answer the app opens without a question for this long.</summary>
+    [JsonPropertyName("grace")]
+    public int GraceMinutes { get; set; } = 10;
+
+    /// <summary>Devices it applies to; empty: all (that support it).</summary>
+    [JsonPropertyName("devices")]
+    public List<int> Devices { get; set; } = [];
+
+    public bool AppliesTo(int? deviceId) => Devices.Count == 0 || (deviceId is { } id && Devices.Contains(id));
+}
+
+/// <param name="Answer">The answer; alternatives separated by <c>|</c> (e.g. <c>colour|color</c>).</param>
+public sealed record ControlQuestion(
+    [property: JsonPropertyName("q")] string Question,
+    [property: JsonPropertyName("a")] string Answer);

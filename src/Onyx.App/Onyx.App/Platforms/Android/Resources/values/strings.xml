@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="stay_in_control_label">Onyx: Stay in control</string>
+    <string name="stay_in_control_description">Asks you a question before an app opens, with the subject and exceptions you chose in Onyx (Focus page). Onyx only looks at which app comes to the front; it does not read what is on the screen or what you type.</string>
+</resources>

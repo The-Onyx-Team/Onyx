@@ -159,6 +159,10 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy(AuthRateLimit, context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1) }));
+    // Integrations download their snapshot with a token; generous for polling, tight enough against guessing.
+    options.AddPolicy(Onyx.App.Web.Api.IntegrationEndpoints.RateLimit, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1) }));
 });
 
 builder.Services.AddAuthorization(options =>
@@ -255,6 +259,8 @@ app.MapAppEndpoints();
 app.MapWebsiteEndpoints();
 app.MapE2EEndpoints();
 app.MapSocialEndpoints();
+app.MapIntegrationEndpoints();
+app.MapDeviceLinkEndpoints();
 app.MapIconProxy();
 // Public: the apps show it on the privacy and register pages before anyone signs in.
 app.MapGet("/api/info", (Microsoft.Extensions.Options.IOptionsSnapshot<OnyxServerOptions> options) =>

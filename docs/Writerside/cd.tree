@@ -9,9 +9,12 @@
     <toc-element topic="General.md"/>
     <toc-element toc-title="Using Onyx">
         <toc-element topic="Android-App.md"/>
+        <toc-element topic="Wear-OS.md"/>
         <toc-element topic="Linux-Agent.md"/>
+        <toc-element topic="iOS.md"/>
         <toc-element topic="Websites.md"/>
         <toc-element topic="Focus-and-Reports.md"/>
+        <toc-element topic="Integrations.md"/>
         <toc-element topic="Encryption.md"/>
     </toc-element>
     <toc-element toc-title="Running a server">
@@ -22,7 +25,6 @@
         <toc-element topic="Releasing.md"/>
         <toc-element topic="Android-Emulation.md"/>
         <toc-element topic="Windows.md"/>
-        <toc-element topic="iOS.md"/>
         <toc-element topic="Onyx_Internal_Developer_Docs.md"/>
     </toc-element>
 </instance-profile>

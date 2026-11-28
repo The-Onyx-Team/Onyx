@@ -67,3 +67,16 @@ public record EncryptedUsageKeyDto(int DeviceId, string Tag, DateTime Hour);
 /// <summary>The encrypted profile (real name, phone number, profile picture); <c>Data</c> is null when none is
 /// saved.</summary>
 public record EncryptedProfileDto(byte[]? Data);
+
+/// <summary>Registers an integration. The server stores the SHA-256 of <paramref name="AccessToken"/>, not the token.</summary>
+public record CreateIntegrationDto(string Id, string AccessToken);
+
+/// <summary>An integration as the server knows it (its name and scope are in the encrypted settings).</summary>
+public record IntegrationDto(string Id, DateTime CreatedAt, DateTime? LastUsedAt, DateTime? DataUpdatedAt, int DataBytes);
+
+/// <summary>A snapshot encrypted for an integration.</summary>
+public record IntegrationDataDto(byte[] Data);
+
+/// <summary>What an integration downloads with its access token: the encrypted snapshot (base64) and when a
+/// device published it. <paramref name="Data"/> is null until one has.</summary>
+public record IntegrationExportDto(string Id, DateTime? UpdatedAt, byte[]? Data);

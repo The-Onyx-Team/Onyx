@@ -45,6 +45,11 @@ notifications the first time you turn on a reminder or focus mode; reminders are
 2. On the **Devices** page, tap **Grant usage access** and allow Onyx. Without it nothing can be collected.
 3. Usage is uploaded every 30 minutes when a network is available. **Upload now** on the Devices page uploads at once.
 
+Besides the time per app, the app counts how often each app is opened (brought to the front after another app,
+the home screen or a locked screen) and how often the phone is unlocked. Both come from Android's own event log,
+so nothing extra runs in the background. The dashboard shows them once a device has recorded them; Windows and
+Linux count app opens and website visits, but not unlocks.
+
 ## Updating
 
 Build the new version with the same command and install it over the old one; **don't uninstall first**. An

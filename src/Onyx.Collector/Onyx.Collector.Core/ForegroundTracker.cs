@@ -23,6 +23,8 @@ public sealed class ForegroundTrackerOptions
 /// <remarks>
 /// Each sample credits the time since the previous sample to the app that was in front at the previous sample.
 /// Gaps longer than a few poll intervals (sleep, hibernation, a stalled process) are not credited.
+/// An app counts as opened when it is in front after another app was, or after a break (idle, sleep); a website
+/// counts as opened when the browser in front shows another site than at the sample before.
 /// </remarks>
 public sealed class ForegroundTracker(
     IForegroundAppSource foregroundSource,
@@ -42,6 +44,8 @@ public sealed class ForegroundTracker(
     private DateTimeOffset m_LastSample;
     private DateTimeOffset m_LastSave;
     private bool m_LoggedFailure;
+    private string? m_LastApp;
+    private string? m_LastDomain;
 
     /// <summary>The app sampled last, for status output.</summary>
     public ForegroundApp? Current => m_Current;
@@ -81,9 +85,14 @@ public sealed class ForegroundTracker(
             activity?.Add(m_Current, m_LastSample, now);
         }
 
+        // After a gap (sleep, hibernation) whatever is in front now was opened again.
+        if (elapsed > m_Options.PollInterval * 3)
+            m_LastApp = m_LastDomain = null;
+
         m_LastSample = now;
         m_Current = ReadForegroundApp();
         m_CurrentDomain = m_Current is null ? null : websiteSource?.GetDomain(m_Current);
+        CountOpens(now);
 
         if (now - m_LastSave >= m_Options.SaveInterval)
         {
@@ -92,11 +101,39 @@ public sealed class ForegroundTracker(
         }
     }
 
+    private void CountOpens(DateTimeOffset now)
+    {
+        if (m_Current is null)
+        {
+            // Idle: the next app in front counts as opened, even the same one. A sample without a foreground
+            // window (desktop focused, a failed read) is not a break.
+            if (m_IdleNow)
+                m_LastApp = m_LastDomain = null;
+            return;
+        }
+
+        var appChanged = m_Current.Identifier != m_LastApp;
+        if (appChanged)
+        {
+            store.AddOpen(m_Current, now);
+            m_LastApp = m_Current.Identifier;
+            m_LastDomain = null;
+        }
+
+        if (m_CurrentDomain is not null && (appChanged || m_CurrentDomain != m_LastDomain))
+            store.AddOpen(m_Current, now, m_CurrentDomain);
+        if (m_CurrentDomain is not null)
+            m_LastDomain = m_CurrentDomain;
+    }
+
+    private bool m_IdleNow;
+
     private ForegroundApp? ReadForegroundApp()
     {
         try
         {
-            if (idleSource?.GetIdleTime() is { } idle && idle >= m_Options.IdleThreshold)
+            m_IdleNow = idleSource?.GetIdleTime() is { } idle && idle >= m_Options.IdleThreshold;
+            if (m_IdleNow)
                 return null;
 
             var app = foregroundSource.GetForegroundApp();
@@ -107,6 +144,7 @@ public sealed class ForegroundTracker(
         {
             // Processes exit between "which window" and "which process", access is denied for elevated
             // processes, ... A failed sample must never stop the loop. Log once per failure streak.
+            m_IdleNow = false;
             if (!m_LoggedFailure)
                 m_Logger.LogWarning(e, "Could not determine the foreground app");
             m_LoggedFailure = true;

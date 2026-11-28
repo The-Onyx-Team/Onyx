@@ -1,0 +1,238 @@
+@* Settings → Integrations: keys that let other programs read the user's numbers. *@
+@using Onyx.App.Shared.Services.Dashboard
+@using Onyx.App.Shared.Services.Integrations
+@using Onyx.Collector.Core.Crypto
+@inject IntegrationService Integrations
+@inject IServerSettings Server
+@inject ClientTimeZone ClientTimeZone
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudPaper Class="pa-4 mb-6 settings-section" Elevation="0" Outlined="true" id="integrations">
+    <MudText Typo="Typo.h6">Integrations</MudText>
+    <MudText Class="mt-1 mb-3" Typo="Typo.body2">
+        Let other programs (n8n, a script, an AI assistant, a spreadsheet) read your numbers. Each one gets its own
+        key; your devices encrypt a snapshot of what you allow for that key, about once an hour while you use the
+        dashboard. The server can't read it, but anyone with the key can, so treat it like a password.
+        <MudLink Href="https://the-onyx-team.github.io/Onyx/integrations.html" Target="_blank" Typo="Typo.body2">How to read it</MudLink>
+    </MudText>
+
+    @if (m_Error is not null)
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-3" Dense="true">@m_Error</MudAlert>
+    }
+
+    @if (m_Items is null)
+    {
+        <MudProgressLinear Indeterminate="true"/>
+    }
+    else
+    {
+        @foreach (var item in m_Items)
+        {
+            var s = item.Settings;
+            <div class="integration-row mb-3">
+                @if (m_Editing?.Id == s.Id)
+                {
+                    @ScopeForm(m_Editing)
+                    <div class="d-flex gap-2 mt-2">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Disabled="m_Busy"
+                                   OnClick="SaveEditAsync">Save</MudButton>
+                        <MudButton Size="Size.Small" OnClick="() => m_Editing = null">Cancel</MudButton>
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex align-center flex-wrap gap-2">
+                        <MudText Typo="Typo.subtitle1" Class="mr-2"><b>@s.Name</b></MudText>
+                        <MudChip T="string" Size="Size.Small">@s.Days days</MudChip>
+                        @foreach (var part in Scope(s))
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@part</MudChip>
+                        }
+                    </div>
+                    <MudText Typo="Typo.caption" Class="d-block">
+                        @if (item.Server is null)
+                        {
+                            <span>Not registered on this server; delete it and create a new one.</span>
+                        }
+                        else
+                        {
+                            <span>Snapshot @Ago(item.Server.DataUpdatedAt) · last read by the integration @Ago(item.Server.LastUsedAt)</span>
+                        }
+                    </MudText>
+                    @if (m_Shown == s.Id)
+                    {
+                        <div class="d-flex align-center gap-2 mt-2">
+                            <MudTextField T="string" Value="item.KeyText" ReadOnly="true" Variant="Variant.Outlined"
+                                          Margin="Margin.Dense" Label="Key" Class="integration-key"/>
+                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" title="Copy"
+                                           OnClick="() => CopyAsync(item.KeyText)"/>
+                        </div>
+                        <MudText Typo="Typo.caption">Server: @Server.ServerUrl</MudText>
+                    }
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined"
+                                   OnClick="() => m_Shown = m_Shown == s.Id ? null : s.Id">@(m_Shown == s.Id ? "Hide key" : "Show key")</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => StartEdit(s)">Edit</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="m_Busy || item.Server is null"
+                                   OnClick="() => PublishAsync(s)">Update now</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" Disabled="m_Busy"
+                                   OnClick="() => DeleteAsync(s)">Delete</MudButton>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (m_New is null)
+        {
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" OnClick="StartNew">Add integration</MudButton>
+        }
+        else
+        {
+            <div class="integration-row">
+                @ScopeForm(m_New)
+                <div class="d-flex gap-2 mt-2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                               Disabled="m_Busy || string.IsNullOrWhiteSpace(m_New.Name)" OnClick="CreateAsync">Create key</MudButton>
+                    <MudButton Size="Size.Small" OnClick="() => m_New = null">Cancel</MudButton>
+                </div>
+            </div>
+        }
+    }
+</MudPaper>
+
+@code {
+    private static readonly int[] s_DayOptions = [7, 30, 90, 365];
+
+    private List<IntegrationState>? m_Items;
+    private IntegrationSettings? m_New;
+    private IntegrationSettings? m_Editing;
+    private string? m_Shown;
+    private string? m_Error;
+    private bool m_Busy;
+
+    private RenderFragment ScopeForm(IntegrationSettings s) => @<div>
+        <MudTextField T="string" @bind-Value="s.Name" Label="Name (e.g. n8n)" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" Immediate="true" MaxLength="60"/>
+        <div class="d-flex flex-wrap align-center gap-4 mt-2">
+            <MudSelect T="int" @bind-Value="s.Days" Label="History" Variant="Variant.Outlined" Margin="Margin.Dense"
+                       Style="max-width: 160px">
+                @foreach (var days in s_DayOptions)
+                {
+                    <MudSelectItem T="int" Value="days">@days days</MudSelectItem>
+                }
+            </MudSelect>
+            <MudCheckBox T="bool" @bind-Value="s.Apps" Label="Apps" Color="Color.Primary"/>
+            <MudCheckBox T="bool" @bind-Value="s.Categories" Label="Categories" Color="Color.Primary"/>
+            <MudCheckBox T="bool" @bind-Value="s.Websites" Label="Websites" Color="Color.Primary"/>
+            <MudCheckBox T="bool" @bind-Value="s.Devices" Label="Device names" Color="Color.Primary"/>
+        </div>
+        <MudText Typo="Typo.caption">Screen time, app opens and unlocks per day are always included.</MudText>
+    </div>;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            m_Items = await Integrations.GetAsync();
+            m_Error = null;
+        }
+        catch (Exception e)
+        {
+            m_Items ??= [];
+            m_Error = $"Could not load integrations: {e.Message}";
+        }
+    }
+
+    private void StartNew() => m_New = new IntegrationSettings();
+
+    private void StartEdit(IntegrationSettings s) => m_Editing = new IntegrationSettings
+    {
+        Id = s.Id, Secret = s.Secret, Name = s.Name, Created = s.Created, Days = s.Days,
+        Apps = s.Apps, Categories = s.Categories, Websites = s.Websites, Devices = s.Devices
+    };
+
+    private Task CreateAsync() => RunAsync(async () =>
+    {
+        m_New!.Name = m_New.Name.Trim();
+        var created = await Integrations.CreateAsync(m_New, await ClientTimeZone.GetAsync());
+        m_New = null;
+        m_Shown = created.Id;
+        Snackbar.Add("Key created. Copy it into the program that reads your numbers.", Severity.Success);
+    });
+
+    private Task SaveEditAsync() => RunAsync(async () =>
+    {
+        m_Editing!.Name = m_Editing.Name.Trim();
+        await Integrations.UpdateAsync(m_Editing, await ClientTimeZone.GetAsync());
+        m_Editing = null;
+    });
+
+    private Task PublishAsync(IntegrationSettings s) => RunAsync(async () =>
+    {
+        await Integrations.PublishAsync([s], await ClientTimeZone.GetAsync());
+        Snackbar.Add("Snapshot updated.", Severity.Success);
+    });
+
+    private async Task DeleteAsync(IntegrationSettings s)
+    {
+        var confirmed = await DialogService.ShowMessageBox("Delete integration",
+            $"The key of \"{s.Name}\" stops working immediately.", yesText: "Delete", cancelText: "Cancel");
+        if (confirmed == true)
+            await RunAsync(() => Integrations.DeleteAsync(s.Id));
+    }
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        m_Busy = true;
+        try
+        {
+            await action();
+            await LoadAsync();
+        }
+        catch (Exception e)
+        {
+            m_Error = e.Message;
+        }
+        finally
+        {
+            m_Busy = false;
+        }
+    }
+
+    private async Task CopyAsync(string text)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+            Snackbar.Add("Copied.", Severity.Info);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Copying isn't allowed here; select the key and copy it.", Severity.Warning);
+        }
+    }
+
+    private static IEnumerable<string> Scope(IntegrationSettings s)
+    {
+        if (s.Apps) yield return "apps";
+        if (s.Categories) yield return "categories";
+        if (s.Websites) yield return "websites";
+        if (s.Devices) yield return "devices";
+    }
+
+    private static string Ago(DateTime? utc)
+    {
+        if (utc is not { } at)
+            return "never";
+        var span = DateTime.UtcNow - DateTime.SpecifyKind(at, DateTimeKind.Utc);
+        return span.TotalMinutes < 1 ? "just now"
+            : span.TotalHours < 1 ? $"{(int)span.TotalMinutes} min ago"
+            : span.TotalDays < 1 ? $"{(int)span.TotalHours} h ago"
+            : $"{(int)span.TotalDays} days ago";
+    }
+}

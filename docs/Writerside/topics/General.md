@@ -1,6 +1,6 @@
 # Onyx
 
-Onyx shows which apps you use on your phone and computers, and for how long, in one dashboard, with goals,
+Onyx shows which apps you use on your phone and computers, for how long and how often, in one dashboard, with goals,
 streaks, reminders, focus mode, weekly and custom reports, and friends to compare with. Everything it records is end-to-end encrypted: the server
 stores it but can't read it. Onyx is open source (AGPL-3.0) and runs on your own server.
 
@@ -12,8 +12,11 @@ The current version is **0.0**; the About page of every app shows its version an
 | Article | What it covers |
 |---|---|
 | [Android App](Android-App.md) | Building, installing and updating the Android app, pointing it at your server |
+| [Wear OS](Wear-OS.md) | Recording app usage on the watch, linking it with a code |
 | [Linux Agent](Linux-Agent.md) | Installing `onyx-agent` (Hyprland, Sway, GNOME, KDE, X11), unlocking it, starting it at login, updating |
 | [Focus, Reminders and Reports](Focus-and-Reports.md) | Focus mode, break reminders and daily limits, weekly and custom reports |
+| [iPhone and iPad](iOS.md) | Installing the dashboard on the home screen (no recording on iOS) |
+| [Integrations](Integrations.md) | Letting n8n, scripts or AI assistants read your numbers with a key of their own |
 | [Websites](Websites.md) | Recording which websites you use (browser extension, Windows and Linux) |
 | [End-to-End Encryption](Encryption.md) | What is encrypted, keys and passphrase, recovery key, upgrading |
 
@@ -35,5 +38,4 @@ The web dashboard needs no installation: open your server's address in a browser
 | [Releasing](Releasing.md) | Automatic versions, tags, the release workflow and Android signing |
 | [Android Emulation](Android-Emulation.md) | Running the app in an emulator or on a phone from Rider |
 | [Windows](Windows.md) | Setting up Windows to build the Windows app |
-| [iOS](iOS.md) | Status of the iOS app |
 | [Development Backlog](Onyx_Internal_Developer_Docs.md) | Bugs, issues and ideas, what is done, and the release test plan |

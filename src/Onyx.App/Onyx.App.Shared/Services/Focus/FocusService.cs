@@ -47,6 +47,11 @@ public sealed class FocusService(VaultService vault, AppCatalog catalog, IDevice
             reminder.Enabled = enabled;
     });
 
+    /// <summary>Saves Stay in control mode.</summary>
+    /// <returns>All settings after the change.</returns>
+    public Task<VaultSettings> SaveControlAsync(ControlSettings control) =>
+        vault.UpdateSettingsAsync(settings => settings.Control = control);
+
     /// <summary>Turns focus mode on for every device until <paramref name="until"/>.</summary>
     public Task StartAsync(DateTimeOffset until) => vault.UpdateSettingsAsync(settings => settings.Focus.Until = until);
 
